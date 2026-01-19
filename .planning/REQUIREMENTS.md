@@ -29,7 +29,7 @@ Requirements for Milestone 2: Multi-User Support.
 
 ### Telegram Integration
 
-- [ ] **TELEGRAM-01**: Each user can configure their own Telegram chat ID
+- [ ] **TELEGRAM-01**: Each user can link Telegram by messaging the bot (auto-detects chat ID)
 - [ ] **TELEGRAM-02**: Admin configures shared bot token in config
 
 ## v2 Requirements

@@ -43,7 +43,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [ ] **MULTI-02**: Rules are scoped to the user who created them
 - [ ] **MULTI-03**: Notification history is scoped per user
 - [ ] **MULTI-04**: Events are shared globally (single cache, multiple users' rules)
-- [ ] **MULTI-05**: Each user can configure their own Telegram chat ID
+- [ ] **MULTI-05**: Each user can link Telegram by messaging the bot (auto-detects chat ID)
 - [ ] **MULTI-06**: Admin configures shared Telegram bot token
 - [ ] **SESSION-01**: Session management with secure cookies
 - [ ] **SESSION-02**: Sessions expire after configurable timeout
