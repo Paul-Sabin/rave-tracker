@@ -2,14 +2,14 @@
 
 **Last Updated:** 2026-01-23
 **Current Milestone:** 2 - Multi-User Support
-**Current Phase:** 1 - Database Schema (In Progress)
+**Current Phase:** 1 - Database Schema (Complete)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 1 database schema complete, ready for remaining plans or Phase 2
+**Current focus:** Phase 1 complete, ready for Phase 2
 
 ## Milestone Progress
 
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 | Phase | Name | Status | Plans |
 |-------|------|--------|-------|
-| 1 | Database Schema | In Progress | 1/1 |
+| 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Pending | 0/0 |
 | 3 | Multi-Tenant Access | Pending | 0/0 |
 | 4 | User Telegram Config | Pending | 0/0 |
