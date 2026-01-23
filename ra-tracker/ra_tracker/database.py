@@ -7,7 +7,13 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
 from .config import get_config
+
+# Password hashing using Argon2id (OWASP 2025 recommended)
+_password_hasher = PasswordHasher()
 
 SCHEMA = """
 -- Tracking rules (artist, venue, or promoter)
@@ -235,6 +241,7 @@ class Database:
         """Get a database connection context manager."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")  # Enable FK enforcement
         try:
             yield conn
             conn.commit()
@@ -256,16 +263,124 @@ class Database:
                     # Column already exists, skip
                     pass
 
+    # User operations
+    def has_users(self) -> bool:
+        """Check if any users exist. Used for anonymous mode detection."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT EXISTS(SELECT 1 FROM users LIMIT 1)")
+            return bool(cursor.fetchone()[0])
+
+    def is_anonymous_mode(self) -> bool:
+        """App is in anonymous mode until first user registers."""
+        return not self.has_users()
+
+    def create_user(self, email: str, password: str, display_name: str) -> int:
+        """Create user. First user becomes admin and receives legacy data.
+
+        Returns the new user ID.
+        Raises sqlite3.IntegrityError if email already exists.
+        """
+        password_hash = _password_hasher.hash(password)
+
+        with self.get_connection() as conn:
+            # Check if this is first user (will become admin)
+            is_first = not conn.execute(
+                "SELECT EXISTS(SELECT 1 FROM users LIMIT 1)"
+            ).fetchone()[0]
+
+            cursor = conn.execute(
+                """
+                INSERT INTO users (email, password_hash, display_name, is_admin)
+                VALUES (?, ?, ?, ?)
+                """,
+                (email, password_hash, display_name, is_first)
+            )
+            user_id = cursor.lastrowid
+
+            # If first user, assign all legacy data (rules/notifications with NULL user_id)
+            if is_first:
+                conn.execute("UPDATE rules SET user_id = ? WHERE user_id IS NULL", (user_id,))
+                conn.execute("UPDATE notifications SET user_id = ? WHERE user_id IS NULL", (user_id,))
+
+            return user_id
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email address."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return User(
+                id=row["id"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                display_name=row["display_name"],
+                is_admin=bool(row["is_admin"]),
+                email_verified=bool(row["email_verified"]),
+                telegram_chat_id=row["telegram_chat_id"],
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            )
+
+    def get_user_by_id(self, user_id: int) -> Optional[User]:
+        """Get a user by ID."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return User(
+                id=row["id"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                display_name=row["display_name"],
+                is_admin=bool(row["is_admin"]),
+                email_verified=bool(row["email_verified"]),
+                telegram_chat_id=row["telegram_chat_id"],
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            )
+
+    def verify_password(self, stored_hash: str, password: str) -> tuple[bool, Optional[str]]:
+        """Verify password against stored hash.
+
+        Returns (success, new_hash_if_rehash_needed).
+        If new_hash is returned, caller should update the stored hash.
+        """
+        try:
+            _password_hasher.verify(stored_hash, password)
+            # Check if hash needs upgrade (e.g., algorithm parameters changed)
+            if _password_hasher.check_needs_rehash(stored_hash):
+                return True, _password_hasher.hash(password)
+            return True, None
+        except VerifyMismatchError:
+            return False, None
+
+    def update_user_password_hash(self, user_id: int, new_hash: str) -> None:
+        """Update a user's password hash (used for rehashing)."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (new_hash, user_id)
+            )
+
+    def update_user_telegram(self, user_id: int, telegram_chat_id: Optional[int]) -> None:
+        """Update a user's Telegram chat ID."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET telegram_chat_id = ? WHERE id = ?",
+                (telegram_chat_id, user_id)
+            )
+
     # Rule operations
-    def add_rule(self, rule: Rule) -> int:
+    def add_rule(self, rule: Rule, user_id: Optional[int] = None) -> int:
         """Add a new rule and return its ID."""
         with self.get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, user_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode),
+                (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, user_id),
             )
             return cursor.lastrowid
 
