@@ -17,6 +17,7 @@ from .auth import (
     set_session_cookie,
     clear_session_cookie,
     get_current_user,
+    require_auth,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def get_templates(request: Request):
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, user: Optional[User] = Depends(get_current_user)):
+async def dashboard(request: Request, user: User = Depends(require_auth)):
     """Main dashboard showing upcoming events."""
     templates = get_templates(request)
     db = get_db()
@@ -68,7 +69,7 @@ async def dashboard(request: Request, user: Optional[User] = Depends(get_current
 
 
 @router.get("/rules", response_class=HTMLResponse)
-async def rules_page(request: Request, user: Optional[User] = Depends(get_current_user)):
+async def rules_page(request: Request, user: User = Depends(require_auth)):
     """Rules management page."""
     templates = get_templates(request)
     db = get_db()
@@ -96,6 +97,7 @@ async def rules_page(request: Request, user: Optional[User] = Depends(get_curren
 @router.post("/rules/add")
 async def add_rule(
     request: Request,
+    user: User = Depends(require_auth),
     rule_type: str = Form(...),
     target_id: int = Form(...),
     target_name: str = Form(...),
@@ -123,7 +125,7 @@ async def add_rule(
 
 
 @router.post("/rules/{rule_id}/toggle")
-async def toggle_rule(rule_id: int):
+async def toggle_rule(rule_id: int, user: User = Depends(require_auth)):
     """Toggle a rule's active status."""
     db = get_db()
     rule = db.get_rule(rule_id)
@@ -136,7 +138,7 @@ async def toggle_rule(rule_id: int):
 
 
 @router.post("/rules/{rule_id}/notify-mode")
-async def set_notify_mode(rule_id: int, mode: str = Form(...)):
+async def set_notify_mode(rule_id: int, user: User = Depends(require_auth), mode: str = Form(...)):
     """Set a rule's notification mode."""
     db = get_db()
     rule = db.get_rule(rule_id)
@@ -154,7 +156,7 @@ async def set_notify_mode(rule_id: int, mode: str = Form(...)):
 
 
 @router.post("/rules/{rule_id}/delete")
-async def delete_rule(rule_id: int):
+async def delete_rule(rule_id: int, user: User = Depends(require_auth)):
     """Delete a rule."""
     db = get_db()
     db.delete_rule(rule_id)
@@ -162,7 +164,7 @@ async def delete_rule(rule_id: int):
 
 
 @router.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request, user: Optional[User] = Depends(get_current_user)):
+async def settings_page(request: Request, user: User = Depends(require_auth)):
     """Settings page."""
     templates = get_templates(request)
     config = get_config()
@@ -191,6 +193,7 @@ async def settings_page(request: Request, user: Optional[User] = Depends(get_cur
 @router.post("/settings/save")
 async def save_settings(
     request: Request,
+    user: User = Depends(require_auth),
     bot_token: str = Form(""),
     chat_id: str = Form(""),
     fetch_interval_hours: int = Form(6),
@@ -218,7 +221,7 @@ async def save_settings(
 
 
 @router.post("/settings/test-telegram")
-async def test_telegram():
+async def test_telegram(user: User = Depends(require_auth)):
     """Send a test Telegram message."""
     notifier = Notifier()
     try:
@@ -231,7 +234,7 @@ async def test_telegram():
 
 
 @router.post("/actions/fetch-now")
-async def trigger_fetch():
+async def trigger_fetch(user: User = Depends(require_auth)):
     """Manually trigger a fetch."""
     run_fetch_now()
     return RedirectResponse(url="/", status_code=303)
@@ -239,7 +242,7 @@ async def trigger_fetch():
 
 # Search API endpoints
 @router.get("/api/search/artists")
-async def search_artists(q: str):
+async def search_artists(q: str, user: User = Depends(require_auth)):
     """Search for artists on ra.co."""
     if len(q) < 2:
         return {"results": []}
@@ -254,7 +257,7 @@ async def search_artists(q: str):
 
 
 @router.get("/api/search/venues")
-async def search_venues(q: str):
+async def search_venues(q: str, user: User = Depends(require_auth)):
     """Search for venues on ra.co."""
     if len(q) < 2:
         return {"results": []}
@@ -269,7 +272,7 @@ async def search_venues(q: str):
 
 
 @router.get("/api/search/promoters")
-async def search_promoters(q: str):
+async def search_promoters(q: str, user: User = Depends(require_auth)):
     """Search for promoters on ra.co."""
     if len(q) < 2:
         return {"results": []}
@@ -284,7 +287,7 @@ async def search_promoters(q: str):
 
 
 @router.get("/api/search/areas")
-async def search_areas(q: str):
+async def search_areas(q: str, user: User = Depends(require_auth)):
     """Search for areas/cities on ra.co."""
     if len(q) < 2:
         return {"results": []}
@@ -299,7 +302,7 @@ async def search_areas(q: str):
 
 
 @router.get("/api/status")
-async def get_status():
+async def get_status(user: User = Depends(require_auth)):
     """Get current system status."""
     db = get_db()
     return {
@@ -309,7 +312,7 @@ async def get_status():
 
 
 @router.post("/api/rules/add")
-async def api_add_rule(request: Request):
+async def api_add_rule(request: Request, user: User = Depends(require_auth)):
     """Add a new tracking rule via JSON API."""
     db = get_db()
     data = await request.json()
@@ -340,7 +343,7 @@ async def api_add_rule(request: Request):
 
 
 @router.get("/api/rules/check")
-async def api_check_rule(rule_type: str, target_id: int):
+async def api_check_rule(rule_type: str, target_id: int, user: User = Depends(require_auth)):
     """Check if a rule already exists."""
     db = get_db()
     exists = db.rule_exists(rule_type, target_id)
