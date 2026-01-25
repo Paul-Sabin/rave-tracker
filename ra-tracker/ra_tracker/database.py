@@ -421,19 +421,22 @@ class Database:
     def get_valid_session(self, token: str) -> Optional[Session]:
         """Get session only if not expired. Uses constant-time comparison for token."""
         with self.get_connection() as conn:
-            # First get by token (still O(1) lookup via primary key)
-            cursor = conn.execute(
-                "SELECT * FROM sessions WHERE expires_at > datetime('now')"
-            )
+            # Get all sessions and use constant-time comparison for token
+            cursor = conn.execute("SELECT * FROM sessions")
+            now = datetime.now()
             for row in cursor.fetchall():
                 # Use constant-time comparison to prevent timing attacks
                 if secrets.compare_digest(row["id"], token):
-                    return Session(
-                        id=row["id"],
-                        user_id=row["user_id"],
-                        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                        expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
-                    )
+                    expires_at = datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None
+                    # Check expiry using Python datetime for consistent timezone handling
+                    if expires_at and expires_at > now:
+                        return Session(
+                            id=row["id"],
+                            user_id=row["user_id"],
+                            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                            expires_at=expires_at,
+                        )
+                    return None  # Token found but expired
             return None
 
     def delete_session(self, token: str) -> None:
@@ -456,9 +459,11 @@ class Database:
 
     def cleanup_expired_sessions(self) -> int:
         """Delete all expired sessions. Returns count of deleted sessions."""
+        now = datetime.now().isoformat()
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM sessions WHERE expires_at <= datetime('now')"
+                "DELETE FROM sessions WHERE expires_at <= ?",
+                (now,)
             )
             return cursor.rowcount
 
