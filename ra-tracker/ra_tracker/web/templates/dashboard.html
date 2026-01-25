@@ -171,6 +171,25 @@
                     </div>
                     {% endif %}
 
+                    <!-- Mobile-friendly artist tracking -->
+                    {% if event.artists %}
+                    <div class="expanded-section artist-track-section">
+                        <div class="expanded-label">Track Artists</div>
+                        <div class="artist-track-buttons">
+                            {% for artist in event.artists %}
+                            <button type="button"
+                                    class="artist-track-btn"
+                                    data-artist-id="{{ artist[0] }}"
+                                    data-artist-name="{{ artist[1] }}"
+                                    onclick="trackArtistFromButton(this)">
+                                <span class="artist-btn-name">{{ artist[1] }}</span>
+                                <span class="artist-btn-action">+ Track</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="expanded-actions">
                         {% if event.content_url %}
                         <a href="https://ra.co{{ event.content_url }}" target="_blank" class="btn btn-primary btn-sm">View on RA</a>
@@ -506,6 +525,52 @@
     border-top: 1px solid var(--border);
 }
 
+/* Mobile artist tracking */
+.artist-track-section {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+.artist-track-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.artist-track-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+}
+.artist-track-btn:hover {
+    border-color: var(--accent);
+}
+.artist-track-btn.tracked {
+    border-color: var(--success);
+    color: var(--success);
+}
+.artist-track-btn.tracked .artist-btn-action {
+    display: none;
+}
+.artist-track-btn.tracked::after {
+    content: 'Tracked';
+    color: var(--success);
+}
+.artist-btn-name {
+    font-weight: 500;
+}
+.artist-btn-action {
+    color: var(--accent);
+    font-size: 0.75rem;
+}
+
 /* Context Menu */
 .context-menu {
     display: none;
@@ -660,6 +725,45 @@ function showToast(message, isError = false) {
     setTimeout(() => toast.remove(), 3000);
 }
 
+// Mobile-friendly track artist from button
+async function trackArtistFromButton(btn) {
+    if (btn.classList.contains('tracked')) return;
+
+    const artistId = btn.dataset.artistId;
+    const artistName = btn.dataset.artistName;
+
+    btn.disabled = true;
+    btn.querySelector('.artist-btn-action').textContent = '...';
+
+    try {
+        const res = await fetch('/api/rules/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rule_type: 'artist',
+                target_id: artistId,
+                target_name: artistName
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            btn.classList.add('tracked');
+            showToast(`Now tracking ${artistName}`);
+        } else if (data.error && data.error.includes('Already tracking')) {
+            btn.classList.add('tracked');
+        } else {
+            btn.querySelector('.artist-btn-action').textContent = 'Error';
+            showToast(data.error || 'Failed to add rule', true);
+        }
+    } catch (err) {
+        btn.querySelector('.artist-btn-action').textContent = '+ Track';
+        showToast('Failed to add rule', true);
+    }
+
+    btn.disabled = false;
+}
+
 // Event listeners for context menu
 document.addEventListener('click', hideContextMenu);
 document.addEventListener('contextmenu', (e) => {
@@ -706,6 +810,19 @@ function toggleExpand(eventItem) {
             }
             ticketsDiv.dataset.rendered = 'true';
         }
+
+        // Check which artists are already tracked
+        const trackBtns = eventItem.querySelectorAll('.artist-track-btn');
+        trackBtns.forEach(async (btn) => {
+            const artistId = btn.dataset.artistId;
+            try {
+                const res = await fetch(`/api/rules/check?rule_type=artist&target_id=${artistId}`);
+                const data = await res.json();
+                if (data.exists) {
+                    btn.classList.add('tracked');
+                }
+            } catch {}
+        });
     }
 }
 
