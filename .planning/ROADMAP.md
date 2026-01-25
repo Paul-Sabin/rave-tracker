@@ -10,9 +10,9 @@
 | # | Phase | Goal | Requirements |
 |---|-------|------|--------------|
 | 1 | Database Schema | Add users table and foreign key relationships | MULTI-01 |
-| 2 | Authentication | User registration, login, logout with secure sessions | AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, SESSION-01, SESSION-02 |
+| 2 | Authentication | User registration, login, logout with secure sessions + mobile-first UI + privacy policy | AUTH-01 to AUTH-05, SESSION-01, SESSION-02, UI-01, PRIVACY-01 to PRIVACY-04 |
 | 3 | Multi-Tenant Access | Scope rules and notifications to users, protect routes | MULTI-02, MULTI-03, MULTI-04 |
-| 4 | User Telegram Config | Per-user Telegram chat ID configuration | TELEGRAM-01, TELEGRAM-02 |
+| 4 | User Notifications | Per-user notification config (Telegram and/or Email) | TELEGRAM-01, TELEGRAM-02, EMAIL-01, EMAIL-02, NOTIFY-01 to NOTIFY-03 |
 
 ---
 
@@ -43,24 +43,52 @@ Plans:
 
 ## Phase 2: Authentication
 
-**Goal:** Implement user registration, login, logout with secure password hashing and session management
+**Goal:** Implement user registration, login, logout with secure password hashing and session management. Migrate UI to Tailwind CSS with mobile-first responsive design.
+
+**Status:** Planned
 
 **Requirements:**
 - AUTH-01: User can register with email and password
 - AUTH-02: User can log in with email and password
 - AUTH-03: User can log out
 - AUTH-04: User session persists across browser refresh
-- AUTH-05: Passwords are securely hashed (bcrypt)
+- AUTH-05: Passwords are securely hashed (Argon2id via argon2-cffi)
 - SESSION-01: Secure session cookies with httponly flag
 - SESSION-02: Sessions expire after configurable timeout
+- UI-01: All authentication flows and dashboard features fully functional on mobile (min-width 375px)
+- PRIVACY-01: Privacy Policy page explains what data is collected
+- PRIVACY-02: Privacy Policy explains how data is stored/protected
+- PRIVACY-03: Registration requires explicit consent checkbox (not pre-ticked)
+- PRIVACY-04: Privacy Policy link visible on registration page
+
+**Plans:** 5 plans in 3 waves
+
+Plans:
+- [ ] 02-01-PLAN.md - Session infrastructure (database table, CRUD, config, auth module) [Wave 1]
+- [ ] 02-02-PLAN.md - Authentication routes (register, login, logout, privacy) and templates [Wave 2]
+- [ ] 02-03-PLAN.md - Tailwind CSS migration and mobile navigation in base.html [Wave 2]
+- [ ] 02-04-PLAN.md - Route protection and mobile artist tracking UI [Wave 3]
+- [ ] 02-05-PLAN.md - Mobile responsiveness for existing templates and verification [Wave 3]
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 02-01 | Session infrastructure (no dependencies) |
+| 2 | 02-02, 02-03 | Auth routes/templates + Tailwind base.html (parallel) |
+| 3 | 02-04, 02-05 | Route protection + mobile polish (parallel) |
 
 **Success Criteria:**
-1. Registration page accepts email/password and creates user
-2. Login page authenticates user and creates session
-3. Logout clears session
-4. Session cookie is httponly and secure
-5. Passwords stored as bcrypt hashes, never plaintext
-6. Session timeout configurable in config.yaml
+1. Registration page accepts email/password/display_name and creates user
+2. Registration includes unticked consent checkbox with Privacy Policy link
+3. Login page authenticates user and creates session
+4. Logout clears session
+5. Session cookie is httponly and secure
+6. Passwords stored as Argon2id hashes, never plaintext
+7. Session timeout configurable in config.yaml
+8. Privacy Policy page accessible at /privacy
+9. All pages use Tailwind CSS with responsive mobile-first design
+10. Navigation works on mobile (hamburger menu or similar pattern)
+11. Forms are touch-friendly with appropriate input sizes
 
 **Dependencies:** Phase 1 (users table must exist)
 
@@ -87,31 +115,43 @@ Plans:
 
 ---
 
-## Phase 4: User Telegram Config
+## Phase 4: User Notifications
 
-**Goal:** Allow each user to link their Telegram account via bot interaction for notifications
+**Goal:** Allow each user to configure notification channels (Telegram and/or Email) with independent on/off toggles
 
 **Requirements:**
 - TELEGRAM-01: Each user can link Telegram by messaging the bot
 - TELEGRAM-02: Admin configures shared bot token in config
+- EMAIL-01: Email notifications sent to login email
+- EMAIL-02: Admin configures SMTP settings in config
+- NOTIFY-01: User can toggle Telegram notifications on/off
+- NOTIFY-02: User can toggle Email notifications on/off
+- NOTIFY-03: At least one channel must be configured before notifications are sent
+- NOTIFY-05: Email includes one-click unsubscribe link (no login required)
+- NOTIFY-06: Telegram bot responds to /stop command to disable notifications
 
 **Success Criteria:**
-1. Settings page shows "Link Telegram" button with instructions
-2. User sends /start (or any message) to the configured bot
-3. Bot generates a unique linking code per user
-4. App detects user's chat ID when they message the bot with code
-5. Notifications sent to user's linked chat ID
-6. Bot token remains in config.yaml (admin-managed)
-7. Users can unlink their Telegram
-8. Users without linked Telegram don't receive notifications
+1. Settings page shows notification preferences section
+2. Telegram: "Link Telegram" button with bot interaction flow (proves ownership)
+3. Email: Uses login email (no separate notification email in v1)
+4. Independent toggle switches for each channel (Telegram on/off, Email on/off)
+5. Visual indicator showing which channels are configured vs enabled
+6. Bot token and SMTP settings remain in config.yaml (admin-managed)
+7. Users can unlink Telegram; email toggle simply enables/disables
+8. Notifications sent only to enabled channels
+9. Users with no configured channels see prompt to set up notifications
+10. Every email notification includes one-click unsubscribe link with signed token
+11. Clicking unsubscribe link disables email notifications without login
+12. Sending /stop to Telegram bot disables Telegram notifications
+13. Bot confirms "/stop" with message and instructions to re-enable via settings
 
-**Linking Flow:**
+**Telegram Linking Flow:**
 1. User clicks "Link Telegram" in settings
 2. App generates unique code, shows "Send this to @BotName: /link ABC123"
 3. User messages bot with code
 4. Bot webhook/polling receives message, extracts chat_id, validates code
 5. App associates chat_id with user
-6. Settings page shows "Linked" status
+6. Settings page shows "Linked" status with toggle to enable/disable
 
 **Dependencies:** Phase 3 (user must be identifiable)
 
@@ -119,11 +159,14 @@ Plans:
 
 ## Milestone Completion Criteria
 
-- [ ] New users can register and log in
+- [ ] New users can register and log in with explicit privacy consent
+- [ ] Privacy Policy clearly explains data collection and storage
 - [ ] Each user has isolated rules and notification history
 - [ ] Events shared across all users
-- [ ] Each user can configure their own Telegram notifications
+- [ ] Each user can configure Telegram and/or Email notifications independently
+- [ ] All flows work on mobile devices (375px+)
 - [ ] Existing single-user functionality preserved during migration
 
 ---
 *Roadmap created: 2026-01-19*
+*Last updated: 2026-01-25 - Added Phase 2 plans (5 plans in 3 waves)*
