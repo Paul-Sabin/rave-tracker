@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | Phase | Name | Status | Plans |
 |-------|------|--------|-------|
 | 1 | Database Schema | Complete | 1/1 |
-| 2 | Authentication | Complete | 3/3 |
+| 2 | Authentication | Complete | 4/4 |
 | 3 | Multi-Tenant Access | Pending | 0/0 |
 | 4 | User Telegram Config | Pending | 0/0 |
 
-Progress: [====......] 40%
+Progress: [=====.....] 50%
 
 ## Current Context
 
@@ -39,6 +39,7 @@ Progress: [====......] 40%
 - Phase 2 Plan 01: Sessions table, session CRUD, SessionConfig, auth.py module
 - Phase 2 Plan 02: Login/logout routes, register with consent, privacy page
 - Phase 2 Plan 03: Tailwind CSS v4 mobile navigation, user context in templates
+- Phase 2 Plan 04: Route protection (require_auth), mobile artist tracking buttons
 
 **What's next:**
 - Phase 3: Multi-Tenant Access (rules/events scoped to user)
@@ -59,6 +60,8 @@ Progress: [====......] 40%
 | 02-03 | Tailwind v4 via CDN | No build step, simpler development |
 | 02-03 | Preserve existing component classes | Backward compatibility with child templates |
 | 02-03 | md breakpoint (768px) | Mobile/desktop transition point |
+| 02-04 | require_auth for protected routes | Consistent auth pattern via FastAPI Depends |
+| 02-04 | 44px touch targets | WCAG AAA accessibility for mobile |
 
 ## Session History
 
@@ -69,11 +72,12 @@ Progress: [====......] 40%
 | 2026-01-25 | Executed 02-01-PLAN.md | Sessions table, session CRUD, SessionConfig, auth.py complete |
 | 2026-01-25 | Executed 02-02-PLAN.md | Login/logout routes, register, privacy page |
 | 2026-01-25 | Executed 02-03-PLAN.md | Tailwind CSS mobile navigation, user context in routes |
+| 2026-01-25 | Executed 02-04-PLAN.md | Route protection, mobile artist tracking buttons |
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 02-03-PLAN.md (Phase 2 Authentication complete)
+Stopped at: Completed 02-04-PLAN.md (Phase 2 Authentication fully complete)
 Resume file: None
 
 ---
