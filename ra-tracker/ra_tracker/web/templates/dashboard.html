@@ -1,0 +1,804 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - RA Tracker{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.upcoming_events }}</div>
+        <div class="stat-label">Upcoming Events</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.active_rules }}</div>
+        <div class="stat-label">Active Rules</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.notifications_sent }}</div>
+        <div class="stat-label">Notifications Sent</div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Actions</span>
+        <span class="text-muted">
+            {% if scheduler_status.last_fetch %}
+                Last fetch: {{ scheduler_status.last_fetch[:16] }}
+            {% else %}
+                No fetch yet
+            {% endif %}
+        </span>
+    </div>
+    <form action="/actions/fetch-now" method="post" style="display: inline;">
+        <button type="submit" class="btn btn-primary">Fetch Events Now</button>
+    </form>
+    {% if scheduler_status.next_fetch %}
+    <p class="mt-2 text-muted">Next scheduled: {{ scheduler_status.next_fetch[:16] }}</p>
+    {% endif %}
+</div>
+
+<!-- Upcoming Events -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Upcoming Events</span>
+        <div class="header-actions">
+            <div class="filter-toggles">
+                <div class="filter-group location-filter">
+                    <button class="filter-btn filter-location active" data-filter="all">All Areas</button>
+                    {% if has_local_area %}
+                    <button class="filter-btn filter-location" data-filter="local" data-area-id="{{ local_area_id }}">{{ local_area_name }} only</button>
+                    {% endif %}
+                </div>
+                <div class="filter-group type-filter">
+                    <button class="filter-btn filter-artist active" data-filter="artist">Artists</button>
+                    <button class="filter-btn filter-venue active" data-filter="venue">Venues</button>
+                    <button class="filter-btn filter-promoter active" data-filter="promoter">Promoters</button>
+                </div>
+            </div>
+            <span class="text-muted event-count">{{ events|length }} events</span>
+        </div>
+    </div>
+
+    <!-- Context Menu for Artists -->
+<div id="artist-context-menu" class="context-menu">
+    <div class="context-menu-item" id="track-artist-btn">
+        <span class="context-menu-icon">+</span>
+        <span class="context-menu-text">Track this artist</span>
+    </div>
+    <div class="context-menu-item" id="view-ra-btn">
+        <span class="context-menu-icon">&#8599;</span>
+        <span class="context-menu-text">View on RA</span>
+    </div>
+</div>
+
+{% if events %}
+        {% for date_key, date_events in events_by_date.items() %}
+        <div class="date-group">
+            <h3 class="date-header">{{ date_key }}<span class="date-count"></span></h3>
+            {% for event in date_events %}
+            <div class="event-item" data-area-id="{{ event.area_id or '' }}" data-match-types="{% for rule in event.matched_rules %}{{ rule.rule_type }} {% endfor %}">
+                <div class="event-main" onclick="toggleExpand(this.parentElement)">
+                    <div class="event-header">
+                        <div class="event-title">{{ event.title }}</div>
+                        <div class="event-badges">
+                            {% if event.is_festival %}
+                            <span class="event-badge badge-festival">Festival</span>
+                            {% endif %}
+                            {% if event.is_multi_day %}
+                            <span class="event-badge badge-multiday">Multi-day</span>
+                            {% endif %}
+                            {% if event.is_ticketed %}
+                            <span class="event-badge badge-ticketed">Ticketed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="event-meta">
+                        {% if event.start_time %}
+                            <span class="event-time">{{ event.start_time.strftime('%H:%M') }}{% if event.end_time %} - {% if event.end_time.date() != event.start_time.date() %}{{ event.end_time.strftime('%a ') }}{% endif %}{{ event.end_time.strftime('%H:%M') }}{% endif %}</span>
+                        {% endif %}
+                        {% if event.venue_name %}
+                            <span class="event-venue">@ {{ event.venue_name }}</span>
+                        {% endif %}
+                        {% if event.area_name %}
+                            <span class="event-area">{{ event.area_name }}</span>
+                        {% endif %}
+                        {% if event.cost %}
+                            <span class="event-cost">{{ event.cost }}</span>
+                        {% endif %}
+                        {% if event.attending or event.interested_count %}
+                            <span class="event-peeps">{{ event.attending or 0 }}/{{ event.interested_count or 0 }} peeps</span>
+                        {% endif %}
+                    </div>
+                    {% if event.artists %}
+                    <div class="event-artists">
+                        {% for artist in event.artists[:4] %}
+                            <a href="https://ra.co{{ artist[2] }}" target="_blank" class="artist-link" data-artist-id="{{ artist[0] }}" data-artist-name="{{ artist[1] }}" onclick="event.stopPropagation()" oncontextmenu="showArtistMenu(event, {{ artist[0] }}, '{{ artist[1]|e }}')">{{ artist[1] }}</a>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                        {% if event.artists|length > 4 %}<span class="more-artists">+{{ event.artists|length - 4 }} more</span>{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if event.matched_rules %}
+                    <div class="event-matches">
+                        {% for rule in event.matched_rules %}
+                        <span class="match-badge match-{{ rule.rule_type }}">
+                            {{ rule.target_name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Expandable details section -->
+                <div class="event-expanded">
+                    {% if event.artists|length > 4 %}
+                    <div class="expanded-section">
+                        <div class="expanded-label">Full Lineup ({{ event.artists|length }} artists)</div>
+                        <div class="expanded-artists">
+                            {% for artist in event.artists %}
+                                <a href="https://ra.co{{ artist[2] }}" target="_blank" class="artist-link" data-artist-id="{{ artist[0] }}" data-artist-name="{{ artist[1] }}" oncontextmenu="showArtistMenu(event, {{ artist[0] }}, '{{ artist[1]|e }}')">{{ artist[1] }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if event.pick_blurb %}
+                    <div class="expanded-section">
+                        <div class="expanded-label">RA Pick</div>
+                        <div class="expanded-pick">{{ event.pick_blurb }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if event.set_times_status and event.set_times_status != 'NONE' %}
+                    <div class="expanded-section">
+                        <div class="expanded-label">Set Times</div>
+                        <div class="expanded-settimes">
+                            Status: {{ event.set_times_status }}
+                            {% if event.set_times_lineup %}
+                            <pre class="settimes-data">{{ event.set_times_lineup }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if event.tickets_json %}
+                    <div class="expanded-section">
+                        <div class="expanded-label">Tickets</div>
+                        <div class="expanded-tickets" data-tickets="{{ event.tickets_json }}"></div>
+                    </div>
+                    {% endif %}
+
+                    <div class="expanded-actions">
+                        {% if event.content_url %}
+                        <a href="https://ra.co{{ event.content_url }}" target="_blank" class="btn btn-primary btn-sm">View on RA</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">🎵</div>
+            <p>No upcoming events.</p>
+            <p class="text-muted mt-1">Add rules to start tracking artists, venues, or promoters.</p>
+            <a href="/rules" class="btn btn-primary mt-2">Add Rules</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.filter-toggles {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.filter-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+@media (max-width: 640px) {
+    .header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-toggles {
+        flex-direction: column;
+        width: 100%;
+    }
+    .filter-group {
+        flex-wrap: wrap;
+    }
+}
+.filter-group.location-filter {
+    background: var(--bg-dark);
+    border-radius: 4px;
+    padding: 2px;
+}
+.filter-group.location-filter .filter-btn {
+    border: none;
+}
+.filter-group.location-filter .filter-btn.active {
+    background: #17a2b8;
+    border-color: #17a2b8;
+}
+.filter-btn {
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;  /* WCAG touch target */
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-dark);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+}
+.filter-btn:hover {
+    background: var(--border);
+}
+.filter-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+.filter-btn.filter-artist.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.filter-btn.filter-venue.active {
+    background: var(--success);
+    border-color: var(--success);
+}
+.filter-btn.filter-promoter.active {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+.date-header {
+    padding: 0.75rem;
+    background: var(--bg-dark);
+    margin: 0;
+    font-size: 1rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+}
+.date-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+.date-group.hidden {
+    display: none;
+}
+.event-item {
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.15s;
+}
+.event-item:last-child {
+    border-bottom: none;
+}
+.event-item.hidden {
+    display: none;
+}
+.event-main {
+    padding: 1rem;
+    cursor: pointer;
+}
+.event-main:hover {
+    background: rgba(233, 69, 96, 0.05);
+}
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.event-title {
+    font-weight: 600;
+    flex: 1;
+}
+.event-badges {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+.event-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+.badge-festival {
+    background: #9b59b6;
+    color: white;
+}
+.badge-multiday {
+    background: #3498db;
+    color: white;
+}
+.badge-ticketed {
+    background: var(--success);
+    color: var(--bg-dark);
+}
+.event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    align-items: center;
+}
+
+@media (max-width: 480px) {
+    .event-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    .event-header {
+        flex-direction: column;
+    }
+    .event-badges {
+        margin-top: 0.5rem;
+    }
+}
+.event-time {
+    color: var(--accent);
+    font-weight: 500;
+}
+.event-venue {
+    color: var(--text);
+}
+.event-area {
+    color: #17a2b8;
+}
+.event-cost {
+    color: var(--success);
+    font-weight: 500;
+}
+.event-peeps {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.event-artists {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+.artist-link {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.artist-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+.more-artists {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.event-matches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.match-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+}
+.match-badge.match-artist {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.match-badge.match-venue {
+    border-color: var(--success);
+    color: var(--success);
+}
+.match-badge.match-promoter {
+    border-color: #ffc107;
+    color: #ffc107;
+}
+
+/* Expanded section */
+.event-expanded {
+    display: none;
+    padding: 0 1rem 1rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--border);
+}
+.event-item.expanded .event-expanded {
+    display: block;
+}
+.event-item.expanded .event-main {
+    background: rgba(233, 69, 96, 0.05);
+}
+.expanded-section {
+    margin-top: 1rem;
+}
+.expanded-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+.expanded-artists {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.expanded-pick {
+    font-size: 0.9rem;
+    color: var(--text);
+    font-style: italic;
+    padding: 0.75rem;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent);
+}
+.expanded-settimes {
+    font-size: 0.85rem;
+}
+.settimes-data {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+.expanded-tickets {
+    font-size: 0.85rem;
+}
+.ticket-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+}
+.ticket-name {
+    font-weight: 500;
+}
+.ticket-price {
+    color: var(--success);
+}
+.ticket-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.expanded-actions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* Context Menu */
+.context-menu {
+    display: none;
+    position: fixed;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    min-width: 180px;
+    padding: 4px 0;
+}
+.context-menu.visible {
+    display: block;
+}
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    min-height: 44px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: background 0.1s;
+}
+.context-menu-item:hover {
+    background: var(--accent);
+}
+.context-menu-item.disabled {
+    color: var(--text-muted);
+    cursor: default;
+}
+.context-menu-item.disabled:hover {
+    background: transparent;
+}
+.context-menu-item.success {
+    color: var(--success);
+}
+.context-menu-icon {
+    width: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--success);
+    color: var(--success);
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    animation: slideIn 0.3s ease;
+}
+.toast.error {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+<script>
+// Context menu state
+let currentArtist = { id: null, name: null, url: null };
+const contextMenu = document.getElementById('artist-context-menu');
+const trackBtn = document.getElementById('track-artist-btn');
+const viewRaBtn = document.getElementById('view-ra-btn');
+
+function showArtistMenu(e, artistId, artistName) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    currentArtist = {
+        id: artistId,
+        name: artistName,
+        url: e.target.href
+    };
+
+    // Position the menu
+    contextMenu.style.left = e.clientX + 'px';
+    contextMenu.style.top = e.clientY + 'px';
+
+    // Check if already tracked and update menu
+    checkIfTracked(artistId).then(isTracked => {
+        if (isTracked) {
+            trackBtn.classList.add('disabled');
+            trackBtn.querySelector('.context-menu-text').textContent = 'Already tracking';
+            trackBtn.querySelector('.context-menu-icon').textContent = '✓';
+        } else {
+            trackBtn.classList.remove('disabled');
+            trackBtn.querySelector('.context-menu-text').textContent = 'Track this artist';
+            trackBtn.querySelector('.context-menu-icon').textContent = '+';
+        }
+    });
+
+    contextMenu.classList.add('visible');
+}
+
+function hideContextMenu() {
+    contextMenu.classList.remove('visible');
+}
+
+async function checkIfTracked(artistId) {
+    try {
+        const res = await fetch(`/api/rules/check?rule_type=artist&target_id=${artistId}`);
+        const data = await res.json();
+        return data.exists;
+    } catch {
+        return false;
+    }
+}
+
+async function trackArtist() {
+    if (trackBtn.classList.contains('disabled')) return;
+
+    try {
+        const res = await fetch('/api/rules/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rule_type: 'artist',
+                target_id: currentArtist.id,
+                target_name: currentArtist.name
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(`Now tracking ${currentArtist.name}`);
+            trackBtn.classList.add('disabled', 'success');
+            trackBtn.querySelector('.context-menu-text').textContent = 'Added!';
+            trackBtn.querySelector('.context-menu-icon').textContent = '✓';
+            setTimeout(hideContextMenu, 800);
+        } else {
+            showToast(data.error || 'Failed to add rule', true);
+        }
+    } catch (err) {
+        showToast('Failed to add rule', true);
+    }
+}
+
+function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (isError ? ' error' : '');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Event listeners for context menu
+document.addEventListener('click', hideContextMenu);
+document.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest('.artist-link')) {
+        hideContextMenu();
+    }
+});
+trackBtn.addEventListener('click', trackArtist);
+viewRaBtn.addEventListener('click', () => {
+    if (currentArtist.url) {
+        window.open(currentArtist.url, '_blank');
+    }
+    hideContextMenu();
+});
+
+function toggleExpand(eventItem) {
+    eventItem.classList.toggle('expanded');
+
+    // Parse and render tickets if expanded and not already rendered
+    if (eventItem.classList.contains('expanded')) {
+        const ticketsDiv = eventItem.querySelector('.expanded-tickets');
+        if (ticketsDiv && ticketsDiv.dataset.tickets && !ticketsDiv.dataset.rendered) {
+            try {
+                const tickets = JSON.parse(ticketsDiv.dataset.tickets);
+                if (tickets && tickets.length > 0) {
+                    let html = '';
+                    tickets.forEach(t => {
+                        const price = t.priceRetail ?
+                            (t.currency ? t.currency.symbol : '') + t.priceRetail :
+                            'Price TBA';
+                        const status = t.status || '';
+                        html += `<div class="ticket-item">
+                            <span class="ticket-name">${t.title || 'Ticket'}</span>
+                            <span class="ticket-price">${price}</span>
+                            ${status ? `<span class="ticket-status">${status}</span>` : ''}
+                        </div>`;
+                    });
+                    ticketsDiv.innerHTML = html;
+                } else {
+                    ticketsDiv.innerHTML = '<span class="text-muted">No ticket info available</span>';
+                }
+            } catch (e) {
+                ticketsDiv.innerHTML = '<span class="text-muted">Unable to parse ticket data</span>';
+            }
+            ticketsDiv.dataset.rendered = 'true';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const locationBtns = document.querySelectorAll('.filter-location');
+    const typeBtns = document.querySelectorAll('.filter-artist, .filter-venue, .filter-promoter');
+    const eventItems = document.querySelectorAll('.event-item');
+    const dateGroups = document.querySelectorAll('.date-group');
+    const eventCount = document.querySelector('.event-count');
+
+    // Get local area ID from the local filter button
+    const localBtn = document.querySelector('[data-filter="local"]');
+    const localAreaId = localBtn ? localBtn.dataset.areaId : null;
+
+    function getActiveFilters() {
+        const filters = { types: [], locationFilter: 'all' };
+
+        // Check location filter (mutually exclusive)
+        locationBtns.forEach(btn => {
+            if (btn.classList.contains('active')) {
+                filters.locationFilter = btn.dataset.filter;
+            }
+        });
+
+        // Check type filters (can have multiple)
+        typeBtns.forEach(btn => {
+            if (btn.classList.contains('active')) {
+                filters.types.push(btn.dataset.filter);
+            }
+        });
+
+        return filters;
+    }
+
+    function applyFilters() {
+        const filters = getActiveFilters();
+        let visibleCount = 0;
+
+        eventItems.forEach(item => {
+            const matchTypes = item.dataset.matchTypes.trim().split(/\s+/).filter(t => t);
+            const areaId = item.dataset.areaId;
+
+            // Check if event matches any active type filter
+            const matchesType = filters.types.length === 0 ||
+                matchTypes.some(type => filters.types.includes(type));
+
+            // Check location filter
+            const matchesLocation = filters.locationFilter === 'all' ||
+                (filters.locationFilter === 'local' && localAreaId && areaId === localAreaId);
+
+            if (matchesType && matchesLocation) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        // Update date group visibility and counts
+        dateGroups.forEach(group => {
+            const visibleInGroup = group.querySelectorAll('.event-item:not(.hidden)').length;
+            const countSpan = group.querySelector('.date-count');
+            if (countSpan) {
+                countSpan.textContent = visibleInGroup > 0 ? `(${visibleInGroup})` : '';
+            }
+            group.classList.toggle('hidden', visibleInGroup === 0);
+        });
+
+        // Update total count
+        if (eventCount) {
+            eventCount.textContent = `${visibleCount} events`;
+        }
+    }
+
+    // Location buttons - mutually exclusive (radio style)
+    locationBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            locationBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilters();
+        });
+    });
+
+    // Type buttons - toggleable
+    typeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('active');
+            applyFilters();
+        });
+    });
+
+    // Initial filter application
+    applyFilters();
+});
+</script>
+{% endblock %}
