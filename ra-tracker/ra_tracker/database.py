@@ -1,5 +1,6 @@
 """Database models and connection management for RA Tracker - Simplified."""
 
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -97,11 +98,22 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Sessions (user authentication tokens)
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 """
 
 # Migration to add new columns to existing database
@@ -170,6 +182,15 @@ class User:
     email_verified: bool = False  # For future verification feature
     telegram_chat_id: Optional[int] = None  # For Telegram linking (Phase 4)
     created_at: Optional[datetime] = None
+
+
+@dataclass
+class Session:
+    """User session for authentication."""
+    id: str  # Secure token
+    user_id: int
+    created_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
 
 
 @dataclass
@@ -370,6 +391,76 @@ class Database:
                 "UPDATE users SET telegram_chat_id = ? WHERE id = ?",
                 (telegram_chat_id, user_id)
             )
+
+    # Session operations
+    def create_session(self, user_id: int, token: str, expires_at: datetime) -> None:
+        """Insert a new session."""
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO sessions (id, user_id, expires_at)
+                VALUES (?, ?, ?)
+                """,
+                (token, user_id, expires_at.isoformat())
+            )
+
+    def get_session(self, token: str) -> Optional[Session]:
+        """Get session by token (no expiry check)."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM sessions WHERE id = ?", (token,))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return Session(
+                id=row["id"],
+                user_id=row["user_id"],
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
+            )
+
+    def get_valid_session(self, token: str) -> Optional[Session]:
+        """Get session only if not expired. Uses constant-time comparison for token."""
+        with self.get_connection() as conn:
+            # First get by token (still O(1) lookup via primary key)
+            cursor = conn.execute(
+                "SELECT * FROM sessions WHERE expires_at > datetime('now')"
+            )
+            for row in cursor.fetchall():
+                # Use constant-time comparison to prevent timing attacks
+                if secrets.compare_digest(row["id"], token):
+                    return Session(
+                        id=row["id"],
+                        user_id=row["user_id"],
+                        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                        expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
+                    )
+            return None
+
+    def delete_session(self, token: str) -> None:
+        """Delete a specific session."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM sessions WHERE id = ?", (token,))
+
+    def delete_user_sessions(self, user_id: int) -> None:
+        """Delete all sessions for a user."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+    def update_session_expiry(self, token: str, expires_at: datetime) -> None:
+        """Update expiry for sliding sessions."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE sessions SET expires_at = ? WHERE id = ?",
+                (expires_at.isoformat(), token)
+            )
+
+    def cleanup_expired_sessions(self) -> int:
+        """Delete all expired sessions. Returns count of deleted sessions."""
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM sessions WHERE expires_at <= datetime('now')"
+            )
+            return cursor.rowcount
 
     # Rule operations
     def add_rule(self, rule: Rule, user_id: Optional[int] = None) -> int:
