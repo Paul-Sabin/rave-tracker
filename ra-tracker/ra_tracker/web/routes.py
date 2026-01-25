@@ -30,7 +30,7 @@ def get_templates(request: Request):
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
+async def dashboard(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Main dashboard showing upcoming events."""
     templates = get_templates(request)
     db = get_db()
@@ -54,6 +54,7 @@ async def dashboard(request: Request):
         "dashboard.html",
         {
             "request": request,
+            "user": user,
             "events": events,
             "events_by_date": events_by_date,
             "rules": rules,
@@ -67,7 +68,7 @@ async def dashboard(request: Request):
 
 
 @router.get("/rules", response_class=HTMLResponse)
-async def rules_page(request: Request):
+async def rules_page(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Rules management page."""
     templates = get_templates(request)
     db = get_db()
@@ -83,6 +84,7 @@ async def rules_page(request: Request):
         "rules.html",
         {
             "request": request,
+            "user": user,
             "rules": rules,
             "artists": artists,
             "venues": venues,
@@ -160,7 +162,7 @@ async def delete_rule(rule_id: int):
 
 
 @router.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request):
+async def settings_page(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Settings page."""
     templates = get_templates(request)
     config = get_config()
@@ -178,6 +180,7 @@ async def settings_page(request: Request):
         "settings.html",
         {
             "request": request,
+            "user": user,
             "config": config,
             "masked_token": masked_token,
             "scheduler_status": get_scheduler_status(),
@@ -353,7 +356,7 @@ async def login_page(request: Request, user: Optional[User] = Depends(get_curren
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request, "user": user})
 
 
 @router.post("/login")
@@ -401,7 +404,7 @@ async def register_page(request: Request, user: Optional[User] = Depends(get_cur
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse("register.html", {"request": request, "user": user})
 
 
 @router.post("/register")
@@ -472,7 +475,7 @@ async def logout(request: Request):
 
 
 @router.get("/privacy", response_class=HTMLResponse)
-async def privacy_page(request: Request):
+async def privacy_page(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Privacy Policy page."""
     templates = get_templates(request)
-    return templates.TemplateResponse("privacy.html", {"request": request})
+    return templates.TemplateResponse("privacy.html", {"request": request, "user": user})
