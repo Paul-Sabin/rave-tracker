@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Rules - RA Tracker{% endblock %}
+
+{% block content %}
+<h1>Tracking Rules</h1>
+
+<!-- Search and Add -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Search RA.co</span>
+    </div>
+    <p class="text-muted mb-2">Search for artists, venues, or promoters to track. Click a result to add it.</p>
+
+    <div class="search-tabs">
+        <button class="tab-btn active" data-type="artist">Artists</button>
+        <button class="tab-btn" data-type="venue">Venues</button>
+        <button class="tab-btn" data-type="promoter">Promoters</button>
+    </div>
+
+    <div class="form-group mt-2">
+        <input type="text" id="search-input" class="form-control" placeholder="Type to search...">
+    </div>
+    <div id="search-results"></div>
+
+    <!-- Hidden form for adding rules -->
+    <form id="add-rule-form" action="/rules/add" method="post" style="display: none;">
+        <input type="hidden" name="rule_type" id="form-rule-type">
+        <input type="hidden" name="target_id" id="form-target-id">
+        <input type="hidden" name="target_name" id="form-target-name">
+    </form>
+</div>
+
+<!-- Current Rules -->
+{% if artists %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🎧 Artists</span>
+        <span class="text-muted">{{ artists|length }}</span>
+    </div>
+    <div class="rules-list">
+        {% for rule in artists %}
+        <div class="rule-item">
+            <div class="rule-info">
+                <span class="rule-name">{{ rule.target_name }}</span>
+                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
+                {% if not rule.is_active %}
+                <span class="badge badge-warning">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="rule-actions">
+                <!-- Notification mode toggle (artist: all/local/none) -->
+                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
+                    <div class="notify-toggle">
+                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode == 'all' %} active{% endif %}" title="Notify for all events">All</button>
+                        <button type="submit" name="mode" value="local" class="notify-btn{% if rule.notify_mode == 'local' %} active{% endif %}" title="Notify only for local events">Local</button>
+                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="No notifications">Off</button>
+                    </div>
+                </form>
+                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                        {{ 'Disable' if rule.is_active else 'Enable' }}
+                    </button>
+                </form>
+                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if venues %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📍 Venues</span>
+        <span class="text-muted">{{ venues|length }}</span>
+    </div>
+    <div class="rules-list">
+        {% for rule in venues %}
+        <div class="rule-item">
+            <div class="rule-info">
+                <span class="rule-name">{{ rule.target_name }}</span>
+                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
+                {% if not rule.is_active %}
+                <span class="badge badge-warning">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="rule-actions">
+                <!-- Notification toggle (venue: all/none) -->
+                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
+                    <div class="notify-toggle">
+                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode != 'none' %} active{% endif %}" title="Notifications on">On</button>
+                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="Notifications off">Off</button>
+                    </div>
+                </form>
+                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                        {{ 'Disable' if rule.is_active else 'Enable' }}
+                    </button>
+                </form>
+                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if promoters %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🎪 Promoters</span>
+        <span class="text-muted">{{ promoters|length }}</span>
+    </div>
+    <div class="rules-list">
+        {% for rule in promoters %}
+        <div class="rule-item">
+            <div class="rule-info">
+                <span class="rule-name">{{ rule.target_name }}</span>
+                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
+                {% if not rule.is_active %}
+                <span class="badge badge-warning">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="rule-actions">
+                <!-- Notification toggle (promoter: all/none) -->
+                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
+                    <div class="notify-toggle">
+                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode != 'none' %} active{% endif %}" title="Notifications on">On</button>
+                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="Notifications off">Off</button>
+                    </div>
+                </form>
+                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                        {{ 'Disable' if rule.is_active else 'Enable' }}
+                    </button>
+                </form>
+                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if not rules %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>No rules configured yet.</p>
+        <p class="text-muted mt-1">Search above to add artists, venues, or promoters to track.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+.search-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    background: var(--bg-dark);
+    color: var(--text);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.search-result {
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.search-result:hover {
+    background: var(--border);
+}
+.search-result:last-child {
+    border-bottom: none;
+}
+.rules-list {
+    display: flex;
+    flex-direction: column;
+}
+.rule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.rule-item:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 640px) {
+    .rule-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .rule-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    .rule-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+}
+.rule-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.rule-name {
+    font-weight: 500;
+}
+.rule-id {
+    font-size: 0.85rem;
+}
+.rule-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.notify-form {
+    display: inline-block;
+}
+.notify-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.notify-btn {
+    padding: 0.5rem 0.75rem;
+    min-height: 36px;  /* Slightly smaller since in group */
+    border: none;
+    background: var(--bg-dark);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+}
+.notify-btn:last-child {
+    border-right: none;
+}
+.notify-btn:hover {
+    background: var(--border);
+}
+.notify-btn.active {
+    background: var(--accent);
+    color: white;
+}
+</style>
+
+<script>
+let currentType = 'artist';
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentType = btn.dataset.type;
+        document.getElementById('search-input').placeholder = `Search ${currentType}s...`;
+        document.getElementById('search-results').innerHTML = '';
+    });
+});
+
+// Debounce helper
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+}
+
+// Search function
+async function search(query) {
+    if (query.length < 2) {
+        document.getElementById('search-results').innerHTML = '';
+        return;
+    }
+
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<span class="text-muted">Searching...</span>';
+
+    try {
+        const response = await fetch(`/api/search/${currentType}s?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.results.length === 0) {
+            resultsDiv.innerHTML = '<span class="text-muted">No results found</span>';
+        } else {
+            resultsDiv.innerHTML = data.results.map(r => `
+                <div class="search-result" onclick="addRule('${currentType}', ${r.id}, '${r.name.replace(/'/g, "\\'")}')">
+                    <span>${r.name}</span>
+                    <span class="text-muted">ID: ${r.id}</span>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        resultsDiv.innerHTML = '<span class="text-danger">Search failed</span>';
+    }
+}
+
+// Add rule
+function addRule(type, id, name) {
+    document.getElementById('form-rule-type').value = type;
+    document.getElementById('form-target-id').value = id;
+    document.getElementById('form-target-name').value = name;
+    document.getElementById('add-rule-form').submit();
+}
+
+// Search input handler
+document.getElementById('search-input').addEventListener('input', debounce(e => search(e.target.value), 300));
+</script>
+{% endblock %}
