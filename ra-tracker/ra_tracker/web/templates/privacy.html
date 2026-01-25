@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - RA Tracker{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px; margin: 0 auto;">
+    <h1>Privacy Policy</h1>
+    <p class="text-muted" style="margin-bottom: 2rem;">Last updated: January 2026</p>
+
+    <div class="card" style="line-height: 1.8;">
+        <h2 style="margin-top: 0;">What Data We Collect</h2>
+        <p>When you use RA Tracker, we collect:</p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li><strong>Email address</strong> - Used for login and optional email notifications</li>
+            <li><strong>Display name</strong> - Shown in the navigation bar</li>
+            <li><strong>Password</strong> - Stored securely using Argon2id hashing (we never see your actual password)</li>
+            <li><strong>Session cookies</strong> - Used to keep you logged in</li>
+            <li><strong>Telegram chat ID</strong> (optional) - Only if you link Telegram for notifications</li>
+            <li><strong>Tracking rules</strong> - Artists, venues, and promoters you choose to track</li>
+        </ul>
+
+        <h2>How Your Data Is Stored</h2>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li><strong>Passwords</strong> are hashed using Argon2id, the algorithm recommended by OWASP for password storage. We cannot see or recover your password.</li>
+            <li><strong>Sessions</strong> use secure httponly cookies that cannot be accessed by JavaScript.</li>
+            <li><strong>All data</strong> is stored in a SQLite database on the server.</li>
+        </ul>
+
+        <h2>Data Retention</h2>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li>Your account and tracking rules are kept until you delete them</li>
+            <li>Sessions expire after 30 days of inactivity</li>
+            <li>Event data is refreshed periodically and old events are removed</li>
+        </ul>
+
+        <h2>Third-Party Services</h2>
+        <p>RA Tracker interacts with:</p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li><strong>Resident Advisor (ra.co)</strong> - We fetch public event data from RA</li>
+            <li><strong>Telegram</strong> (optional) - If you enable Telegram notifications, we send messages via the Telegram Bot API using your chat ID</li>
+        </ul>
+        <p>We do not sell or share your personal data with any other third parties.</p>
+
+        <h2>Your Rights</h2>
+        <p>You can:</p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li>View and update your tracking rules at any time</li>
+            <li>Disable notifications by unlinking Telegram or toggling email off</li>
+            <li>Request deletion of your account (contact the administrator)</li>
+        </ul>
+
+        <h2>Contact</h2>
+        <p>For questions about this privacy policy or your data, contact the site administrator.</p>
+    </div>
+
+    <p style="text-align: center; margin-top: 2rem;">
+        <a href="/register" class="btn btn-primary">Back to Registration</a>
+    </p>
+</div>
+{% endblock %}
