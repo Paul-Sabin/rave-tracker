@@ -9,11 +9,15 @@ Requirements for Milestone 2: Multi-User Support.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can register with email and password
-- [ ] **AUTH-02**: User can log in with email and password
-- [ ] **AUTH-03**: User can log out
-- [ ] **AUTH-04**: User session persists across browser refresh
-- [ ] **AUTH-05**: Passwords are securely hashed (bcrypt)
+- [x] **AUTH-01**: User can register with email and password
+- [x] **AUTH-02**: User can log in with email and password
+- [x] **AUTH-03**: User can log out
+- [x] **AUTH-04**: User session persists across browser refresh
+- [x] **AUTH-05**: Passwords are securely hashed (Argon2id)
+
+### Mobile UI
+
+- [x] **UI-01**: All authentication flows and dashboard features fully functional on mobile devices (min-width 375px)
 
 ### Multi-Tenant Database
 
@@ -24,13 +28,33 @@ Requirements for Milestone 2: Multi-User Support.
 
 ### Session Management
 
-- [ ] **SESSION-01**: Secure session cookies with httponly flag
-- [ ] **SESSION-02**: Sessions expire after configurable timeout
+- [x] **SESSION-01**: Secure session cookies with httponly flag
+- [x] **SESSION-02**: Sessions expire after configurable timeout
+
+### Notification Channels
+
+- [ ] **NOTIFY-01**: User can toggle Telegram notifications on/off independently
+- [ ] **NOTIFY-02**: User can toggle Email notifications on/off independently
+- [ ] **NOTIFY-03**: At least one notification channel must be configured before notifications are sent
+- [ ] **NOTIFY-05**: Email notifications include one-click unsubscribe link (no login required)
+- [ ] **NOTIFY-06**: Telegram bot responds to /stop command to disable notifications
 
 ### Telegram Integration
 
 - [ ] **TELEGRAM-01**: Each user can link Telegram by messaging the bot (auto-detects chat ID)
 - [ ] **TELEGRAM-02**: Admin configures shared bot token in config
+
+### Email Integration
+
+- [ ] **EMAIL-01**: Email notifications sent to user's login email (no separate notification email in v1)
+- [ ] **EMAIL-02**: Admin configures SMTP settings in config
+
+### Privacy & Consent
+
+- [x] **PRIVACY-01**: Privacy Policy page clearly explains what data is collected (email, session cookies, Telegram ID)
+- [x] **PRIVACY-02**: Privacy Policy explains how data is stored and protected
+- [x] **PRIVACY-03**: Registration requires explicit consent checkbox (not pre-ticked)
+- [x] **PRIVACY-04**: Privacy Policy link visible on registration page
 
 ## v2 Requirements
 
@@ -48,6 +72,10 @@ Deferred to future milestone.
 - **SEC-02**: Email verification on registration
 - **SEC-03**: CSRF protection on all forms
 
+### Notification Enhancements
+
+- **NOTIFY-04**: Separate notification email (different from login email) with verification
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -63,24 +91,36 @@ Deferred to future milestone.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MULTI-01 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| SESSION-01 | Phase 2 | Pending |
-| SESSION-02 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
+| AUTH-05 | Phase 2 | Complete |
+| SESSION-01 | Phase 2 | Complete |
+| SESSION-02 | Phase 2 | Complete |
+| UI-01 | Phase 2 | Complete |
 | MULTI-02 | Phase 3 | Pending |
 | MULTI-03 | Phase 3 | Pending |
 | MULTI-04 | Phase 3 | Pending |
 | TELEGRAM-01 | Phase 4 | Pending |
 | TELEGRAM-02 | Phase 4 | Pending |
+| NOTIFY-01 | Phase 4 | Pending |
+| NOTIFY-02 | Phase 4 | Pending |
+| NOTIFY-03 | Phase 4 | Pending |
+| EMAIL-01 | Phase 4 | Pending |
+| EMAIL-02 | Phase 4 | Pending |
+| NOTIFY-05 | Phase 4 | Pending |
+| NOTIFY-06 | Phase 4 | Pending |
+| PRIVACY-01 | Phase 2 | Complete |
+| PRIVACY-02 | Phase 2 | Complete |
+| PRIVACY-03 | Phase 2 | Complete |
+| PRIVACY-04 | Phase 2 | Complete |
 
 **Coverage:**
-- v1 requirements: 13 total
-- Mapped to phases: 13
+- v1 requirements: 25 total
+- Mapped to phases: 25
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-19*
-*Last updated: 2026-01-19 after initial definition*
+*Last updated: 2026-01-24 - Added notification channels, email integration, privacy & consent requirements*
