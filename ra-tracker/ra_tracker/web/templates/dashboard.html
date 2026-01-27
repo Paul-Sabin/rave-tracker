@@ -252,7 +252,7 @@
     }
 }
 .filter-group.location-filter {
-    background: var(--bg-dark);
+    background: #1a1a2e;
     border-radius: 4px;
     padding: 2px;
 }
@@ -262,40 +262,48 @@
 .filter-group.location-filter .filter-btn.active {
     background: #17a2b8;
     border-color: #17a2b8;
+    box-shadow: 0 0 8px rgba(23, 162, 184, 0.5);
 }
 .filter-btn {
     padding: 0.5rem 0.75rem;
     min-height: 44px;  /* WCAG touch target */
     font-size: 0.85rem;
-    border: 1px solid var(--border);
+    border: 2px solid #3a3a5e;
     border-radius: 4px;
-    background: var(--bg-dark);
-    color: var(--text-muted);
+    background: #1a1a2e;
+    color: #666;
     cursor: pointer;
     transition: all 0.15s;
     display: flex;
     align-items: center;
+    opacity: 0.6;
 }
 .filter-btn:hover {
-    background: var(--border);
+    background: #2a2a4e;
+    opacity: 0.8;
 }
 .filter-btn.active {
-    background: var(--accent);
+    background: #e94560;
     color: white;
-    border-color: var(--accent);
+    border-color: #e94560;
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
 }
 .filter-btn.filter-artist.active {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: #e94560;
+    border-color: #e94560;
+    box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
 }
 .filter-btn.filter-venue.active {
-    background: var(--success);
-    border-color: var(--success);
+    background: #4ecca3;
+    border-color: #4ecca3;
+    box-shadow: 0 0 8px rgba(78, 204, 163, 0.5);
 }
 .filter-btn.filter-promoter.active {
     background: #ffc107;
     border-color: #ffc107;
     color: #000;
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
 }
 .date-header {
     padding: 0.75rem;
