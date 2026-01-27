@@ -397,7 +397,7 @@ async def login(
     token, expires_at = create_user_session(user.id)
 
     response = RedirectResponse(url="/", status_code=303)
-    set_session_cookie(response, token, expires_at, secure=config.session.secure_cookies)
+    set_session_cookie(response, token, expires_at, request=request)
     return response
 
 
@@ -459,7 +459,7 @@ async def register(
     token, expires_at = create_user_session(user_id)
 
     response = RedirectResponse(url="/", status_code=303)
-    set_session_cookie(response, token, expires_at, secure=config.session.secure_cookies)
+    set_session_cookie(response, token, expires_at, request=request)
     return response
 
 

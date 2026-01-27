@@ -56,9 +56,23 @@ async def require_auth(
     return user
 
 
-def set_session_cookie(response, token: str, expires_at: datetime, secure: bool = True):
-    """Set session cookie with security flags."""
+def set_session_cookie(response, token: str, expires_at: datetime, request: Optional[Request] = None, secure: Optional[bool] = None):
+    """Set session cookie with security flags.
+
+    Auto-detects secure flag from request scheme if not explicitly set.
+    Uses secure=True for HTTPS, secure=False for HTTP.
+    """
     max_age = int((expires_at - datetime.now()).total_seconds())
+
+    # Auto-detect secure flag from request if not explicitly provided
+    if secure is None:
+        if request is not None:
+            # Check if request came over HTTPS
+            secure = request.url.scheme == "https"
+        else:
+            # Default to True if we can't detect
+            secure = True
+
     response.set_cookie(
         key="session_token",
         value=token,
