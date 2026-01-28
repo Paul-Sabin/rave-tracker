@@ -98,10 +98,25 @@ Plans:
 
 **Goal:** Scope data access to logged-in user and protect routes
 
+**Status:** Planned
+
 **Requirements:**
 - MULTI-02: Rules are scoped to the user who created them
 - MULTI-03: Notification history is scoped per user
 - MULTI-04: Events remain shared globally (single cache)
+
+**Plans:** 3 plans in 2 waves
+
+Plans:
+- [ ] 03-01-PLAN.md - User-scoped database methods (user_id parameters, ownership checks, user-scoped queries) [Wave 1]
+- [ ] 03-02-PLAN.md - User-scoped routes (dashboard, rules page, rule mutations, API endpoints) [Wave 2]
+- [ ] 03-03-PLAN.md - Admin routes and templates (require_admin, /admin/rules, /admin/users) [Wave 2]
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 03-01 | Database methods (no dependencies) |
+| 2 | 03-02, 03-03 | Routes + Admin UI (parallel, both depend on 03-01) |
 
 **Success Criteria:**
 1. All routes except login/register require authentication
@@ -110,6 +125,8 @@ Plans:
 4. Adding a rule assigns it to current user
 5. Events remain visible to all users (shared cache)
 6. Unauthenticated access redirects to login
+7. Admin can view all users' rules (read-only)
+8. Admin can view list of registered users
 
 **Dependencies:** Phase 2 (authentication must work)
 
@@ -169,4 +186,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-19*
-*Last updated: 2026-01-25 - Added Phase 2 plans (5 plans in 3 waves)*
+*Last updated: 2026-01-28 - Added Phase 3 plans (3 plans in 2 waves)*
