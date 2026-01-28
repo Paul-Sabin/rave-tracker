@@ -252,6 +252,19 @@ class Database:
         self.db_path = db_path
         self._ensure_db_directory()
 
+    def _row_to_rule(self, row) -> Rule:
+        """Convert a database row to a Rule object."""
+        return Rule(
+            id=row["id"],
+            rule_type=row["rule_type"],
+            target_id=row["target_id"],
+            target_name=row["target_name"],
+            is_active=bool(row["is_active"]),
+            notify_mode=row["notify_mode"] or "local",
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            user_id=row["user_id"] if "user_id" in row.keys() else None,
+        )
+
     def _ensure_db_directory(self):
         """Ensure the database directory exists."""
         path = Path(self.db_path)
@@ -487,51 +500,59 @@ class Database:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return Rule(
-                id=row["id"],
-                rule_type=row["rule_type"],
-                target_id=row["target_id"],
-                target_name=row["target_name"],
-                is_active=bool(row["is_active"]),
-                notify_mode=row["notify_mode"] or "local",
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-            )
+            return self._row_to_rule(row)
 
-    def get_active_rules(self) -> List[Rule]:
-        """Get all active rules."""
+    def get_rule_for_user(self, rule_id: int, user_id: int) -> Optional[Rule]:
+        """Get a rule only if it belongs to the specified user.
+
+        Used for ownership verification before mutations.
+        Returns None if rule doesn't exist or belongs to different user.
+        """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM rules WHERE is_active = 1 ORDER BY rule_type, target_name"
+                "SELECT * FROM rules WHERE id = ? AND user_id = ?",
+                (rule_id, user_id)
             )
-            return [
-                Rule(
-                    id=row["id"],
-                    rule_type=row["rule_type"],
-                    target_id=row["target_id"],
-                    target_name=row["target_name"],
-                    is_active=bool(row["is_active"]),
-                    notify_mode=row["notify_mode"] or "local",
-                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                )
-                for row in cursor.fetchall()
-            ]
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return self._row_to_rule(row)
 
-    def get_all_rules(self) -> List[Rule]:
-        """Get all rules."""
+    def get_active_rules(self, user_id: Optional[int] = None) -> List[Rule]:
+        """Get all active rules, optionally filtered by user.
+
+        Args:
+            user_id: If provided, filter to rules owned by this user.
+                    If None, returns all active rules (for scheduler).
+        """
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM rules ORDER BY rule_type, target_name")
-            return [
-                Rule(
-                    id=row["id"],
-                    rule_type=row["rule_type"],
-                    target_id=row["target_id"],
-                    target_name=row["target_name"],
-                    is_active=bool(row["is_active"]),
-                    notify_mode=row["notify_mode"] or "local",
-                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            if user_id is not None:
+                cursor = conn.execute(
+                    "SELECT * FROM rules WHERE is_active = 1 AND user_id = ? ORDER BY rule_type, target_name",
+                    (user_id,)
                 )
-                for row in cursor.fetchall()
-            ]
+            else:
+                cursor = conn.execute(
+                    "SELECT * FROM rules WHERE is_active = 1 ORDER BY rule_type, target_name"
+                )
+            return [self._row_to_rule(row) for row in cursor.fetchall()]
+
+    def get_all_rules(self, user_id: Optional[int] = None) -> List[Rule]:
+        """Get all rules, optionally filtered by user.
+
+        Args:
+            user_id: If provided, filter to rules owned by this user.
+                    If None, returns all rules (for admin/scheduler).
+        """
+        with self.get_connection() as conn:
+            if user_id is not None:
+                cursor = conn.execute(
+                    "SELECT * FROM rules WHERE user_id = ? ORDER BY rule_type, target_name",
+                    (user_id,)
+                )
+            else:
+                cursor = conn.execute("SELECT * FROM rules ORDER BY rule_type, target_name")
+            return [self._row_to_rule(row) for row in cursor.fetchall()]
 
     def delete_rule(self, rule_id: int) -> None:
         """Delete a rule."""
@@ -555,13 +576,27 @@ class Database:
                 (notify_mode, rule_id),
             )
 
-    def rule_exists(self, rule_type: str, target_id: int) -> bool:
-        """Check if a rule already exists."""
+    def rule_exists(self, rule_type: str, target_id: int, user_id: Optional[int] = None) -> bool:
+        """Check if a rule already exists, optionally for a specific user.
+
+        Args:
+            rule_type: Type of rule ('artist', 'venue', 'promoter')
+            target_id: RA ID of the target
+            user_id: If provided, check only for this user's rules.
+                    This allows different users to track the same artist.
+                    If None, checks globally (for backward compatibility).
+        """
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT 1 FROM rules WHERE rule_type = ? AND target_id = ?",
-                (rule_type, target_id),
-            )
+            if user_id is not None:
+                cursor = conn.execute(
+                    "SELECT 1 FROM rules WHERE rule_type = ? AND target_id = ? AND user_id = ?",
+                    (rule_type, target_id, user_id),
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT 1 FROM rules WHERE rule_type = ? AND target_id = ?",
+                    (rule_type, target_id),
+                )
             return cursor.fetchone() is not None
 
     # Event operations
