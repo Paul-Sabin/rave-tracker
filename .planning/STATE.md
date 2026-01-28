@@ -1,22 +1,22 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 **Current Milestone:** 2 - Multi-User Support
-**Current Phase:** 2 - Authentication (Complete)
+**Current Phase:** 3 - Multi-Tenant Access (In Progress)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 2 authentication complete, ready for Phase 3 multi-tenant access
+**Current focus:** Phase 3 multi-tenant access - user-scoped database methods complete
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
-| 2 - Multi-User Support | In Progress | Authentication complete, multi-tenant access next |
+| 2 - Multi-User Support | In Progress | Phase 3 (multi-tenant) started, 1/3 plans complete |
 
 ## Phase Progress
 
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 |-------|------|--------|-------|
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
-| 3 | Multi-Tenant Access | Pending | 0/0 |
+| 3 | Multi-Tenant Access | In Progress | 1/3 |
 | 4 | User Telegram Config | Pending | 0/0 |
 
-Progress: [=====.....] 50%
+Progress: [======....] 60%
 
 ## Current Context
 
@@ -40,9 +40,12 @@ Progress: [=====.....] 50%
 - Phase 2 Plan 02: Login/logout routes, register with consent, privacy page
 - Phase 2 Plan 03: Tailwind CSS v4 mobile navigation, user context in templates
 - Phase 2 Plan 04: Route protection (require_auth), mobile artist tracking buttons
+- Phase 2 Plan 05: Mobile responsiveness, 44px touch targets
+- Phase 3 Plan 01: User-scoped database methods (get_all_rules, get_upcoming_events_for_user, get_user_stats, etc.)
 
 **What's next:**
-- Phase 3: Multi-Tenant Access (rules/events scoped to user)
+- Phase 3 Plan 02: Route handler updates (pass user.id to database methods)
+- Phase 3 Plan 03: Admin routes and templates
 
 **Blockers:** None
 
@@ -64,6 +67,9 @@ Progress: [=====.....] 50%
 | 02-04 | 44px touch targets | WCAG AAA accessibility for mobile |
 | 02-05 | 640px/480px breakpoints | Mobile layout stacking points |
 | 02-05 | Auto-detect secure cookie | Check request scheme for HTTPS compatibility |
+| 03-01 | Optional user_id parameters | Scheduler needs all rules without user context |
+| 03-01 | Events shared, scoped via event_rules JOIN | Multiple users see same event if rules match |
+| 03-01 | _row_to_rule helper | DRYs up Rule construction across methods |
 
 ## Session History
 
@@ -76,12 +82,13 @@ Progress: [=====.....] 50%
 | 2026-01-25 | Executed 02-03-PLAN.md | Tailwind CSS mobile navigation, user context in routes |
 | 2026-01-25 | Executed 02-04-PLAN.md | Route protection, mobile artist tracking buttons |
 | 2026-01-27 | Executed 02-05-PLAN.md | Mobile responsiveness, 44px touch targets, verification fixes |
+| 2026-01-28 | Executed 03-01-PLAN.md | User-scoped database methods complete |
 
 ## Session Continuity
 
-Last session: 2026-01-27
-Stopped at: Completed 02-05-PLAN.md (Phase 2 Authentication fully complete with mobile responsiveness)
+Last session: 2026-01-28
+Stopped at: Completed 03-01-PLAN.md (User-scoped database methods for multi-tenant access)
 Resume file: None
 
 ---
-*State updated: 2026-01-27*
+*State updated: 2026-01-28*
