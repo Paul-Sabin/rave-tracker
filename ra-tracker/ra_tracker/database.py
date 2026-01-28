@@ -865,13 +865,19 @@ class Database:
             conn.execute("DELETE FROM events")
 
     # Notification operations
-    def add_notification(self, event_id: int, rule_id: int) -> bool:
-        """Add a notification record. Returns False if already exists."""
+    def add_notification(self, event_id: int, rule_id: int, user_id: Optional[int] = None) -> bool:
+        """Add a notification record. Returns False if already exists.
+
+        Args:
+            event_id: ID of the event
+            rule_id: ID of the rule that matched
+            user_id: Optional user ID for per-user notification filtering
+        """
         with self.get_connection() as conn:
             try:
                 conn.execute(
-                    "INSERT INTO notifications (event_id, rule_id) VALUES (?, ?)",
-                    (event_id, rule_id),
+                    "INSERT INTO notifications (event_id, rule_id, user_id) VALUES (?, ?, ?)",
+                    (event_id, rule_id, user_id),
                 )
                 return True
             except sqlite3.IntegrityError:
@@ -921,6 +927,164 @@ class Database:
                 "active_rules": rules,
                 "upcoming_events": events,
                 "notifications_sent": notifications,
+            }
+
+    def get_upcoming_events_for_user(self, user_id: int) -> List[Event]:
+        """Get upcoming events that match the user's rules.
+
+        Returns events linked to the user's rules via the event_rules table.
+        Each event includes only the matched_rules belonging to this user.
+        Artists and promoters are shared data (not user-scoped).
+        """
+        with self.get_connection() as conn:
+            today = date.today().isoformat()
+
+            # Get events that have at least one rule belonging to this user
+            cursor = conn.execute(
+                """
+                SELECT DISTINCT e.* FROM events e
+                INNER JOIN event_rules er ON e.id = er.event_id
+                INNER JOIN rules r ON er.rule_id = r.id
+                WHERE r.user_id = ? AND e.date >= ?
+                ORDER BY e.date, e.start_time
+                """,
+                (user_id, today)
+            )
+
+            events = []
+            for row in cursor.fetchall():
+                event = Event(
+                    id=row["id"],
+                    title=row["title"],
+                    date=date.fromisoformat(row["date"]) if row["date"] else None,
+                    start_time=datetime.fromisoformat(row["start_time"]) if row["start_time"] else None,
+                    end_time=datetime.fromisoformat(row["end_time"]) if row["end_time"] else None,
+                    venue_id=row["venue_id"],
+                    venue_name=row["venue_name"],
+                    area_id=row["area_id"],
+                    area_name=row["area_name"],
+                    content_url=row["content_url"],
+                    cost=row["cost"],
+                    is_ticketed=bool(row["is_ticketed"]) if row["is_ticketed"] is not None else None,
+                    is_festival=bool(row["is_festival"]) if row["is_festival"] is not None else None,
+                    is_multi_day=bool(row["is_multi_day"]) if row["is_multi_day"] is not None else None,
+                    attending=row["attending"],
+                    interested_count=row["interested_count"],
+                    pick_blurb=row["pick_blurb"],
+                    set_times_status=row["set_times_status"],
+                    set_times_lineup=row["set_times_lineup"],
+                    tickets_json=row["tickets_json"],
+                    fetched_at=datetime.fromisoformat(row["fetched_at"]) if row["fetched_at"] else None,
+                )
+
+                # Get artists (shared data, not user-scoped)
+                artist_cursor = conn.execute(
+                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = ?",
+                    (event.id,),
+                )
+                event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
+
+                # Get promoters (shared data, not user-scoped)
+                promoter_cursor = conn.execute(
+                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = ?",
+                    (event.id,),
+                )
+                event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
+
+                # Get ONLY this user's matched rules
+                rule_cursor = conn.execute(
+                    """
+                    SELECT r.* FROM rules r
+                    JOIN event_rules er ON r.id = er.rule_id
+                    WHERE er.event_id = ? AND r.user_id = ?
+                    """,
+                    (event.id, user_id),
+                )
+                event.matched_rules = [self._row_to_rule(r) for r in rule_cursor.fetchall()]
+
+                events.append(event)
+
+            return events
+
+    def get_user_stats(self, user_id: int) -> dict:
+        """Get user-scoped statistics.
+
+        Returns:
+            dict with keys:
+                - active_rules: Count of user's active rules
+                - upcoming_events: Count of events matching user's rules
+                - notifications_sent: Count of notifications for user's rules
+        """
+        with self.get_connection() as conn:
+            today = date.today().isoformat()
+
+            # Active rules for this user
+            rules = conn.execute(
+                "SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = ?",
+                (user_id,)
+            ).fetchone()[0]
+
+            # Upcoming events matching user's rules
+            events = conn.execute(
+                """
+                SELECT COUNT(DISTINCT e.id) FROM events e
+                INNER JOIN event_rules er ON e.id = er.event_id
+                INNER JOIN rules r ON er.rule_id = r.id
+                WHERE r.user_id = ? AND e.date >= ?
+                """,
+                (user_id, today)
+            ).fetchone()[0]
+
+            # Notifications for user's rules
+            notifications = conn.execute(
+                "SELECT COUNT(*) FROM notifications WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()[0]
+
+            return {
+                "active_rules": rules,
+                "upcoming_events": events,
+                "notifications_sent": notifications,
+            }
+
+    def count_legacy_data(self, user_id: int) -> dict:
+        """Count rules and notifications that were migrated to this user.
+
+        Legacy data = records that existed before the user's account was created.
+        Used for dashboard welcome message to inform first user about inherited data.
+
+        Returns:
+            dict with keys:
+                - rules: Count of migrated rules
+                - notifications: Count of migrated notifications
+        """
+        with self.get_connection() as conn:
+            # Get user's created_at timestamp
+            user_row = conn.execute(
+                "SELECT created_at FROM users WHERE id = ?",
+                (user_id,)
+            ).fetchone()
+
+            if not user_row or not user_row["created_at"]:
+                return {"rules": 0, "notifications": 0}
+
+            user_created_at = user_row["created_at"]
+
+            # Count rules created before user's account
+            legacy_rules = conn.execute(
+                "SELECT COUNT(*) FROM rules WHERE user_id = ? AND created_at < ?",
+                (user_id, user_created_at)
+            ).fetchone()[0]
+
+            # Count notifications created before user's account
+            legacy_notifications = conn.execute(
+                "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND sent_at < ?",
+                (user_id, user_created_at)
+            ).fetchone()[0]
+
+            return {
+                "rules": legacy_rules,
+                "notifications": legacy_notifications,
             }
 
 
