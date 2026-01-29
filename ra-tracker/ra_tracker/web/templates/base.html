@@ -261,6 +261,9 @@
                     <a href="/" class="px-4 py-2 min-h-11 flex items-center rounded hover:bg-accent transition-colors {% if request.url.path == '/' %}bg-accent{% endif %}">Dashboard</a>
                     <a href="/rules" class="px-4 py-2 min-h-11 flex items-center rounded hover:bg-accent transition-colors {% if request.url.path == '/rules' %}bg-accent{% endif %}">Rules</a>
                     <a href="/settings" class="px-4 py-2 min-h-11 flex items-center rounded hover:bg-accent transition-colors {% if request.url.path == '/settings' %}bg-accent{% endif %}">Settings</a>
+                    {% if user and user.is_admin %}
+                    <a href="/admin/rules" class="px-4 py-2 min-h-11 flex items-center rounded hover:bg-accent transition-colors {% if request.url.path.startswith('/admin') %}bg-accent{% endif %}">Admin</a>
+                    {% endif %}
 
                     {% if user %}
                     <span class="text-text-muted ml-4">{{ user.display_name }}</span>
@@ -287,6 +290,9 @@
                 <a href="/" class="block px-4 py-3 min-h-11 rounded hover:bg-accent transition-colors {% if request.url.path == '/' %}bg-accent{% endif %}">Dashboard</a>
                 <a href="/rules" class="block px-4 py-3 min-h-11 rounded hover:bg-accent transition-colors {% if request.url.path == '/rules' %}bg-accent{% endif %}">Rules</a>
                 <a href="/settings" class="block px-4 py-3 min-h-11 rounded hover:bg-accent transition-colors {% if request.url.path == '/settings' %}bg-accent{% endif %}">Settings</a>
+                {% if user and user.is_admin %}
+                <a href="/admin/rules" class="block px-4 py-3 min-h-11 rounded hover:bg-accent transition-colors {% if request.url.path.startswith('/admin') %}bg-accent{% endif %}">Admin</a>
+                {% endif %}
 
                 {% if user %}
                 <div class="border-t border-border pt-2 mt-2">
