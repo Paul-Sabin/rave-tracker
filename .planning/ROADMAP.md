@@ -94,11 +94,11 @@ Plans:
 
 ---
 
-## Phase 3: Multi-Tenant Access
+## Phase 3: Multi-Tenant Access ✓
 
 **Goal:** Scope data access to logged-in user and protect routes
 
-**Status:** Planned
+**Status:** Complete (2026-01-29)
 
 **Requirements:**
 - MULTI-02: Rules are scoped to the user who created them
@@ -108,9 +108,9 @@ Plans:
 **Plans:** 3 plans in 2 waves
 
 Plans:
-- [ ] 03-01-PLAN.md - User-scoped database methods (user_id parameters, ownership checks, user-scoped queries) [Wave 1]
-- [ ] 03-02-PLAN.md - User-scoped routes (dashboard, rules page, rule mutations, API endpoints) [Wave 2]
-- [ ] 03-03-PLAN.md - Admin routes and templates (require_admin, /admin/rules, /admin/users) [Wave 2]
+- [x] 03-01-PLAN.md - User-scoped database methods (user_id parameters, ownership checks, user-scoped queries) [Wave 1]
+- [x] 03-02-PLAN.md - User-scoped routes (dashboard, rules page, rule mutations, API endpoints) [Wave 2]
+- [x] 03-03-PLAN.md - Admin routes and templates (require_admin, /admin/rules, /admin/users) [Wave 2]
 
 **Wave Structure:**
 | Wave | Plans | Description |

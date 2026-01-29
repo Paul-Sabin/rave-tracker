@@ -22,9 +22,9 @@ Requirements for Milestone 2: Multi-User Support.
 ### Multi-Tenant Database
 
 - [x] **MULTI-01**: Database schema supports multiple users (users table)
-- [ ] **MULTI-02**: Rules are scoped to the user who created them
-- [ ] **MULTI-03**: Notification history is scoped per user
-- [ ] **MULTI-04**: Events remain shared globally (single cache)
+- [x] **MULTI-02**: Rules are scoped to the user who created them
+- [x] **MULTI-03**: Notification history is scoped per user
+- [x] **MULTI-04**: Events remain shared globally (single cache)
 
 ### Session Management
 
@@ -99,9 +99,9 @@ Deferred to future milestone.
 | SESSION-01 | Phase 2 | Complete |
 | SESSION-02 | Phase 2 | Complete |
 | UI-01 | Phase 2 | Complete |
-| MULTI-02 | Phase 3 | Pending |
-| MULTI-03 | Phase 3 | Pending |
-| MULTI-04 | Phase 3 | Pending |
+| MULTI-02 | Phase 3 | Complete |
+| MULTI-03 | Phase 3 | Complete |
+| MULTI-04 | Phase 3 | Complete |
 | TELEGRAM-01 | Phase 4 | Pending |
 | TELEGRAM-02 | Phase 4 | Pending |
 | NOTIFY-01 | Phase 4 | Pending |
