@@ -5,6 +5,25 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+<!-- Legacy Data Welcome Message -->
+{% if legacy_data and (legacy_data.rules > 0 or legacy_data.notifications > 0) %}
+<div id="legacy-alert" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 flex justify-between items-start rounded">
+  <div>
+    <p class="font-medium text-blue-800">Welcome!</p>
+    <p class="text-blue-700">
+      {{ legacy_data.rules }} rule{{ 's' if legacy_data.rules != 1 else '' }}
+      {% if legacy_data.notifications > 0 %}
+      and {{ legacy_data.notifications }} notification{{ 's' if legacy_data.notifications != 1 else '' }}
+      {% endif %}
+      from the previous setup have been assigned to your account.
+    </p>
+  </div>
+  <button onclick="document.getElementById('legacy-alert').remove()" class="text-blue-400 hover:text-blue-600 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Dismiss">
+    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+  </button>
+</div>
+{% endif %}
+
 <!-- Stats -->
 <div class="stats-grid">
     <div class="stat-card">

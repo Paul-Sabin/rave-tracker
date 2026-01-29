@@ -32,15 +32,16 @@ def get_templates(request: Request):
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, user: User = Depends(require_auth)):
-    """Main dashboard showing upcoming events."""
+    """Main dashboard showing upcoming events for current user."""
     templates = get_templates(request)
     db = get_db()
     config = get_config()
 
-    # Get all events - filtering is done client-side
-    events = db.get_upcoming_events()
-    rules = db.get_all_rules()
-    stats = db.get_stats()
+    # Get user-scoped events, rules, and stats
+    events = db.get_upcoming_events_for_user(user.id)
+    rules = db.get_all_rules(user_id=user.id)
+    stats = db.get_user_stats(user.id)
+    legacy_data = db.count_legacy_data(user.id)
     status = get_scheduler_status()
 
     # Group events by date
@@ -60,6 +61,7 @@ async def dashboard(request: Request, user: User = Depends(require_auth)):
             "events_by_date": events_by_date,
             "rules": rules,
             "stats": stats,
+            "legacy_data": legacy_data,
             "scheduler_status": status,
             "local_area_id": config.user.local_area_id,
             "local_area_name": config.user.local_area_name,
@@ -70,11 +72,11 @@ async def dashboard(request: Request, user: User = Depends(require_auth)):
 
 @router.get("/rules", response_class=HTMLResponse)
 async def rules_page(request: Request, user: User = Depends(require_auth)):
-    """Rules management page."""
+    """Rules management page - shows only current user's rules."""
     templates = get_templates(request)
     db = get_db()
 
-    rules = db.get_all_rules()
+    rules = db.get_all_rules(user_id=user.id)
 
     # Group by type
     artists = [r for r in rules if r.rule_type == "artist"]
