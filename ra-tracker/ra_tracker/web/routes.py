@@ -104,11 +104,11 @@ async def add_rule(
     target_id: int = Form(...),
     target_name: str = Form(...),
 ):
-    """Add a new tracking rule."""
+    """Add a new tracking rule assigned to current user."""
     db = get_db()
 
-    # Check for duplicate
-    if db.rule_exists(rule_type, target_id):
+    # Check for duplicate FOR THIS USER
+    if db.rule_exists(rule_type, target_id, user_id=user.id):
         # Just redirect back, don't add duplicate
         return RedirectResponse(url="/rules", status_code=303)
 
@@ -120,17 +120,17 @@ async def add_rule(
         is_active=True,
     )
 
-    db.add_rule(rule)
-    logger.info(f"Added {rule_type} rule: {target_name} (ID: {target_id})")
+    db.add_rule(rule, user_id=user.id)
+    logger.info(f"Added {rule_type} rule for user {user.id}: {target_name} (ID: {target_id})")
 
     return RedirectResponse(url="/rules", status_code=303)
 
 
 @router.post("/rules/{rule_id}/toggle")
 async def toggle_rule(rule_id: int, user: User = Depends(require_auth)):
-    """Toggle a rule's active status."""
+    """Toggle a rule's active status. Verifies ownership first."""
     db = get_db()
-    rule = db.get_rule(rule_id)
+    rule = db.get_rule_for_user(rule_id, user.id)
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -141,9 +141,9 @@ async def toggle_rule(rule_id: int, user: User = Depends(require_auth)):
 
 @router.post("/rules/{rule_id}/notify-mode")
 async def set_notify_mode(rule_id: int, user: User = Depends(require_auth), mode: str = Form(...)):
-    """Set a rule's notification mode."""
+    """Set a rule's notification mode. Verifies ownership first."""
     db = get_db()
-    rule = db.get_rule(rule_id)
+    rule = db.get_rule_for_user(rule_id, user.id)
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -159,8 +159,13 @@ async def set_notify_mode(rule_id: int, user: User = Depends(require_auth), mode
 
 @router.post("/rules/{rule_id}/delete")
 async def delete_rule(rule_id: int, user: User = Depends(require_auth)):
-    """Delete a rule."""
+    """Delete a rule. Verifies ownership first."""
     db = get_db()
+    rule = db.get_rule_for_user(rule_id, user.id)
+
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
     db.delete_rule(rule_id)
     return RedirectResponse(url="/rules", status_code=303)
 
@@ -305,17 +310,17 @@ async def search_areas(q: str, user: User = Depends(require_auth)):
 
 @router.get("/api/status")
 async def get_status(user: User = Depends(require_auth)):
-    """Get current system status."""
+    """Get current system status for the user."""
     db = get_db()
     return {
         "scheduler": get_scheduler_status(),
-        **db.get_stats(),
+        **db.get_user_stats(user.id),
     }
 
 
 @router.post("/api/rules/add")
 async def api_add_rule(request: Request, user: User = Depends(require_auth)):
-    """Add a new tracking rule via JSON API."""
+    """Add a new tracking rule via JSON API assigned to current user."""
     db = get_db()
     data = await request.json()
 
@@ -326,9 +331,9 @@ async def api_add_rule(request: Request, user: User = Depends(require_auth)):
     if not all([rule_type, target_id, target_name]):
         return {"success": False, "error": "Missing required fields"}
 
-    # Check for duplicate
-    if db.rule_exists(rule_type, int(target_id)):
-        return {"success": False, "error": "Already tracking this artist"}
+    # Check for duplicate FOR THIS USER
+    if db.rule_exists(rule_type, int(target_id), user_id=user.id):
+        return {"success": False, "error": "You are already tracking this"}
 
     rule = Rule(
         id=None,
@@ -338,17 +343,17 @@ async def api_add_rule(request: Request, user: User = Depends(require_auth)):
         is_active=True,
     )
 
-    rule_id = db.add_rule(rule)
-    logger.info(f"Added {rule_type} rule via API: {target_name} (ID: {target_id})")
+    rule_id = db.add_rule(rule, user_id=user.id)
+    logger.info(f"Added {rule_type} rule via API for user {user.id}: {target_name} (ID: {target_id})")
 
     return {"success": True, "rule_id": rule_id, "message": f"Now tracking {target_name}"}
 
 
 @router.get("/api/rules/check")
 async def api_check_rule(rule_type: str, target_id: int, user: User = Depends(require_auth)):
-    """Check if a rule already exists."""
+    """Check if a rule already exists for this user."""
     db = get_db()
-    exists = db.rule_exists(rule_type, target_id)
+    exists = db.rule_exists(rule_type, target_id, user_id=user.id)
     return {"exists": exists}
 
 
