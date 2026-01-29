@@ -1,6 +1,6 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 **Current Milestone:** 2 - Multi-User Support
 **Current Phase:** 3 - Multi-Tenant Access (In Progress)
 
@@ -9,14 +9,14 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 3 multi-tenant access - user-scoped database methods complete
+**Current focus:** Phase 3 multi-tenant access - route handler updates complete
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
-| 2 - Multi-User Support | In Progress | Phase 3 (multi-tenant) started, 1/3 plans complete |
+| 2 - Multi-User Support | In Progress | Phase 3 (multi-tenant) started, 2/3 plans complete |
 
 ## Phase Progress
 
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 |-------|------|--------|-------|
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
-| 3 | Multi-Tenant Access | In Progress | 1/3 |
+| 3 | Multi-Tenant Access | In Progress | 2/3 |
 | 4 | User Telegram Config | Pending | 0/0 |
 
-Progress: [======....] 60%
+Progress: [=======...] 70%
 
 ## Current Context
 
@@ -42,9 +42,9 @@ Progress: [======....] 60%
 - Phase 2 Plan 04: Route protection (require_auth), mobile artist tracking buttons
 - Phase 2 Plan 05: Mobile responsiveness, 44px touch targets
 - Phase 3 Plan 01: User-scoped database methods (get_all_rules, get_upcoming_events_for_user, get_user_stats, etc.)
+- Phase 3 Plan 02: Route handler updates (user.id passed to database methods, ownership verification on mutations)
 
 **What's next:**
-- Phase 3 Plan 02: Route handler updates (pass user.id to database methods)
 - Phase 3 Plan 03: Admin routes and templates
 
 **Blockers:** None
@@ -70,6 +70,9 @@ Progress: [======....] 60%
 | 03-01 | Optional user_id parameters | Scheduler needs all rules without user context |
 | 03-01 | Events shared, scoped via event_rules JOIN | Multiple users see same event if rules match |
 | 03-01 | _row_to_rule helper | DRYs up Rule construction across methods |
+| 03-02 | Ownership verification returns 404 | Never reveal if rule exists for another user |
+| 03-02 | Legacy data welcome message dismissable | Inform first user about inherited data |
+| 03-02 | All rule mutations verify ownership | Prevent IDOR vulnerabilities |
 
 ## Session History
 
@@ -83,12 +86,13 @@ Progress: [======....] 60%
 | 2026-01-25 | Executed 02-04-PLAN.md | Route protection, mobile artist tracking buttons |
 | 2026-01-27 | Executed 02-05-PLAN.md | Mobile responsiveness, 44px touch targets, verification fixes |
 | 2026-01-28 | Executed 03-01-PLAN.md | User-scoped database methods complete |
+| 2026-01-29 | Executed 03-02-PLAN.md | Route handler updates, ownership verification, legacy data message |
 
 ## Session Continuity
 
-Last session: 2026-01-28
-Stopped at: Completed 03-01-PLAN.md (User-scoped database methods for multi-tenant access)
+Last session: 2026-01-29
+Stopped at: Completed 03-02-PLAN.md (Route handler updates for multi-tenant access)
 Resume file: None
 
 ---
-*State updated: 2026-01-28*
+*State updated: 2026-01-29*
