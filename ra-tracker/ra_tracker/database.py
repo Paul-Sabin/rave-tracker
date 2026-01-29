@@ -1087,6 +1087,44 @@ class Database:
                 "notifications": legacy_notifications,
             }
 
+    def get_all_rules_with_users(self) -> List[dict]:
+        """Get all rules with owner information for admin view.
+
+        Returns list of dicts (not Rule objects) since we're adding owner info.
+        Ordered by owner display_name, then rule_type, then target_name.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT r.*, u.display_name as owner_name, u.email as owner_email
+                FROM rules r
+                LEFT JOIN users u ON r.user_id = u.id
+                ORDER BY u.display_name, r.rule_type, r.target_name
+                """
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_users(self) -> List[User]:
+        """Get all registered users for admin view.
+
+        Returns all users ordered by created_at DESC (newest first).
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM users ORDER BY created_at DESC")
+            return [
+                User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    display_name=row["display_name"],
+                    is_admin=bool(row["is_admin"]),
+                    email_verified=bool(row["email_verified"]),
+                    telegram_chat_id=row["telegram_chat_id"],
+                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                )
+                for row in cursor.fetchall()
+            ]
+
 
 # Global database instance
 _db: Optional[Database] = None
