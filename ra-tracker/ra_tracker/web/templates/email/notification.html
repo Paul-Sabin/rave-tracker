@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RA Tracker Notification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #f8f9fa;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+        .event {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .event-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin: 0 0 8px 0;
+        }
+        .event-title a {
+            color: #1a1a2e;
+            text-decoration: none;
+        }
+        .event-title a:hover {
+            text-decoration: underline;
+        }
+        .event-details {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+        .event-rules {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #28a745;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer a {
+            color: #666;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #1a1a2e;
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RA Tracker</h1>
+        <p style="margin: 8px 0 0 0; opacity: 0.9;">{{ event_count }} new event{% if event_count > 1 %}s{% endif %} found!</p>
+    </div>
+
+    <div class="content">
+        {% for event in events %}
+        <div class="event">
+            <h2 class="event-title">
+                {% if event.url %}
+                <a href="{{ event.url }}">{{ event.title }}</a>
+                {% else %}
+                {{ event.title }}
+                {% endif %}
+            </h2>
+            <p class="event-details">{{ event.date }}{% if event.time %} at {{ event.time }}{% endif %}</p>
+            <p class="event-details">{{ event.venue }}{% if event.area %} ({{ event.area }}){% endif %}</p>
+            <div class="event-rules">
+                Matched: {{ event.rules | join(", ") }}
+            </div>
+            {% if event.url %}
+            <a href="{{ event.url }}" class="btn">View Event</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="footer">
+        <p>
+            <a href="{{ settings_url }}">Manage notification settings</a>
+        </p>
+        <p>
+            <a href="{{ unsubscribe_url }}">Unsubscribe from email notifications</a>
+        </p>
+    </div>
+</body>
+</html>

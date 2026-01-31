@@ -12,6 +12,8 @@ from ..config import get_config
 from ..database import get_db, Rule, User
 from ..scheduler.jobs import run_fetch_now, get_scheduler_status
 from ..services.notifier import Notifier
+from ..services.email_sender import verify_unsubscribe_token
+from itsdangerous import SignatureExpired, BadSignature
 from .auth import (
     create_user_session,
     set_session_cookie,
@@ -489,3 +491,48 @@ async def privacy_page(request: Request, user: Optional[User] = Depends(get_curr
     """Privacy Policy page."""
     templates = get_templates(request)
     return templates.TemplateResponse("privacy.html", {"request": request, "user": user})
+
+
+@router.get("/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe(request: Request, token: str):
+    """One-click email unsubscribe (no login required)."""
+    templates = get_templates(request)
+    db = get_db()
+
+    try:
+        data = verify_unsubscribe_token(token)
+        user_id = data["user_id"]
+
+        # Disable email notifications
+        db.set_user_email_enabled(user_id, False)
+
+        return templates.TemplateResponse("unsubscribed.html", {
+            "request": request,
+            "user": None,  # No user context for unsubscribe
+            "success": True,
+        })
+
+    except SignatureExpired:
+        return templates.TemplateResponse("unsubscribed.html", {
+            "request": request,
+            "user": None,
+            "success": False,
+            "error": "This unsubscribe link has expired. Please log in to manage notifications.",
+        })
+
+    except BadSignature:
+        return templates.TemplateResponse("unsubscribed.html", {
+            "request": request,
+            "user": None,
+            "success": False,
+            "error": "Invalid unsubscribe link.",
+        })
+
+    except Exception as e:
+        logger.error(f"Unsubscribe error: {e}")
+        return templates.TemplateResponse("unsubscribed.html", {
+            "request": request,
+            "user": None,
+            "success": False,
+            "error": "An error occurred. Please try again or log in to manage notifications.",
+        })

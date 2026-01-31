@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Unsubscribed - RA Tracker{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 40px 20px;">
+    {% if success %}
+    <h1>Email Notifications Disabled</h1>
+    <p class="text-muted" style="margin: 20px 0;">
+        You will no longer receive email notifications from RA Tracker.
+    </p>
+    <p style="margin: 20px 0;">
+        Changed your mind? <a href="/settings">Visit Settings</a> to re-enable notifications.
+    </p>
+    {% else %}
+    <h1>Unsubscribe Failed</h1>
+    <p class="text-danger" style="margin: 20px 0;">
+        {{ error }}
+    </p>
+    <p style="margin: 20px 0;">
+        If you continue to receive unwanted emails, please <a href="/login">log in</a>
+        and disable notifications in Settings.
+    </p>
+    {% endif %}
+
+    <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Dashboard</a>
+</div>
+{% endblock %}
