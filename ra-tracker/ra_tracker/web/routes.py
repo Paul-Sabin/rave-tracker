@@ -1,7 +1,9 @@
 """FastAPI routes for RA Tracker web UI - Simplified."""
 
 import logging
+import secrets
 import sqlite3
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
@@ -9,10 +11,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..api.ra_client import RAClient
 from ..config import get_config
-from ..database import get_db, Rule, User
+from ..database import get_db, Rule, User, Event
 from ..scheduler.jobs import run_fetch_now, get_scheduler_status
 from ..services.notifier import Notifier
-from ..services.email_sender import verify_unsubscribe_token
+from ..services.email_sender import verify_unsubscribe_token, is_email_configured, send_notification_email
 from itsdangerous import SignatureExpired, BadSignature
 from .auth import (
     create_user_session,
@@ -177,6 +179,10 @@ async def settings_page(request: Request, user: User = Depends(require_auth)):
     """Settings page."""
     templates = get_templates(request)
     config = get_config()
+    db = get_db()
+
+    # Refresh user data (might have been updated)
+    user = db.get_user_by_id(user.id)
 
     # Mask the bot token
     bot_token = config.telegram.bot_token
@@ -195,6 +201,8 @@ async def settings_page(request: Request, user: User = Depends(require_auth)):
             "config": config,
             "masked_token": masked_token,
             "scheduler_status": get_scheduler_status(),
+            "telegram_configured": bool(config.telegram.bot_token),
+            "email_configured": is_email_configured(),
         },
     )
 
@@ -240,6 +248,142 @@ async def test_telegram(user: User = Depends(require_auth)):
         return {"status": "error", "message": "Failed to send"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@router.post("/settings/telegram/link")
+async def generate_telegram_link_code(request: Request, user: User = Depends(require_auth)):
+    """Generate a new Telegram link code for the current user."""
+    db = get_db()
+    config = get_config()
+
+    # Check if Telegram bot is configured
+    if not config.telegram.bot_token:
+        return {"success": False, "error": "Telegram bot not configured by admin"}
+
+    # Check if already linked
+    if user.telegram_chat_id:
+        return {
+            "success": False,
+            "error": "Already linked. Unlink first to change Telegram account."
+        }
+
+    # Generate code (8 chars, URL-safe)
+    code = secrets.token_urlsafe(6)[:8].upper()
+    expires_at = datetime.now() + timedelta(hours=1)
+
+    # Store code
+    db.create_telegram_link_code(user.id, code, expires_at)
+
+    return {
+        "success": True,
+        "code": code,
+        "expires_in_minutes": 60,
+    }
+
+
+@router.post("/settings/telegram/unlink")
+async def unlink_telegram(request: Request, user: User = Depends(require_auth)):
+    """Unlink Telegram from user account."""
+    db = get_db()
+
+    db.update_user_telegram(user.id, None)
+    db.set_user_telegram_enabled(user.id, False)
+
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/notifications/telegram")
+async def toggle_telegram_notifications(
+    request: Request,
+    user: User = Depends(require_auth),
+    enabled: str = Form("off"),
+):
+    """Toggle Telegram notifications for current user."""
+    db = get_db()
+
+    # Refresh user to check telegram_chat_id
+    user = db.get_user_by_id(user.id)
+
+    # Can only enable if telegram is linked
+    is_enabled = enabled == "on"
+    if is_enabled and not user.telegram_chat_id:
+        return RedirectResponse(url="/settings", status_code=303)
+
+    db.set_user_telegram_enabled(user.id, is_enabled)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/notifications/email")
+async def toggle_email_notifications(
+    request: Request,
+    user: User = Depends(require_auth),
+    enabled: str = Form("off"),
+):
+    """Toggle Email notifications for current user."""
+    db = get_db()
+
+    db.set_user_email_enabled(user.id, enabled == "on")
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/notifications/test")
+async def test_notifications(request: Request, user: User = Depends(require_auth)):
+    """Send a test notification to all enabled channels."""
+    db = get_db()
+
+    # Refresh user data
+    user = db.get_user_by_id(user.id)
+    results = []
+
+    # Test Telegram
+    if user.telegram_enabled and user.telegram_chat_id:
+        notifier = Notifier()
+        try:
+            # Send test message to user's chat
+            await notifier.bot.send_message(
+                chat_id=user.telegram_chat_id,
+                text="Test notification from RA Tracker - your Telegram is configured correctly!"
+            )
+            results.append({"channel": "telegram", "success": True})
+        except Exception as e:
+            results.append({"channel": "telegram", "success": False, "error": str(e)})
+
+    # Test Email
+    if user.email_enabled and is_email_configured():
+        try:
+            # Create a fake event for test
+            test_event = Event(
+                id=0,
+                title="Test Event - RA Tracker Configuration",
+                date=datetime.now().date(),
+                venue_name="Test Venue",
+                area_name="Test Area",
+                content_url="https://ra.co",
+            )
+            test_rule = Rule(
+                id=0,
+                rule_type="artist",
+                target_id=0,
+                target_name="Test Artist",
+            )
+            success = await send_notification_email(
+                user.email,
+                user.id,
+                [(test_event, [test_rule])],
+            )
+            results.append({"channel": "email", "success": success})
+        except Exception as e:
+            results.append({"channel": "email", "success": False, "error": str(e)})
+
+    if not results:
+        return {"success": False, "message": "No notification channels enabled"}
+
+    all_success = all(r["success"] for r in results)
+    return {
+        "success": all_success,
+        "results": results,
+        "message": "Test notifications sent!" if all_success else "Some notifications failed"
+    }
 
 
 @router.post("/actions/fetch-now")
