@@ -12,7 +12,7 @@
 | 1 | Database Schema | Add users table and foreign key relationships | MULTI-01 |
 | 2 | Authentication | User registration, login, logout with secure sessions + mobile-first UI + privacy policy | AUTH-01 to AUTH-05, SESSION-01, SESSION-02, UI-01, PRIVACY-01 to PRIVACY-04 |
 | 3 | Multi-Tenant Access | Scope rules and notifications to users, protect routes | MULTI-02, MULTI-03, MULTI-04 |
-| 4 | User Notifications | Per-user notification config (Telegram and/or Email) | TELEGRAM-01, TELEGRAM-02, EMAIL-01, EMAIL-02, NOTIFY-01 to NOTIFY-03 |
+| 4 | User Notifications | Per-user notification config (Telegram and/or Email) | TELEGRAM-01, TELEGRAM-02, EMAIL-01, EMAIL-02, NOTIFY-01 to NOTIFY-03, NOTIFY-05, NOTIFY-06 |
 
 ---
 
@@ -136,6 +136,8 @@ Plans:
 
 **Goal:** Allow each user to configure notification channels (Telegram and/or Email) with independent on/off toggles
 
+**Status:** Planned
+
 **Requirements:**
 - TELEGRAM-01: Each user can link Telegram by messaging the bot
 - TELEGRAM-02: Admin configures shared bot token in config
@@ -146,6 +148,22 @@ Plans:
 - NOTIFY-03: At least one channel must be configured before notifications are sent
 - NOTIFY-05: Email includes one-click unsubscribe link (no login required)
 - NOTIFY-06: Telegram bot responds to /stop command to disable notifications
+
+**Plans:** 5 plans in 3 waves
+
+Plans:
+- [ ] 04-01-PLAN.md - Database schema extensions and config (notification preferences, link codes, EmailConfig) [Wave 1]
+- [ ] 04-02-PLAN.md - Telegram bot service with /link, /stop, /start command handlers [Wave 2]
+- [ ] 04-03-PLAN.md - Email sender service with SMTP and signed unsubscribe tokens [Wave 2]
+- [ ] 04-04-PLAN.md - Settings page UI with notification preferences and link code generation [Wave 3]
+- [ ] 04-05-PLAN.md - Per-user notification dispatch in scheduler [Wave 3]
+
+**Wave Structure:**
+| Wave | Plans | Description |
+|------|-------|-------------|
+| 1 | 04-01 | Database/config foundation (no dependencies) |
+| 2 | 04-02, 04-03 | Telegram bot + Email sender (parallel, both depend on 04-01) |
+| 3 | 04-04, 04-05 | Settings UI + Scheduler dispatch (parallel, depend on 04-01, 04-02, 04-03) |
 
 **Success Criteria:**
 1. Settings page shows notification preferences section
@@ -186,4 +204,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-19*
-*Last updated: 2026-01-28 - Added Phase 3 plans (3 plans in 2 waves)*
+*Last updated: 2026-01-31 - Added Phase 4 plans (5 plans in 3 waves)*
