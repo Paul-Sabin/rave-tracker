@@ -1,0 +1,47 @@
+# Telegram configuration
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"  # Legacy - now per-user
+  webhook_secret: ""  # For webhook verification
+  use_webhook: false  # Set true if using webhooks
+  webhook_url: ""  # Your public URL + /telegram/webhook
+
+# Scheduler settings
+scheduler:
+  fetch_interval_hours: 6
+  event_horizon_days: 30
+
+# Web server settings
+web:
+  host: "0.0.0.0"
+  port: 8080
+
+# Database settings
+database:
+  path: "./data/ra_tracker.db"
+
+# User settings
+user:
+  local_area_id: null  # Set to your local RA area ID
+  local_area_name: ""  # e.g., "London"
+
+# Session settings
+session:
+  timeout_days: 30
+  secure_cookies: true  # Set false for local HTTP dev
+
+# Email notification settings (optional)
+email:
+  server: smtp.gmail.com
+  port: 587
+  username: ""
+  password: ""  # Use app password for Gmail
+  from_address: ""
+  from_name: RA Tracker
+  starttls: true
+  ssl_tls: false
+
+# Application settings
+app:
+  secret_key: ""  # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  base_url: http://localhost:8080
