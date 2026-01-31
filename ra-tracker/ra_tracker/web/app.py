@@ -1,19 +1,52 @@
 """FastAPI application for RA Tracker web UI."""
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from telegram import Update
+
 from .routes import router
 from .admin import admin_router
+from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_application
+from ..config import get_config
 
 logger = logging.getLogger(__name__)
 
 # Get template directory path
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle - start/stop bot."""
+    config = get_config()
+
+    # Start bot polling if not using webhooks
+    if config.telegram.bot_token and not config.telegram.use_webhook:
+        start_bot_polling()
+
+    # If using webhooks, set up webhook URL
+    if config.telegram.bot_token and config.telegram.use_webhook:
+        bot_app = get_bot_application()
+        if bot_app and config.telegram.webhook_url:
+            try:
+                await bot_app.bot.set_webhook(
+                    url=config.telegram.webhook_url,
+                    secret_token=config.telegram.webhook_secret or None
+                )
+                logger.info(f"Telegram webhook set: {config.telegram.webhook_url}")
+            except Exception as e:
+                logger.error(f"Failed to set webhook: {e}")
+
+    yield
+
+    # Cleanup
+    stop_bot()
 
 
 def create_app() -> FastAPI:
@@ -22,6 +55,7 @@ def create_app() -> FastAPI:
         title="RA Tracker",
         description="Track ra.co events and get Telegram notifications",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     # Set up Jinja2 templates
@@ -33,6 +67,32 @@ def create_app() -> FastAPI:
     # Include routes
     app.include_router(router)
     app.include_router(admin_router)
+
+    # Add webhook endpoint for Telegram (only used if webhook mode enabled)
+    @app.post("/telegram/webhook")
+    async def telegram_webhook(request: Request):
+        """Receive Telegram updates via webhook."""
+        config = get_config()
+
+        # Verify secret token if configured
+        if config.telegram.webhook_secret:
+            secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+            if secret != config.telegram.webhook_secret:
+                logger.warning("Invalid webhook secret token")
+                return Response(status_code=403)
+
+        bot_app = get_bot_application()
+        if not bot_app:
+            return Response(status_code=500)
+
+        try:
+            data = await request.json()
+            update = Update.de_json(data, bot_app.bot)
+            await bot_app.process_update(update)
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}")
+
+        return Response(status_code=200)
 
     return app
 
