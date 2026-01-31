@@ -95,7 +95,19 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin BOOLEAN DEFAULT 0,
     email_verified BOOLEAN DEFAULT 0,
     telegram_chat_id INTEGER,
+    telegram_enabled BOOLEAN DEFAULT 0,
+    email_enabled BOOLEAN DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Telegram link codes (temporary, for linking flow)
+CREATE TABLE IF NOT EXISTS telegram_link_codes (
+    code TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Sessions (user authentication tokens)
@@ -114,6 +126,8 @@ CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_link_codes_user ON telegram_link_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_link_codes_expires ON telegram_link_codes(expires_at);
 """
 
 # Migration to add new columns to existing database
@@ -168,6 +182,14 @@ MIGRATIONS = [
     """
     ALTER TABLE notifications ADD COLUMN user_id INTEGER;
     """,
+    # Migration 6: Add telegram_enabled to users (default 0 = off)
+    """
+    ALTER TABLE users ADD COLUMN telegram_enabled BOOLEAN DEFAULT 0;
+    """,
+    # Migration 7: Add email_enabled to users (default 1 = on)
+    """
+    ALTER TABLE users ADD COLUMN email_enabled BOOLEAN DEFAULT 1;
+    """,
 ]
 
 
@@ -181,6 +203,8 @@ class User:
     is_admin: bool = False  # First user gets True
     email_verified: bool = False  # For future verification feature
     telegram_chat_id: Optional[int] = None  # For Telegram linking (Phase 4)
+    telegram_enabled: bool = False  # Telegram notifications on/off
+    email_enabled: bool = True  # Email notifications on/off (default enabled)
     created_at: Optional[datetime] = None
 
 
@@ -353,6 +377,8 @@ class Database:
                 is_admin=bool(row["is_admin"]),
                 email_verified=bool(row["email_verified"]),
                 telegram_chat_id=row["telegram_chat_id"],
+                telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
             )
 
@@ -371,6 +397,8 @@ class Database:
                 is_admin=bool(row["is_admin"]),
                 email_verified=bool(row["email_verified"]),
                 telegram_chat_id=row["telegram_chat_id"],
+                telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
             )
 
@@ -398,12 +426,104 @@ class Database:
             )
 
     def update_user_telegram(self, user_id: int, telegram_chat_id: Optional[int]) -> None:
-        """Update a user's Telegram chat ID."""
+        """Update a user's Telegram chat ID.
+
+        Args:
+            user_id: User ID to update
+            telegram_chat_id: Telegram chat ID, or None to unlink
+        """
         with self.get_connection() as conn:
             conn.execute(
                 "UPDATE users SET telegram_chat_id = ? WHERE id = ?",
                 (telegram_chat_id, user_id)
             )
+
+    def get_user_by_telegram_chat_id(self, chat_id: int) -> Optional[User]:
+        """Get a user by their Telegram chat ID."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM users WHERE telegram_chat_id = ?", (chat_id,))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return User(
+                id=row["id"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                display_name=row["display_name"],
+                is_admin=bool(row["is_admin"]),
+                email_verified=bool(row["email_verified"]),
+                telegram_chat_id=row["telegram_chat_id"],
+                telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            )
+
+    def set_user_telegram_enabled(self, user_id: int, enabled: bool) -> None:
+        """Set whether Telegram notifications are enabled for a user."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET telegram_enabled = ? WHERE id = ?",
+                (enabled, user_id)
+            )
+
+    def set_user_email_enabled(self, user_id: int, enabled: bool) -> None:
+        """Set whether email notifications are enabled for a user."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET email_enabled = ? WHERE id = ?",
+                (enabled, user_id)
+            )
+
+    # Telegram link code operations
+    def create_telegram_link_code(self, user_id: int, code: str, expires_at: datetime) -> None:
+        """Create a new Telegram link code for a user."""
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO telegram_link_codes (code, user_id, expires_at)
+                VALUES (?, ?, ?)
+                """,
+                (code, user_id, expires_at.isoformat())
+            )
+
+    def get_telegram_link_code(self, code: str) -> Optional[dict]:
+        """Get a Telegram link code by code string.
+
+        Returns dict with user_id, expires_at, used_at, created_at or None if not found.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM telegram_link_codes WHERE code = ?",
+                (code,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return {
+                "code": row["code"],
+                "user_id": row["user_id"],
+                "created_at": datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                "expires_at": datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
+                "used_at": datetime.fromisoformat(row["used_at"]) if row["used_at"] else None,
+            }
+
+    def mark_link_code_used(self, code: str) -> None:
+        """Mark a link code as used."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE telegram_link_codes SET used_at = ? WHERE code = ?",
+                (datetime.now().isoformat(), code)
+            )
+
+    def cleanup_expired_link_codes(self) -> int:
+        """Delete expired link codes. Returns count of deleted codes."""
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM telegram_link_codes WHERE expires_at <= ?",
+                (now,)
+            )
+            return cursor.rowcount
 
     # Session operations
     def create_session(self, user_id: int, token: str, expires_at: datetime) -> None:
@@ -1120,6 +1240,8 @@ class Database:
                     is_admin=bool(row["is_admin"]),
                     email_verified=bool(row["email_verified"]),
                     telegram_chat_id=row["telegram_chat_id"],
+                    telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                    email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                     created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                 )
                 for row in cursor.fetchall()
