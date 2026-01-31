@@ -9,7 +9,7 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 4 user notifications - database and config foundation complete
+**Current focus:** Phase 4 user notifications - Telegram bot service complete
 
 ## Milestone Progress
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
 | 3 | Multi-Tenant Access | Complete | 3/3 |
-| 4 | User Notifications | In Progress | 1/? |
+| 4 | User Notifications | In Progress | 2/4 |
 
-Progress: [========..] 85%
+Progress: [========..] 87%
 
 ## Current Context
 
@@ -45,9 +45,9 @@ Progress: [========..] 85%
 - Phase 3 Plan 02: Route handler updates (user.id passed to database methods, ownership verification on mutations)
 - Phase 3 Plan 03: Admin routes and templates (require_admin, /admin/rules, /admin/users)
 - Phase 4 Plan 01: Notification preference schema (telegram_enabled, email_enabled, telegram_link_codes table, EmailConfig, AppConfig)
+- Phase 4 Plan 02: Telegram bot service (/link, /stop, /start commands, polling/webhook modes)
 
 **What's next:**
-- Phase 4 Plan 02: Telegram bot implementation
 - Phase 4 Plan 03: Email notification service
 - Phase 4 Plan 04: Settings page UI
 
@@ -84,6 +84,9 @@ Progress: [========..] 85%
 | 04-01 | email_enabled defaults to 1 (on) | Opt-out model for email notifications |
 | 04-01 | Link codes in separate table | Cleaner design, supports multiple pending codes |
 | 04-01 | itsdangerous for signed tokens | No login required to unsubscribe from email |
+| 04-02 | Polling in daemon thread | Clean shutdown on process termination |
+| 04-02 | Webhook secret token verification | Secure webhook endpoint |
+| 04-02 | Bot graceful skip if no token | Development without Telegram configured |
 
 ## Session History
 
@@ -100,11 +103,12 @@ Progress: [========..] 85%
 | 2026-01-29 | Executed 03-02-PLAN.md | Route handler updates, ownership verification, legacy data message |
 | 2026-01-29 | Executed 03-03-PLAN.md | Admin routes and templates complete |
 | 2026-01-31 | Executed 04-01-PLAN.md | Notification preference schema, EmailConfig, AppConfig complete |
+| 2026-01-31 | Executed 04-02-PLAN.md | Telegram bot service with /link, /stop, /start commands |
 
 ## Session Continuity
 
 Last session: 2026-01-31
-Stopped at: Completed 04-01-PLAN.md (Notification preferences schema and config)
+Stopped at: Completed 04-02-PLAN.md (Telegram bot service)
 Resume file: None
 
 ---
