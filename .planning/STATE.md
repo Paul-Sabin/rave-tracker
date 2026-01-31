@@ -9,7 +9,7 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 4 user notifications - Telegram bot service complete
+**Current focus:** Phase 4 user notifications - Email sender service complete
 
 ## Milestone Progress
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
 | 3 | Multi-Tenant Access | Complete | 3/3 |
-| 4 | User Notifications | In Progress | 2/4 |
+| 4 | User Notifications | In Progress | 3/4 |
 
-Progress: [========..] 87%
+Progress: [=========.] 90%
 
 ## Current Context
 
@@ -46,9 +46,9 @@ Progress: [========..] 87%
 - Phase 3 Plan 03: Admin routes and templates (require_admin, /admin/rules, /admin/users)
 - Phase 4 Plan 01: Notification preference schema (telegram_enabled, email_enabled, telegram_link_codes table, EmailConfig, AppConfig)
 - Phase 4 Plan 02: Telegram bot service (/link, /stop, /start commands, polling/webhook modes)
+- Phase 4 Plan 03: Email sender service (fastapi-mail, signed unsubscribe tokens, HTML templates)
 
 **What's next:**
-- Phase 4 Plan 03: Email notification service
 - Phase 4 Plan 04: Settings page UI
 
 **Blockers:** None
@@ -87,6 +87,9 @@ Progress: [========..] 87%
 | 04-02 | Polling in daemon thread | Clean shutdown on process termination |
 | 04-02 | Webhook secret token verification | Secure webhook endpoint |
 | 04-02 | Bot graceful skip if no token | Development without Telegram configured |
+| 04-03 | URLSafeTimedSerializer for unsubscribe tokens | 30-day expiry matches session timeout |
+| 04-03 | No login required for unsubscribe | User experience priority |
+| 04-03 | Rule type indicators (A/V/P) in email | Compact display of match reasons |
 
 ## Session History
 
@@ -104,11 +107,12 @@ Progress: [========..] 87%
 | 2026-01-29 | Executed 03-03-PLAN.md | Admin routes and templates complete |
 | 2026-01-31 | Executed 04-01-PLAN.md | Notification preference schema, EmailConfig, AppConfig complete |
 | 2026-01-31 | Executed 04-02-PLAN.md | Telegram bot service with /link, /stop, /start commands |
+| 2026-01-31 | Executed 04-03-PLAN.md | Email sender service with signed unsubscribe tokens |
 
 ## Session Continuity
 
 Last session: 2026-01-31
-Stopped at: Completed 04-02-PLAN.md (Telegram bot service)
+Stopped at: Completed 04-03-PLAN.md (Email sender service)
 Resume file: None
 
 ---
