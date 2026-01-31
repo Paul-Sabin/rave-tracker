@@ -2,21 +2,21 @@
 
 **Last Updated:** 2026-01-31
 **Current Milestone:** 2 - Multi-User Support
-**Current Phase:** 4 - User Notifications (In Progress)
+**Current Phase:** 4 - User Notifications (Complete)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 4 user notifications - Per-user notification dispatch complete
+**Current focus:** Phase 4 user notifications - COMPLETE
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
-| 2 - Multi-User Support | In Progress | Phase 4 (user notifications) in progress |
+| 2 - Multi-User Support | Complete | All 4 phases complete |
 
 ## Phase Progress
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
 | 3 | Multi-Tenant Access | Complete | 3/3 |
-| 4 | User Notifications | In Progress | 4/5 |
+| 4 | User Notifications | Complete | 5/5 |
 
-Progress: [=========.] 93%
+Progress: [==========] 100%
 
 ## Current Context
 
@@ -47,10 +47,11 @@ Progress: [=========.] 93%
 - Phase 4 Plan 01: Notification preference schema (telegram_enabled, email_enabled, telegram_link_codes table, EmailConfig, AppConfig)
 - Phase 4 Plan 02: Telegram bot service (/link, /stop, /start commands, polling/webhook modes)
 - Phase 4 Plan 03: Email sender service (fastapi-mail, signed unsubscribe tokens, HTML templates)
+- Phase 4 Plan 04: Settings page UI (notification preferences, toggle switches, Telegram linking modal)
 - Phase 4 Plan 05: Per-user notification dispatch (notify_users_for_events, scheduler integration)
 
 **What's next:**
-- Phase 4 Plan 04: Settings page UI
+- Milestone 2 complete! Ready for deployment or next milestone planning.
 
 **Blockers:** None
 
@@ -91,6 +92,9 @@ Progress: [=========.] 93%
 | 04-03 | URLSafeTimedSerializer for unsubscribe tokens | 30-day expiry matches session timeout |
 | 04-03 | No login required for unsubscribe | User experience priority |
 | 04-03 | Rule type indicators (A/V/P) in email | Compact display of match reasons |
+| 04-04 | iOS-style toggle switches | Intuitive on/off interface, immediate form submission |
+| 04-04 | AJAX modal for link code generation | Better UX than page reload for short-lived codes |
+| 04-04 | Test Notifications button sends to all enabled channels | Single button to verify complete notification setup |
 | 04-05 | Skip legacy rules with no user_id | Backward compatibility for per-user dispatch |
 | 04-05 | Mark events notified per-user | Track notifications separately per user |
 | 04-05 | Admin summary to global chat_id | Monitoring when per-user notifications succeed |
@@ -112,12 +116,13 @@ Progress: [=========.] 93%
 | 2026-01-31 | Executed 04-01-PLAN.md | Notification preference schema, EmailConfig, AppConfig complete |
 | 2026-01-31 | Executed 04-02-PLAN.md | Telegram bot service with /link, /stop, /start commands |
 | 2026-01-31 | Executed 04-03-PLAN.md | Email sender service with signed unsubscribe tokens |
+| 2026-01-31 | Executed 04-04-PLAN.md | Settings page UI with notification preferences |
 | 2026-01-31 | Executed 04-05-PLAN.md | Per-user notification dispatch, scheduler integration |
 
 ## Session Continuity
 
 Last session: 2026-01-31
-Stopped at: Completed 04-05-PLAN.md (Per-user notification dispatch)
+Stopped at: Completed 04-04-PLAN.md (Settings page UI) - Phase 4 and Milestone 2 complete!
 Resume file: None
 
 ---
