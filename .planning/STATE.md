@@ -9,7 +9,7 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 4 user notifications - Email sender service complete
+**Current focus:** Phase 4 user notifications - Per-user notification dispatch complete
 
 ## Milestone Progress
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
 | 3 | Multi-Tenant Access | Complete | 3/3 |
-| 4 | User Notifications | In Progress | 3/4 |
+| 4 | User Notifications | In Progress | 4/5 |
 
-Progress: [=========.] 90%
+Progress: [=========.] 93%
 
 ## Current Context
 
@@ -47,6 +47,7 @@ Progress: [=========.] 90%
 - Phase 4 Plan 01: Notification preference schema (telegram_enabled, email_enabled, telegram_link_codes table, EmailConfig, AppConfig)
 - Phase 4 Plan 02: Telegram bot service (/link, /stop, /start commands, polling/webhook modes)
 - Phase 4 Plan 03: Email sender service (fastapi-mail, signed unsubscribe tokens, HTML templates)
+- Phase 4 Plan 05: Per-user notification dispatch (notify_users_for_events, scheduler integration)
 
 **What's next:**
 - Phase 4 Plan 04: Settings page UI
@@ -90,6 +91,9 @@ Progress: [=========.] 90%
 | 04-03 | URLSafeTimedSerializer for unsubscribe tokens | 30-day expiry matches session timeout |
 | 04-03 | No login required for unsubscribe | User experience priority |
 | 04-03 | Rule type indicators (A/V/P) in email | Compact display of match reasons |
+| 04-05 | Skip legacy rules with no user_id | Backward compatibility for per-user dispatch |
+| 04-05 | Mark events notified per-user | Track notifications separately per user |
+| 04-05 | Admin summary to global chat_id | Monitoring when per-user notifications succeed |
 
 ## Session History
 
@@ -108,11 +112,12 @@ Progress: [=========.] 90%
 | 2026-01-31 | Executed 04-01-PLAN.md | Notification preference schema, EmailConfig, AppConfig complete |
 | 2026-01-31 | Executed 04-02-PLAN.md | Telegram bot service with /link, /stop, /start commands |
 | 2026-01-31 | Executed 04-03-PLAN.md | Email sender service with signed unsubscribe tokens |
+| 2026-01-31 | Executed 04-05-PLAN.md | Per-user notification dispatch, scheduler integration |
 
 ## Session Continuity
 
 Last session: 2026-01-31
-Stopped at: Completed 04-03-PLAN.md (Email sender service)
+Stopped at: Completed 04-05-PLAN.md (Per-user notification dispatch)
 Resume file: None
 
 ---
