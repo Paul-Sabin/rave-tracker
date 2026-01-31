@@ -1,22 +1,22 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-31
 **Current Milestone:** 2 - Multi-User Support
-**Current Phase:** 3 - Multi-Tenant Access (Complete)
+**Current Phase:** 4 - User Notifications (In Progress)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 3 multi-tenant access complete - ready for Phase 4
+**Current focus:** Phase 4 user notifications - database and config foundation complete
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
-| 2 - Multi-User Support | In Progress | Phase 3 (multi-tenant) complete, ready for Phase 4 |
+| 2 - Multi-User Support | In Progress | Phase 4 (user notifications) in progress |
 
 ## Phase Progress
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 | 1 | Database Schema | Complete | 1/1 |
 | 2 | Authentication | Complete | 5/5 |
 | 3 | Multi-Tenant Access | Complete | 3/3 |
-| 4 | User Telegram Config | Pending | 0/0 |
+| 4 | User Notifications | In Progress | 1/? |
 
-Progress: [========..] 80%
+Progress: [========..] 85%
 
 ## Current Context
 
@@ -44,9 +44,12 @@ Progress: [========..] 80%
 - Phase 3 Plan 01: User-scoped database methods (get_all_rules, get_upcoming_events_for_user, get_user_stats, etc.)
 - Phase 3 Plan 02: Route handler updates (user.id passed to database methods, ownership verification on mutations)
 - Phase 3 Plan 03: Admin routes and templates (require_admin, /admin/rules, /admin/users)
+- Phase 4 Plan 01: Notification preference schema (telegram_enabled, email_enabled, telegram_link_codes table, EmailConfig, AppConfig)
 
 **What's next:**
-- Phase 4: User Telegram Config (planning needed)
+- Phase 4 Plan 02: Telegram bot implementation
+- Phase 4 Plan 03: Email notification service
+- Phase 4 Plan 04: Settings page UI
 
 **Blockers:** None
 
@@ -77,6 +80,10 @@ Progress: [========..] 80%
 | 03-03 | 403 Forbidden for non-admin access | API consistency vs redirect |
 | 03-03 | Rules grouped by owner in admin view | Easy scanning for oversight |
 | 03-03 | require_admin stacks on require_auth | Role-based access pattern |
+| 04-01 | telegram_enabled defaults to 0 (off) | Requires explicit linking |
+| 04-01 | email_enabled defaults to 1 (on) | Opt-out model for email notifications |
+| 04-01 | Link codes in separate table | Cleaner design, supports multiple pending codes |
+| 04-01 | itsdangerous for signed tokens | No login required to unsubscribe from email |
 
 ## Session History
 
@@ -92,12 +99,13 @@ Progress: [========..] 80%
 | 2026-01-28 | Executed 03-01-PLAN.md | User-scoped database methods complete |
 | 2026-01-29 | Executed 03-02-PLAN.md | Route handler updates, ownership verification, legacy data message |
 | 2026-01-29 | Executed 03-03-PLAN.md | Admin routes and templates complete |
+| 2026-01-31 | Executed 04-01-PLAN.md | Notification preference schema, EmailConfig, AppConfig complete |
 
 ## Session Continuity
 
-Last session: 2026-01-29
-Stopped at: Completed 03-03-PLAN.md (Admin routes and templates for multi-tenant access)
+Last session: 2026-01-31
+Stopped at: Completed 04-01-PLAN.md (Notification preferences schema and config)
 Resume file: None
 
 ---
-*State updated: 2026-01-29*
+*State updated: 2026-01-31*
