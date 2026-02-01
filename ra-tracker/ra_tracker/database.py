@@ -190,6 +190,10 @@ MIGRATIONS = [
     """
     ALTER TABLE users ADD COLUMN email_enabled BOOLEAN DEFAULT 1;
     """,
+    # Migration 8: Add dashboard_mode to rules (default 'local' = show local events)
+    """
+    ALTER TABLE rules ADD COLUMN dashboard_mode TEXT DEFAULT 'local';
+    """,
 ]
 
 
@@ -224,8 +228,9 @@ class Rule:
     rule_type: str  # 'artist', 'venue', 'promoter'
     target_id: int  # RA ID
     target_name: str  # Display name
-    is_active: bool = True
-    notify_mode: str = 'local'  # 'all', 'local', 'none'
+    is_active: bool = True  # Deprecated: use dashboard_mode='none' and notify_mode='none' instead
+    notify_mode: str = 'local'  # 'all', 'local', 'none' - controls notifications
+    dashboard_mode: str = 'local'  # 'all', 'local', 'none' - controls dashboard visibility
     created_at: Optional[datetime] = None
     user_id: Optional[int] = None  # Owner of this rule (NULL for legacy data)
 
@@ -285,6 +290,7 @@ class Database:
             target_name=row["target_name"],
             is_active=bool(row["is_active"]),
             notify_mode=row["notify_mode"] or "local",
+            dashboard_mode=row["dashboard_mode"] if "dashboard_mode" in row.keys() and row["dashboard_mode"] else "local",
             created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
             user_id=row["user_id"] if "user_id" in row.keys() else None,
         )
@@ -606,10 +612,10 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, user_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, dashboard_mode, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, user_id),
+                (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, rule.dashboard_mode, user_id),
             )
             return cursor.lastrowid
 
@@ -694,6 +700,14 @@ class Database:
             conn.execute(
                 "UPDATE rules SET notify_mode = ? WHERE id = ?",
                 (notify_mode, rule_id),
+            )
+
+    def set_rule_dashboard_mode(self, rule_id: int, dashboard_mode: str) -> None:
+        """Set rule dashboard mode ('all', 'local', 'none')."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE rules SET dashboard_mode = ? WHERE id = ?",
+                (dashboard_mode, rule_id),
             )
 
     def rule_exists(self, rule_type: str, target_id: int, user_id: Optional[int] = None) -> bool:
@@ -1049,27 +1063,57 @@ class Database:
                 "notifications_sent": notifications,
             }
 
-    def get_upcoming_events_for_user(self, user_id: int) -> List[Event]:
-        """Get upcoming events that match the user's rules.
+    def get_upcoming_events_for_user(self, user_id: int, local_area_id: Optional[int] = None) -> List[Event]:
+        """Get upcoming events that match the user's rules, filtered by dashboard_mode.
 
         Returns events linked to the user's rules via the event_rules table.
         Each event includes only the matched_rules belonging to this user.
         Artists and promoters are shared data (not user-scoped).
+
+        Filtering by dashboard_mode:
+        - 'all': Always show event
+        - 'local': Only show if event.area_id matches local_area_id
+        - 'none': Don't show event for this rule
+
+        An event shows if ANY matching rule would show it.
+
+        Args:
+            user_id: User ID to get events for
+            local_area_id: User's local area ID (for 'local' dashboard_mode filtering)
         """
         with self.get_connection() as conn:
             today = date.today().isoformat()
 
             # Get events that have at least one rule belonging to this user
-            cursor = conn.execute(
-                """
-                SELECT DISTINCT e.* FROM events e
-                INNER JOIN event_rules er ON e.id = er.event_id
-                INNER JOIN rules r ON er.rule_id = r.id
-                WHERE r.user_id = ? AND e.date >= ?
-                ORDER BY e.date, e.start_time
-                """,
-                (user_id, today)
-            )
+            # with dashboard_mode that would show the event
+            if local_area_id:
+                cursor = conn.execute(
+                    """
+                    SELECT DISTINCT e.* FROM events e
+                    INNER JOIN event_rules er ON e.id = er.event_id
+                    INNER JOIN rules r ON er.rule_id = r.id
+                    WHERE r.user_id = ? AND e.date >= ?
+                    AND (
+                        r.dashboard_mode = 'all'
+                        OR (r.dashboard_mode = 'local' AND e.area_id = ?)
+                    )
+                    ORDER BY e.date, e.start_time
+                    """,
+                    (user_id, today, local_area_id)
+                )
+            else:
+                # No local area configured - 'local' mode shows nothing
+                cursor = conn.execute(
+                    """
+                    SELECT DISTINCT e.* FROM events e
+                    INNER JOIN event_rules er ON e.id = er.event_id
+                    INNER JOIN rules r ON er.rule_id = r.id
+                    WHERE r.user_id = ? AND e.date >= ?
+                    AND r.dashboard_mode = 'all'
+                    ORDER BY e.date, e.start_time
+                    """,
+                    (user_id, today)
+                )
 
             events = []
             for row in cursor.fetchall():

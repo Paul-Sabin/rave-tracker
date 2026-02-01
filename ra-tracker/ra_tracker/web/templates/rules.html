@@ -32,128 +32,142 @@
 </div>
 
 <!-- Current Rules -->
-{% if artists %}
+{% if artists or venues or promoters %}
 <div class="card">
-    <div class="card-header">
-        <span class="card-title">🎧 Artists</span>
-        <span class="text-muted">{{ artists|length }}</span>
-    </div>
-    <div class="rules-list">
-        {% for rule in artists %}
-        <div class="rule-item">
-            <div class="rule-info">
-                <span class="rule-name">{{ rule.target_name }}</span>
-                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
-                {% if not rule.is_active %}
-                <span class="badge badge-warning">Inactive</span>
-                {% endif %}
-            </div>
-            <div class="rule-actions">
-                <!-- Notification mode toggle (artist: all/local/none) -->
-                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
-                    <div class="notify-toggle">
-                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode == 'all' %} active{% endif %}" title="Notify for all events">All</button>
-                        <button type="submit" name="mode" value="local" class="notify-btn{% if rule.notify_mode == 'local' %} active{% endif %}" title="Notify only for local events">Local</button>
-                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="No notifications">Off</button>
-                    </div>
-                </form>
-                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-secondary">
-                        {{ 'Disable' if rule.is_active else 'Enable' }}
-                    </button>
-                </form>
-                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-            </div>
+    <!-- Column headers -->
+    <div class="rules-header">
+        <div class="rule-info-header">Rule</div>
+        <div class="rule-controls-header">
+            <span class="header-label">Show in dashboard</span>
+            <span class="header-label">Notify me</span>
+            <span class="header-label-delete"></span>
         </div>
-        {% endfor %}
     </div>
-</div>
-{% endif %}
 
-{% if venues %}
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">📍 Venues</span>
-        <span class="text-muted">{{ venues|length }}</span>
-    </div>
-    <div class="rules-list">
-        {% for rule in venues %}
-        <div class="rule-item">
-            <div class="rule-info">
-                <span class="rule-name">{{ rule.target_name }}</span>
-                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
-                {% if not rule.is_active %}
-                <span class="badge badge-warning">Inactive</span>
-                {% endif %}
-            </div>
-            <div class="rule-actions">
-                <!-- Notification toggle (venue: all/none) -->
-                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
-                    <div class="notify-toggle">
-                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode != 'none' %} active{% endif %}" title="Notifications on">On</button>
-                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="Notifications off">Off</button>
-                    </div>
-                </form>
-                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-secondary">
-                        {{ 'Disable' if rule.is_active else 'Enable' }}
-                    </button>
-                </form>
-                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
+    {% if artists %}
+    <div class="rule-section">
+        <div class="section-title">Artists <span class="text-muted">({{ artists|length }})</span></div>
+        <div class="rules-list">
+            {% for rule in artists %}
+            <div class="rule-item">
+                <div class="rule-info">
+                    <span class="rule-name">{{ rule.target_name }}</span>
+                </div>
+                <div class="rule-controls">
+                    <!-- Dashboard mode (artists: all/local/none) -->
+                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                        {% if rule.dashboard_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show all events">Off</button>
+                        {% elif rule.dashboard_mode == 'local' %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn local" title="Click to turn off">Local</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="local" class="cycle-btn all" title="Click to show only local">Global</button>
+                        {% endif %}
+                    </form>
 
-{% if promoters %}
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">🎪 Promoters</span>
-        <span class="text-muted">{{ promoters|length }}</span>
-    </div>
-    <div class="rules-list">
-        {% for rule in promoters %}
-        <div class="rule-item">
-            <div class="rule-info">
-                <span class="rule-name">{{ rule.target_name }}</span>
-                <span class="rule-id text-muted">ID: {{ rule.target_id }}</span>
-                {% if not rule.is_active %}
-                <span class="badge badge-warning">Inactive</span>
-                {% endif %}
+                    <!-- Notify mode (artists: all/local/none) -->
+                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                        {% if rule.notify_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to notify all events">Off</button>
+                        {% elif rule.notify_mode == 'local' %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn local" title="Click to turn off">Local</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="local" class="cycle-btn all" title="Click to notify only local">Global</button>
+                        {% endif %}
+                    </form>
+
+                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
             </div>
-            <div class="rule-actions">
-                <!-- Notification toggle (promoter: all/none) -->
-                <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="notify-form">
-                    <div class="notify-toggle">
-                        <button type="submit" name="mode" value="all" class="notify-btn{% if rule.notify_mode != 'none' %} active{% endif %}" title="Notifications on">On</button>
-                        <button type="submit" name="mode" value="none" class="notify-btn{% if rule.notify_mode == 'none' %} active{% endif %}" title="Notifications off">Off</button>
-                    </div>
-                </form>
-                <form action="/rules/{{ rule.id }}/toggle" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-secondary">
-                        {{ 'Disable' if rule.is_active else 'Enable' }}
-                    </button>
-                </form>
-                <form action="/rules/{{ rule.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Delete this rule?');">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
+    {% endif %}
+
+    {% if venues %}
+    <div class="rule-section">
+        <div class="section-title">Venues <span class="text-muted">({{ venues|length }})</span></div>
+        <div class="rules-list">
+            {% for rule in venues %}
+            <div class="rule-item">
+                <div class="rule-info">
+                    <span class="rule-name">{{ rule.target_name }}</span>
+                </div>
+                <div class="rule-controls">
+                    <!-- Dashboard mode (venues: all/none) -->
+                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                        {% if rule.dashboard_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show events">Off</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn on" title="Click to hide events">On</button>
+                        {% endif %}
+                    </form>
+
+                    <!-- Notify mode (venues: all/none) -->
+                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                        {% if rule.notify_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to enable notifications">Off</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn on" title="Click to disable notifications">On</button>
+                        {% endif %}
+                    </form>
+
+                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if promoters %}
+    <div class="rule-section">
+        <div class="section-title">Promoters <span class="text-muted">({{ promoters|length }})</span></div>
+        <div class="rules-list">
+            {% for rule in promoters %}
+            <div class="rule-item">
+                <div class="rule-info">
+                    <span class="rule-name">{{ rule.target_name }}</span>
+                </div>
+                <div class="rule-controls">
+                    <!-- Dashboard mode (promoters: all/none) -->
+                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                        {% if rule.dashboard_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show events">Off</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn on" title="Click to hide events">On</button>
+                        {% endif %}
+                    </form>
+
+                    <!-- Notify mode (promoters: all/none) -->
+                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                        {% if rule.notify_mode == 'none' %}
+                        <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to enable notifications">Off</button>
+                        {% else %}
+                        <button type="submit" name="mode" value="none" class="cycle-btn on" title="Click to disable notifications">On</button>
+                        {% endif %}
+                    </form>
+
+                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 
 {% if not rules %}
 <div class="card">
     <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
+        <div class="empty-state-icon">&#128203;</div>
         <p>No rules configured yet.</p>
         <p class="text-muted mt-1">Search above to add artists, venues, or promoters to track.</p>
     </div>
@@ -172,9 +186,9 @@
 .tab-btn {
     padding: 0.75rem 1rem;
     min-height: 44px;
-    border: 1px solid var(--border);
-    background: var(--bg-dark);
-    color: var(--text);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-dark);
+    color: var(--color-text);
     border-radius: 4px;
     cursor: pointer;
     display: flex;
@@ -182,24 +196,77 @@
     justify-content: center;
 }
 .tab-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--color-accent);
+    border-color: var(--color-accent);
 }
 .search-result {
     padding: 0.75rem 1rem;
     min-height: 44px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--color-border);
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 .search-result:hover {
-    background: var(--border);
+    background: var(--color-border);
 }
 .search-result:last-child {
     border-bottom: none;
 }
+
+/* Rules header */
+.rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 0.5rem;
+}
+.rule-info-header {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+.rule-controls-header {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.header-label {
+    width: 80px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+.header-label-delete {
+    width: 70px;
+}
+
+/* Rule sections */
+.rule-section {
+    margin-bottom: 1.5rem;
+}
+.section-title {
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-bg-dark);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .section-title {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
+    }
+}
+
 .rules-list {
     display: flex;
     flex-direction: column;
@@ -209,73 +276,149 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
 }
 .rule-item:last-child {
     border-bottom: none;
-}
-
-@media (max-width: 640px) {
-    .rule-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .rule-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-    }
-    .rule-actions {
-        flex-wrap: wrap;
-        justify-content: flex-start;
-    }
 }
 .rule-info {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex: 1;
+    min-width: 0;
 }
 .rule-name {
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.rule-id {
-    font-size: 0.85rem;
-}
-.rule-actions {
+.rule-controls {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    flex-shrink: 0;
 }
-.notify-form {
+
+/* Cycle buttons */
+.cycle-form {
     display: inline-block;
 }
-.notify-toggle {
-    display: flex;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-}
-.notify-btn {
-    padding: 0.5rem 0.75rem;
-    min-height: 36px;  /* Slightly smaller since in group */
+.cycle-btn {
+    width: 80px;
+    padding: 0.5rem 0.5rem;
+    min-height: 36px;
     border: none;
-    background: var(--bg-dark);
-    color: var(--text-muted);
+    border-radius: 4px;
     font-size: 0.8rem;
+    font-weight: 600;
     cursor: pointer;
-    border-right: 1px solid var(--border);
+    transition: all 0.2s;
 }
-.notify-btn:last-child {
-    border-right: none;
+
+/* Off state - gray/muted */
+.cycle-btn.off {
+    background: var(--color-bg-dark);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
 }
-.notify-btn:hover {
-    background: var(--border);
+.cycle-btn.off:hover {
+    background: var(--color-border);
 }
-.notify-btn.active {
-    background: var(--accent);
-    color: white;
+
+/* On state - green */
+.cycle-btn.on {
+    background: #22c55e;
+    color: #000;
+}
+.cycle-btn.on:hover {
+    background: #16a34a;
+}
+
+/* Local state - green */
+.cycle-btn.local {
+    background: #22c55e;
+    color: #000;
+}
+.cycle-btn.local:hover {
+    background: #16a34a;
+}
+
+/* All state - teal */
+.cycle-btn.all {
+    background: #0891b2;
+    color: #fff;
+}
+.cycle-btn.all:hover {
+    background: #0e7490;
+}
+
+.delete-form {
+    display: inline-block;
+    width: 70px;
+}
+.delete-form .btn {
+    width: 100%;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    .rules-header {
+        justify-content: flex-end;
+        padding: 0.5rem 0.75rem;
+    }
+    .rule-info-header {
+        display: none;
+    }
+    .rule-controls-header {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .header-label {
+        width: 60px;
+        font-size: 0.6rem;
+        text-align: center;
+    }
+    .header-label-delete {
+        width: 36px;
+    }
+    .rule-item {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+    }
+    .rule-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .rule-name {
+        font-size: 0.9rem;
+    }
+    .rule-controls {
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+    .cycle-btn {
+        width: 60px;
+        font-size: 0.7rem;
+        padding: 0.4rem 0.25rem;
+        min-height: 32px;
+    }
+    .delete-form {
+        width: 36px;
+    }
+    .delete-form .btn {
+        width: 36px;
+        padding: 0.25rem;
+        font-size: 0;
+        min-height: 32px;
+    }
+    .delete-form .btn::before {
+        content: "✕";
+        font-size: 0.9rem;
+    }
 }
 </style>
 
@@ -341,5 +484,87 @@ function addRule(type, id, name) {
 
 // Search input handler
 document.getElementById('search-input').addEventListener('input', debounce(e => search(e.target.value), 300));
+
+// AJAX form submission for cycle buttons (prevents page reload and scroll reset)
+document.querySelectorAll('.cycle-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = form.querySelector('button');
+        const action = form.action;
+        const mode = btn.value;
+
+        // Disable button during request
+        btn.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('mode', mode);
+
+            const response = await fetch(action, {
+                method: 'POST',
+                body: formData,
+                redirect: 'manual'  // Don't follow redirect
+            });
+
+            // Update button appearance based on new mode
+            updateCycleButton(btn, mode);
+
+        } catch (err) {
+            console.error('Failed to update mode:', err);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+});
+
+// Update cycle button appearance after AJAX submission
+// newMode = the mode we just SET, so display that and set value to NEXT mode
+function updateCycleButton(btn, newMode) {
+    // Determine the rule type from parent context
+    const ruleSection = btn.closest('.rule-section');
+    const isArtist = ruleSection && ruleSection.querySelector('.section-title').textContent.includes('Artists');
+
+    // Determine if this is dashboard or notify button
+    const form = btn.closest('form');
+    const isDashboard = form.action.includes('dashboard-mode');
+
+    // Remove old classes
+    btn.classList.remove('off', 'local', 'all', 'on');
+
+    if (isArtist) {
+        // Artists cycle: all -> local -> none -> all
+        // newMode is what we just set TO, value is what we'll set NEXT
+        if (newMode === 'all') {
+            btn.classList.add('all');
+            btn.textContent = 'Global';
+            btn.value = 'local';
+            btn.title = isDashboard ? 'Click to show only local' : 'Click to notify only local';
+        } else if (newMode === 'local') {
+            btn.classList.add('local');
+            btn.textContent = 'Local';
+            btn.value = 'none';
+            btn.title = 'Click to turn off';
+        } else { // none
+            btn.classList.add('off');
+            btn.textContent = 'Off';
+            btn.value = 'all';
+            btn.title = isDashboard ? 'Click to show all events' : 'Click to notify all events';
+        }
+    } else {
+        // Venues/Promoters toggle: all <-> none
+        if (newMode === 'all') {
+            btn.classList.add('on');
+            btn.textContent = 'On';
+            btn.value = 'none';
+            btn.title = isDashboard ? 'Click to hide events' : 'Click to disable notifications';
+        } else { // none
+            btn.classList.add('off');
+            btn.textContent = 'Off';
+            btn.value = 'all';
+            btn.title = isDashboard ? 'Click to show events' : 'Click to enable notifications';
+        }
+    }
+}
 </script>
 {% endblock %}

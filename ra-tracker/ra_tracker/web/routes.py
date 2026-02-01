@@ -42,7 +42,9 @@ async def dashboard(request: Request, user: User = Depends(require_auth)):
     config = get_config()
 
     # Get user-scoped events, rules, and stats
-    events = db.get_upcoming_events_for_user(user.id)
+    # Pass local_area_id for dashboard_mode filtering
+    local_area_id = config.user.local_area_id
+    events = db.get_upcoming_events_for_user(user.id, local_area_id=local_area_id)
     rules = db.get_all_rules(user_id=user.id)
     stats = db.get_user_stats(user.id)
     legacy_data = db.count_legacy_data(user.id)
@@ -158,6 +160,24 @@ async def set_notify_mode(rule_id: int, user: User = Depends(require_auth), mode
         raise HTTPException(status_code=400, detail=f"Invalid mode. Must be one of: {valid_modes}")
 
     db.set_rule_notify_mode(rule_id, mode)
+    return RedirectResponse(url="/rules", status_code=303)
+
+
+@router.post("/rules/{rule_id}/dashboard-mode")
+async def set_dashboard_mode(rule_id: int, user: User = Depends(require_auth), mode: str = Form(...)):
+    """Set a rule's dashboard mode. Verifies ownership first."""
+    db = get_db()
+    rule = db.get_rule_for_user(rule_id, user.id)
+
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Validate mode
+    valid_modes = ['all', 'local', 'none']
+    if mode not in valid_modes:
+        raise HTTPException(status_code=400, detail=f"Invalid mode. Must be one of: {valid_modes}")
+
+    db.set_rule_dashboard_mode(rule_id, mode)
     return RedirectResponse(url="/rules", status_code=303)
 
 
