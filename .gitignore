@@ -1,0 +1,24 @@
+# Python artifacts
+venv/
+__pycache__/
+*.py[cod]
+
+# Data and Logs
+*.json
+*.db
+*.log
+# Catch that ghost NUL file if it ever comes back
+NUL
+nul
+
+# Scratchpad / Temporary status files
+*.txt
+claude-chat-exports/
+!ra-tracker/README.md
+!ra-tracker/PROJECT_STATUS.md
+
+# Media
+ra-tracker/screenshots/
+
+# AI Tooling
+.claude/

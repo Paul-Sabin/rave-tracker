@@ -1,0 +1,14 @@
+database:
+  path: ./data/ra_tracker.db
+scheduler:
+  event_horizon_days: 100
+  fetch_interval_hours: 6
+telegram:
+  bot_token: 8200624905:AAFcNY1sdCHpakoVbeJBh6PQvFon3xfxxac
+  chat_id: '769647676'
+user:
+  local_area_id: 34
+  local_area_name: Berlin
+web:
+  host: 0.0.0.0
+  port: 8080
