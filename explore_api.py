@@ -1,4 +1,4 @@
-g"""
+"""
 RA.co GraphQL API Explorer
 
 Explores the available data fields and query options from the ra.co GraphQL API.
