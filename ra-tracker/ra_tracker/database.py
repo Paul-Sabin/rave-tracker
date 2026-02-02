@@ -119,6 +119,18 @@ CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Audit logs (security event tracking)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,           -- 'auth.login', 'auth.logout', 'rule.create', etc.
+    user_id INTEGER,                     -- NULL for anonymous/failed auth
+    ip_address TEXT,                     -- Client IP
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    details TEXT,                        -- JSON blob for flexible context
+    target_type TEXT,                    -- 'rule', 'user', 'settings', etc.
+    target_id INTEGER                    -- ID of affected resource
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
@@ -128,6 +140,12 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_link_codes_user ON telegram_link_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_link_codes_expires ON telegram_link_codes(expires_at);
+
+-- Audit log indexes
+CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
 """
 
 # Migration to add new columns to existing database
@@ -1290,6 +1308,75 @@ class Database:
                 )
                 for row in cursor.fetchall()
             ]
+
+    # Audit log operations
+    def add_audit_log(
+        self,
+        event_type: str,
+        user_id: Optional[int],
+        ip_address: Optional[str],
+        details: Optional[str] = None,
+        target_type: Optional[str] = None,
+        target_id: Optional[int] = None,
+    ) -> int:
+        """Add an audit log entry. Returns the log ID.
+
+        Args:
+            event_type: Category.action format (e.g., 'auth.login', 'rule.create')
+            user_id: User who triggered event (None for anonymous/failed auth)
+            ip_address: Client IP address
+            details: JSON string with additional context
+            target_type: Type of resource affected (e.g., 'rule', 'user')
+            target_id: ID of affected resource
+
+        Returns:
+            ID of the created audit log entry
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO audit_logs (event_type, user_id, ip_address, details, target_type, target_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (event_type, user_id, ip_address, details, target_type, target_id),
+            )
+            return cursor.lastrowid
+
+    def get_audit_logs(
+        self,
+        event_type: Optional[str] = None,
+        user_id: Optional[int] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[dict]:
+        """Query audit logs with optional filters.
+
+        Args:
+            event_type: Filter by event type (exact match)
+            user_id: Filter by user ID
+            limit: Maximum number of results (default 100)
+            offset: Number of results to skip (default 0)
+
+        Returns:
+            List of audit log entries as dicts, ordered by timestamp DESC
+        """
+        with self.get_connection() as conn:
+            query = "SELECT * FROM audit_logs WHERE 1=1"
+            params = []
+
+            if event_type is not None:
+                query += " AND event_type = ?"
+                params.append(event_type)
+
+            if user_id is not None:
+                query += " AND user_id = ?"
+                params.append(user_id)
+
+            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
 
 
 # Global database instance
