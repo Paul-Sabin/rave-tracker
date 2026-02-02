@@ -15,6 +15,11 @@ Harden authentication with rate limiting and CSRF protection, implement mandator
 **Goal:** Establish audit logging infrastructure and global form security so all subsequent features can log events securely
 **Depends on:** v2.0 (authentication, sessions)
 **Requirements:** AUDIT-01, AUDIT-10, SEC-03
+**Plans:** 2 plans (Wave 1: parallel)
+
+Plans:
+- [ ] 05-01-PLAN.md - Audit log schema and service
+- [ ] 05-02-PLAN.md - CSRF middleware and template integration
 
 **Success Criteria:**
 1. All POST forms include CSRF token and reject requests without valid token
@@ -72,7 +77,7 @@ Harden authentication with rate limiting and CSRF protection, implement mandator
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | Pending |
+| 5 | Audit Foundation & CSRF Protection | 3 | Planned |
 | 6 | Email Verification & Login Hardening | 8 | Pending |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
