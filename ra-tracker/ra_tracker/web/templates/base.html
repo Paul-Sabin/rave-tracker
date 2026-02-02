@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}RA Tracker{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
 
     <!-- Tailwind CSS v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
@@ -268,6 +269,7 @@
                     {% if user %}
                     <span class="text-text-muted ml-4">{{ user.display_name }}</span>
                     <form action="/logout" method="post" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="px-4 py-2 min-h-11 flex items-center rounded hover:bg-accent transition-colors">Logout</button>
                     </form>
                     {% else %}
@@ -298,6 +300,7 @@
                 <div class="border-t border-border pt-2 mt-2">
                     <span class="block px-4 py-2 text-text-muted">{{ user.display_name }}</span>
                     <form action="/logout" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="block w-full text-left px-4 py-3 min-h-11 rounded hover:bg-accent transition-colors">
                             Logout
                         </button>
@@ -332,6 +335,43 @@
             nav.classList.add('hidden');
         }
     });
+    </script>
+
+    <!-- CSRF Protection for AJAX -->
+    <script>
+    (function() {
+        // Get CSRF token from meta tag
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.content : '';
+        }
+
+        // Wrap fetch to automatically include CSRF token for unsafe methods
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            const method = (options.method || 'GET').toUpperCase();
+            const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+            if (unsafeMethods.includes(method)) {
+                options.headers = options.headers || {};
+                // Handle both Headers object and plain object
+                if (options.headers instanceof Headers) {
+                    if (!options.headers.has('X-CSRFToken')) {
+                        options.headers.set('X-CSRFToken', getCSRFToken());
+                    }
+                } else {
+                    if (!options.headers['X-CSRFToken'] && !options.headers['x-csrftoken']) {
+                        options.headers['X-CSRFToken'] = getCSRFToken();
+                    }
+                }
+            }
+
+            return originalFetch(url, options);
+        };
+
+        // Expose getCSRFToken globally for forms that need it
+        window.getCSRFToken = getCSRFToken;
+    })();
     </script>
 
     {% block scripts %}{% endblock %}
