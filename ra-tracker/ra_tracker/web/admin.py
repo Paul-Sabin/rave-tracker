@@ -35,6 +35,7 @@ async def admin_rules(request: Request, user: User = Depends(require_admin)):
         {
             "request": request,
             "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "all_rules": all_rules,
             "rules_by_user": rules_by_user,
             "total_rules": len(all_rules),
@@ -55,6 +56,7 @@ async def admin_users(request: Request, user: User = Depends(require_admin)):
         {
             "request": request,
             "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "all_users": all_users,
             "total_users": len(all_users),
         },
