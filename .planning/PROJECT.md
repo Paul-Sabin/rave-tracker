@@ -8,6 +8,19 @@ A multi-user event tracker that monitors ra.co for upcoming events from artists,
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
+## Current Milestone: v2.1 Security Hardening & Account Lifecycle
+
+**Goal:** Harden authentication, add account management features, and implement audit logging while maintaining mobile-first UI patterns.
+
+**Target features:**
+- Rate limiting on sensitive routes (5 attempts / 15 min)
+- Global CSRF protection on all forms
+- Mandatory email verification (all users, existing verify on next login)
+- Token-based password reset via email
+- Authenticated password change
+- Soft-delete account with 30-day grace period
+- Audit logging with forever retention and admin UI
+
 ## Current State
 
 **Version:** v2.0 Multi-User Support (shipped 2026-02-01)
@@ -79,14 +92,29 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ### Active
 
-<!-- Next milestone candidates -->
+<!-- v2.1 Security Hardening & Account Lifecycle -->
 
-- [ ] ACCOUNT-01: Password reset via email link
+**Authentication Hardening:**
+- [ ] SEC-01: Rate limiting on login (5 attempts / 15 min)
+- [ ] SEC-02: Rate limiting on password reset requests
+- [ ] SEC-03: Global CSRF protection on all POST forms
+- [ ] SEC-04: Mandatory email verification for all users
+- [ ] SEC-05: Existing users must verify on next login
+
+**Account Management:**
+- [ ] ACCOUNT-01: Password reset via email link (token-based, expiring)
 - [ ] ACCOUNT-02: Change password when logged in
-- [ ] ACCOUNT-03: Delete account
-- [ ] SEC-01: Rate limiting on login attempts
-- [ ] SEC-02: Email verification on registration
-- [ ] SEC-03: CSRF protection on forms
+- [ ] ACCOUNT-03: Soft-delete account with 30-day grace period
+- [ ] ACCOUNT-04: Account recovery during grace period
+- [ ] ACCOUNT-05: Hard purge after grace period (cascade delete)
+
+**Audit Logging:**
+- [ ] AUDIT-01: Log login attempts (success/fail)
+- [ ] AUDIT-02: Log password changes and resets
+- [ ] AUDIT-03: Log account creation and deletion
+- [ ] AUDIT-04: Log email verification status changes
+- [ ] AUDIT-05: Dedicated /admin/audit-log page with filtering
+- [ ] AUDIT-06: Forever retention (no auto-purge)
 
 ### Out of Scope
 
@@ -130,4 +158,4 @@ Users never miss events from artists, venues, or promoters they care about — a
 | AJAX form submissions | Preserve scroll position | ✓ Good |
 
 ---
-*Last updated: 2026-02-01 after v2.0 milestone*
+*Last updated: 2026-02-02 after v2.1 milestone initialization*
