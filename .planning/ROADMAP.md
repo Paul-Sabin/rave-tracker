@@ -18,8 +18,8 @@ Harden authentication with rate limiting and CSRF protection, implement mandator
 **Plans:** 2 plans (Wave 1: parallel)
 
 Plans:
-- [ ] 05-01-PLAN.md - Audit log schema and service
-- [ ] 05-02-PLAN.md - CSRF middleware and template integration
+- [x] 05-01-PLAN.md - Audit log schema and service
+- [x] 05-02-PLAN.md - CSRF middleware and template integration
 
 **Success Criteria:**
 1. All POST forms include CSRF token and reject requests without valid token
@@ -77,7 +77,7 @@ Plans:
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | Planned |
+| 5 | Audit Foundation & CSRF Protection | 3 | Complete |
 | 6 | Email Verification & Login Hardening | 8 | Pending |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
@@ -116,4 +116,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-02*
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-02 (Phase 5 complete)*
