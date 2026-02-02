@@ -2,14 +2,14 @@
 
 **Last Updated:** 2026-02-02
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 5 - Audit Foundation & CSRF Protection
+**Current Phase:** 6 - Email Verification & Login Hardening
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Establish audit logging and CSRF protection foundation
+**Current focus:** Email verification and login security hardening
 
 ## Milestone Progress
 
@@ -21,18 +21,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 ## Current Position
 
-Phase: 5 - Audit Foundation & CSRF Protection (Plan 1 of 2 complete)
-Plan: 05-01 complete
-Status: In progress
-Last activity: 2026-02-02 - Completed 05-01-PLAN.md (Audit Logging Infrastructure)
+Phase: 6 - Email Verification & Login Hardening
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-02-02 - Completed Phase 5 (Audit Foundation & CSRF Protection)
 
-Progress: [#---------] 10% of v2.1
+Progress: [##--------] 20% of v2.1 (1/4 phases complete)
 
 ## v2.1 Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | In Progress (1/2 plans) |
+| 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Pending |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
@@ -48,6 +48,7 @@ Progress: [#---------] 10% of v2.1
 
 **v2.1 Progress (2026-02-02):**
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
+- 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
 
 ## Accumulated Decisions
 
@@ -67,6 +68,9 @@ Key patterns established:
 - JSON details column for flexible audit context without schema migrations
 - Non-blocking audit writes (errors logged but don't fail requests)
 - Event type format: category.action (e.g., auth.login_success, rule.create)
+- Double Submit Cookie pattern for CSRF (stateless, no server-side token storage)
+- CSRF cookie httponly=False (JS must read for AJAX header injection)
+- Telegram webhook exempt from CSRF (external caller with own auth)
 
 **Technical Debt:**
 - None from v2.0
@@ -86,11 +90,13 @@ Key patterns established:
 | 2026-02-01 | Completed Milestone 2 | Archived to milestones/v2.0-* |
 | 2026-02-02 | Initialized Milestone 3 | v2.1 ROADMAP.md, STATE.md updated |
 | 2026-02-02 | Executed 05-01 | Audit logging infrastructure complete |
+| 2026-02-02 | Executed 05-02 | CSRF protection complete |
+| 2026-02-02 | Completed Phase 5 | Audit Foundation & CSRF Protection complete |
 
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed Phase 5
 Resume file: None
 
 ---
