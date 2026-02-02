@@ -63,6 +63,7 @@ async def dashboard(request: Request, user: User = Depends(require_auth)):
         {
             "request": request,
             "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "events": events,
             "events_by_date": events_by_date,
             "rules": rules,
@@ -94,6 +95,7 @@ async def rules_page(request: Request, user: User = Depends(require_auth)):
         {
             "request": request,
             "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "rules": rules,
             "artists": artists,
             "venues": venues,
@@ -218,6 +220,7 @@ async def settings_page(request: Request, user: User = Depends(require_auth)):
         {
             "request": request,
             "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "config": config,
             "masked_token": masked_token,
             "scheduler_status": get_scheduler_status(),
@@ -532,7 +535,7 @@ async def login_page(request: Request, user: Optional[User] = Depends(get_curren
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
-    return templates.TemplateResponse("login.html", {"request": request, "user": user})
+    return templates.TemplateResponse("login.html", {"request": request, "user": user, "csrf_token": getattr(request.state, 'csrf_token', '')})
 
 
 @router.post("/login")
@@ -550,6 +553,7 @@ async def login(
     if not user:
         return templates.TemplateResponse("login.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "error": "Invalid email or password",
             "email": email,
         })
@@ -558,6 +562,7 @@ async def login(
     if not valid:
         return templates.TemplateResponse("login.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "error": "Invalid email or password",
             "email": email,
         })
@@ -580,7 +585,7 @@ async def register_page(request: Request, user: Optional[User] = Depends(get_cur
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
-    return templates.TemplateResponse("register.html", {"request": request, "user": user})
+    return templates.TemplateResponse("register.html", {"request": request, "user": user, "csrf_token": getattr(request.state, 'csrf_token', '')})
 
 
 @router.post("/register")
@@ -613,6 +618,7 @@ async def register(
     if errors:
         return templates.TemplateResponse("register.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "errors": errors,
             "email": email,
             "display_name": display_name,
@@ -623,6 +629,7 @@ async def register(
     except sqlite3.IntegrityError:
         return templates.TemplateResponse("register.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "errors": {"email": "An account with this email already exists"},
             "email": email,
             "display_name": display_name,
@@ -654,7 +661,7 @@ async def logout(request: Request):
 async def privacy_page(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Privacy Policy page."""
     templates = get_templates(request)
-    return templates.TemplateResponse("privacy.html", {"request": request, "user": user})
+    return templates.TemplateResponse("privacy.html", {"request": request, "user": user, "csrf_token": getattr(request.state, 'csrf_token', '')})
 
 
 @router.get("/unsubscribe", response_class=HTMLResponse)
@@ -672,6 +679,7 @@ async def unsubscribe(request: Request, token: str):
 
         return templates.TemplateResponse("unsubscribed.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "user": None,  # No user context for unsubscribe
             "success": True,
         })
@@ -679,6 +687,7 @@ async def unsubscribe(request: Request, token: str):
     except SignatureExpired:
         return templates.TemplateResponse("unsubscribed.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "user": None,
             "success": False,
             "error": "This unsubscribe link has expired. Please log in to manage notifications.",
@@ -687,6 +696,7 @@ async def unsubscribe(request: Request, token: str):
     except BadSignature:
         return templates.TemplateResponse("unsubscribed.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "user": None,
             "success": False,
             "error": "Invalid unsubscribe link.",
@@ -696,6 +706,7 @@ async def unsubscribe(request: Request, token: str):
         logger.error(f"Unsubscribe error: {e}")
         return templates.TemplateResponse("unsubscribed.html", {
             "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
             "user": None,
             "success": False,
             "error": "An error occurred. Please try again or log in to manage notifications.",
