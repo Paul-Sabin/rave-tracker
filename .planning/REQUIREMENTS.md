@@ -67,37 +67,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| SEC-05 | TBD | Pending |
-| SEC-06 | TBD | Pending |
-| SEC-07 | TBD | Pending |
-| ACCT-01 | TBD | Pending |
-| ACCT-02 | TBD | Pending |
-| ACCT-03 | TBD | Pending |
-| ACCT-04 | TBD | Pending |
-| ACCT-05 | TBD | Pending |
-| ACCT-06 | TBD | Pending |
-| ACCT-07 | TBD | Pending |
-| ACCT-08 | TBD | Pending |
-| AUDIT-01 | TBD | Pending |
-| AUDIT-02 | TBD | Pending |
-| AUDIT-03 | TBD | Pending |
-| AUDIT-04 | TBD | Pending |
-| AUDIT-05 | TBD | Pending |
-| AUDIT-06 | TBD | Pending |
-| AUDIT-07 | TBD | Pending |
-| AUDIT-08 | TBD | Pending |
-| AUDIT-09 | TBD | Pending |
-| AUDIT-10 | TBD | Pending |
+| SEC-01 | Phase 6 | Pending |
+| SEC-02 | Phase 7 | Pending |
+| SEC-03 | Phase 5 | Pending |
+| SEC-04 | Phase 6 | Pending |
+| SEC-05 | Phase 6 | Pending |
+| SEC-06 | Phase 6 | Pending |
+| SEC-07 | Phase 6 | Pending |
+| ACCT-01 | Phase 7 | Pending |
+| ACCT-02 | Phase 7 | Pending |
+| ACCT-03 | Phase 7 | Pending |
+| ACCT-04 | Phase 7 | Pending |
+| ACCT-05 | Phase 8 | Pending |
+| ACCT-06 | Phase 8 | Pending |
+| ACCT-07 | Phase 8 | Pending |
+| ACCT-08 | Phase 8 | Pending |
+| AUDIT-01 | Phase 5 | Pending |
+| AUDIT-02 | Phase 6 | Pending |
+| AUDIT-03 | Phase 7 | Pending |
+| AUDIT-04 | Phase 7 | Pending |
+| AUDIT-05 | Phase 6 | Pending |
+| AUDIT-06 | Phase 8 | Pending |
+| AUDIT-07 | Phase 6 | Pending |
+| AUDIT-08 | Phase 8 | Pending |
+| AUDIT-09 | Phase 8 | Pending |
+| AUDIT-10 | Phase 5 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25
+- Mapped to phases: 25
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after initial definition*
+*Last updated: 2026-02-02 after roadmap creation*
