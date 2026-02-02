@@ -12,6 +12,7 @@ from telegram import Update
 
 from .routes import router
 from .admin import admin_router
+from .csrf import CSRFMiddleware
 from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_application
 from ..config import get_config
 
@@ -57,6 +58,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Add CSRF protection middleware
+    app.add_middleware(CSRFMiddleware)
 
     # Set up Jinja2 templates
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
