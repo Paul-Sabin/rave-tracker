@@ -21,18 +21,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 ## Current Position
 
-Phase: 5 - Audit Foundation & CSRF Protection
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-02 - Roadmap created
+Phase: 5 - Audit Foundation & CSRF Protection (Plan 1 of 2 complete)
+Plan: 05-01 complete
+Status: In progress
+Last activity: 2026-02-02 - Completed 05-01-PLAN.md (Audit Logging Infrastructure)
 
-Progress: [----------] 0% of v2.1
+Progress: [#---------] 10% of v2.1
 
 ## v2.1 Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | Pending |
+| 5 | Audit Foundation & CSRF Protection | 3 | In Progress (1/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Pending |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
@@ -45,6 +45,9 @@ Progress: [----------] 0% of v2.1
 - Telegram bot linking and Email notifications
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
+
+**v2.1 Progress (2026-02-02):**
+- 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 
 ## Accumulated Decisions
 
@@ -60,7 +63,10 @@ Key patterns established:
 ## Accumulated Context
 
 **Decisions (v2.1):**
-- None yet
+- Forever retention for audit logs (no auto-purge) per AUDIT-10
+- JSON details column for flexible audit context without schema migrations
+- Non-blocking audit writes (errors logged but don't fail requests)
+- Event type format: category.action (e.g., auth.login_success, rule.create)
 
 **Technical Debt:**
 - None from v2.0
@@ -79,11 +85,12 @@ Key patterns established:
 | 2026-01-31 | Executed Phase 4 | User notifications complete |
 | 2026-02-01 | Completed Milestone 2 | Archived to milestones/v2.0-* |
 | 2026-02-02 | Initialized Milestone 3 | v2.1 ROADMAP.md, STATE.md updated |
+| 2026-02-02 | Executed 05-01 | Audit logging infrastructure complete |
 
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Roadmap created, ready to plan Phase 5
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
 
 ---
