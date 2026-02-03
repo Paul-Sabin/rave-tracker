@@ -1,5 +1,6 @@
 """FastAPI routes for RA Tracker web UI - Simplified."""
 
+import hashlib
 import logging
 import secrets
 import sqlite3
@@ -8,6 +9,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
+
+from .audit import log_audit_event
+from .rate_limit import login_limiter
 
 from ..api.ra_client import RAClient
 from ..config import get_config
@@ -544,13 +548,39 @@ async def login(
     email: str = Form(...),
     password: str = Form(...),
 ):
-    """Process login form."""
+    """Process login form with dual IP/email rate limiting."""
     templates = get_templates(request)
     db = get_db()
     config = get_config()
 
+    # Check dual rate limit BEFORE any other processing
+    # This runs before password check to prevent timing attacks
+    allowed, limit_type = login_limiter.check_rate_limit(request, email)
+    if not allowed:
+        log_audit_event(
+            "auth.login_rate_limited",
+            request,
+            details={
+                "email_hash": hashlib.sha256(email.lower().encode()).hexdigest()[:16],
+                "limit_type": limit_type,
+            },
+        )
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "Too many login attempts. Please try again in a few minutes.",
+            "email": email,
+        }, status_code=429)
+
     user = db.get_user_by_email(email)
     if not user:
+        # Record failed attempt for BOTH IP and email
+        login_limiter.record_failed_attempt(request, email)
+        log_audit_event(
+            "auth.login_failure",
+            request,
+            details={"email": email, "reason": "unknown_email"},
+        )
         return templates.TemplateResponse("login.html", {
             "request": request,
             "csrf_token": getattr(request.state, 'csrf_token', ''),
@@ -560,12 +590,24 @@ async def login(
 
     valid, new_hash = db.verify_password(user.password_hash, password)
     if not valid:
+        # Record failed attempt for BOTH IP and email
+        login_limiter.record_failed_attempt(request, email)
+        log_audit_event(
+            "auth.login_failure",
+            request,
+            user_id=user.id,
+            details={"reason": "invalid_password"},
+        )
         return templates.TemplateResponse("login.html", {
             "request": request,
             "csrf_token": getattr(request.state, 'csrf_token', ''),
             "error": "Invalid email or password",
             "email": email,
         })
+
+    # SUCCESS - clear rate limit counters for this IP and email
+    login_limiter.clear_on_success(request, email)
+    log_audit_event("auth.login_success", request, user_id=user.id)
 
     # Rehash if needed (algorithm upgrade)
     if new_hash:
@@ -626,6 +668,12 @@ async def register(
 
     try:
         user_id = db.create_user(email, password, display_name)
+        log_audit_event(
+            "auth.register",
+            request,
+            user_id=user_id,
+            details={"email": email, "display_name": display_name},
+        )
     except sqlite3.IntegrityError:
         return templates.TemplateResponse("register.html", {
             "request": request,
@@ -650,6 +698,9 @@ async def logout(request: Request):
     token = request.cookies.get("session_token")
 
     if token:
+        session = db.get_session(token)
+        if session:
+            log_audit_event("auth.logout", request, user_id=session.user_id)
         db.delete_session(token)
 
     response = RedirectResponse(url="/login", status_code=303)
