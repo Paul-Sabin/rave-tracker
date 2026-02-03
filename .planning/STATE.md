@@ -22,18 +22,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 6 - Email Verification & Login Hardening
-Plan: 01 of 4 complete
+Plan: 02 of 3 complete
 Status: In progress
-Last activity: 2026-02-03 - Completed 06-01-PLAN.md (Login Rate Limiting & Auth Audit)
+Last activity: 2026-02-03 - Completed 06-02-PLAN.md (Verification Token & Email Infrastructure)
 
-Progress: [###-------] 30% of v2.1 (1/4 phases complete, 1/4 plans in phase 6)
+Progress: [###-------] 33% of v2.1 (1/4 phases complete, 2/3 plans in phase 6)
 
 ## v2.1 Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
-| 6 | Email Verification & Login Hardening | 8 | In Progress (1/4 plans) |
+| 6 | Email Verification & Login Hardening | 8 | In Progress (2/3 plans) |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
@@ -50,6 +50,7 @@ Progress: [###-------] 30% of v2.1 (1/4 phases complete, 1/4 plans in phase 6)
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 - 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
 - 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
+- 06-02: Verification token & email infrastructure (itsdangerous tokens, email template)
 
 ## Accumulated Decisions
 
@@ -76,6 +77,9 @@ Key patterns established:
 - Email SHA256-hashed in rate limit keys (privacy: no plaintext storage)
 - Rate limit checked BEFORE password verification (prevents timing attacks)
 - Successful login clears rate limit counters (no lockout after correct password)
+- Verification tokens use 'email-verify' salt (separate from 'email-unsubscribe')
+- 24-hour verification token expiry
+- get_user_id_from_expired_token helper for auto-resend flow
 
 **Technical Debt:**
 - None from v2.0
@@ -98,11 +102,12 @@ Key patterns established:
 | 2026-02-02 | Executed 05-02 | CSRF protection complete |
 | 2026-02-02 | Completed Phase 5 | Audit Foundation & CSRF Protection complete |
 | 2026-02-03 | Executed 06-01 | Login rate limiting and auth audit logging complete |
+| 2026-02-03 | Executed 06-02 | Verification token and email infrastructure complete |
 
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 06-01-PLAN.md
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
 
 ---
