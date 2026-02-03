@@ -1,6 +1,6 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-03
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
 **Current Phase:** 6 - Email Verification & Login Hardening
 
@@ -22,18 +22,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 6 - Email Verification & Login Hardening
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-02 - Completed Phase 5 (Audit Foundation & CSRF Protection)
+Plan: 01 of 4 complete
+Status: In progress
+Last activity: 2026-02-03 - Completed 06-01-PLAN.md (Login Rate Limiting & Auth Audit)
 
-Progress: [##--------] 20% of v2.1 (1/4 phases complete)
+Progress: [###-------] 30% of v2.1 (1/4 phases complete, 1/4 plans in phase 6)
 
 ## v2.1 Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
-| 6 | Email Verification & Login Hardening | 8 | Pending |
+| 6 | Email Verification & Login Hardening | 8 | In Progress (1/4 plans) |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
@@ -46,9 +46,10 @@ Progress: [##--------] 20% of v2.1 (1/4 phases complete)
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
 
-**v2.1 Progress (2026-02-02):**
+**v2.1 Progress (2026-02-03):**
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 - 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
+- 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
 
 ## Accumulated Decisions
 
@@ -71,6 +72,10 @@ Key patterns established:
 - Double Submit Cookie pattern for CSRF (stateless, no server-side token storage)
 - CSRF cookie httponly=False (JS must read for AJAX header injection)
 - Telegram webhook exempt from CSRF (external caller with own auth)
+- Dual rate limiting: both IP AND email must pass (prevents distributed attacks)
+- Email SHA256-hashed in rate limit keys (privacy: no plaintext storage)
+- Rate limit checked BEFORE password verification (prevents timing attacks)
+- Successful login clears rate limit counters (no lockout after correct password)
 
 **Technical Debt:**
 - None from v2.0
@@ -92,12 +97,13 @@ Key patterns established:
 | 2026-02-02 | Executed 05-01 | Audit logging infrastructure complete |
 | 2026-02-02 | Executed 05-02 | CSRF protection complete |
 | 2026-02-02 | Completed Phase 5 | Audit Foundation & CSRF Protection complete |
+| 2026-02-03 | Executed 06-01 | Login rate limiting and auth audit logging complete |
 
 ## Session Continuity
 
-Last session: 2026-02-02
-Stopped at: Completed Phase 5
+Last session: 2026-02-03
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
 
 ---
-*State updated: 2026-02-02*
+*State updated: 2026-02-03*
