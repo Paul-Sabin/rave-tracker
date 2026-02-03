@@ -11,7 +11,9 @@ from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .audit import log_audit_event
-from .rate_limit import login_limiter
+from .rate_limit import login_limiter, limiter, RESEND_RATE_LIMIT
+from .verification import generate_verification_token, verify_verification_token, get_user_id_from_expired_token
+from ..services.email_sender import send_verification_email
 
 from ..api.ra_client import RAClient
 from ..config import get_config
@@ -534,12 +536,24 @@ async def api_check_rule(rule_type: str, target_id: int, user: User = Depends(re
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, user: Optional[User] = Depends(get_current_user)):
+async def login_page(request: Request, user: Optional[User] = Depends(get_current_user), verified: Optional[str] = None):
     """Login page. Redirect to dashboard if already logged in."""
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
-    return templates.TemplateResponse("login.html", {"request": request, "user": user, "csrf_token": getattr(request.state, 'csrf_token', '')})
+
+    message = None
+    if verified == "1":
+        message = "Email verified! You can now log in."
+    elif verified == "already":
+        message = "Email already verified. Please log in."
+
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "user": user,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "message": message,
+    })
 
 
 @router.post("/login")
@@ -616,7 +630,16 @@ async def login(
     # Create new session
     token, expires_at = create_user_session(user.id)
 
-    response = RedirectResponse(url="/", status_code=303)
+    # Check if email verified
+    if not user.email_verified:
+        # Send verification email for unverified existing users
+        await send_verification_email(user.email, user.id, user.display_name)
+        log_audit_event("auth.verification_sent", request, user_id=user.id,
+                       details={"trigger": "unverified_login"})
+        response = RedirectResponse(url="/verify-email", status_code=303)
+    else:
+        response = RedirectResponse(url="/", status_code=303)
+
     set_session_cookie(response, token, expires_at, request=request)
     return response
 
@@ -683,10 +706,15 @@ async def register(
             "display_name": display_name,
         })
 
-    # Auto-login after registration
+    # Send verification email
+    await send_verification_email(email, user_id, display_name)
+    log_audit_event("auth.verification_sent", request, user_id=user_id,
+                   details={"trigger": "registration"})
+
+    # Create session but redirect to verify page (not dashboard)
     token, expires_at = create_user_session(user_id)
 
-    response = RedirectResponse(url="/", status_code=303)
+    response = RedirectResponse(url="/verify-email", status_code=303)
     set_session_cookie(response, token, expires_at, request=request)
     return response
 
@@ -706,6 +734,109 @@ async def logout(request: Request):
     response = RedirectResponse(url="/login", status_code=303)
     clear_session_cookie(response)
     return response
+
+
+# Email verification routes
+
+
+@router.get("/verify-email", response_class=HTMLResponse)
+async def verify_email_page(request: Request, user: User = Depends(require_auth)):
+    """Show 'check your email' page for unverified users."""
+    templates = get_templates(request)
+
+    # If already verified, redirect to dashboard
+    if user.email_verified:
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse("verify_email.html", {
+        "request": request,
+        "user": user,
+        "user_email": user.email,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+    })
+
+
+@router.post("/verify-email/resend")
+@limiter.limit(RESEND_RATE_LIMIT)
+async def resend_verification_email(request: Request, user: User = Depends(require_auth)):
+    """Resend verification email. Rate limited to 3 per hour."""
+    templates = get_templates(request)
+
+    # If already verified, just redirect
+    if user.email_verified:
+        return RedirectResponse(url="/", status_code=303)
+
+    # Send verification email
+    await send_verification_email(user.email, user.id, user.display_name)
+    log_audit_event("auth.verification_sent", request, user_id=user.id,
+                    details={"trigger": "manual_resend"})
+
+    return templates.TemplateResponse("verify_email.html", {
+        "request": request,
+        "user": user,
+        "user_email": user.email,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "message": "Verification email sent! Check your inbox.",
+    })
+
+
+@router.get("/verify/{token}")
+async def verify_email_token(request: Request, token: str):
+    """Process verification link from email."""
+    templates = get_templates(request)
+    db = get_db()
+
+    try:
+        data = verify_verification_token(token)
+        user_id = data["user_id"]
+        user = db.get_user_by_id(user_id)
+
+        if not user:
+            return templates.TemplateResponse("verify_expired.html", {
+                "request": request,
+                "csrf_token": getattr(request.state, 'csrf_token', ''),
+                "message": "Invalid verification link. Please register again.",
+            })
+
+        # Check if already verified (token reuse is harmless)
+        if user.email_verified:
+            return RedirectResponse(url="/login?verified=already", status_code=303)
+
+        # Mark as verified
+        db.set_email_verified(user_id, True)
+        log_audit_event("auth.email_verified", request, user_id=user_id)
+
+        return RedirectResponse(url="/login?verified=1", status_code=303)
+
+    except SignatureExpired:
+        # Token expired - try to auto-resend
+        try:
+            user_id = get_user_id_from_expired_token(token)
+            user = db.get_user_by_id(user_id)
+
+            if user and not user.email_verified:
+                await send_verification_email(user.email, user.id, user.display_name)
+                log_audit_event("auth.verification_resent_auto", request, user_id=user.id,
+                               details={"reason": "expired_link"})
+                message = "Link expired. We've sent a new one to your inbox."
+            else:
+                message = "Link expired. Please log in to request a new verification email."
+
+        except Exception:
+            message = "Link expired. Please log in to request a new verification email."
+
+        return templates.TemplateResponse("verify_expired.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "message": message,
+        })
+
+    except BadSignature:
+        return templates.TemplateResponse("verify_expired.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "message": "Invalid verification link.",
+        })
 
 
 @router.get("/privacy", response_class=HTMLResponse)

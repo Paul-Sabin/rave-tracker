@@ -6,6 +6,12 @@
 <div style="max-width: 400px; margin: 2rem auto;">
     <h1 style="text-align: center; margin-bottom: 1.5rem;">Login</h1>
 
+    {% if message %}
+    <div class="alert" style="background: rgba(78, 204, 163, 0.2); border: 1px solid var(--color-success); padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+        {{ message }}
+    </div>
+    {% endif %}
+
     {% if error %}
     <div class="alert" style="background: rgba(233, 69, 96, 0.2); border: 1px solid var(--accent); padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
         {{ error }}
