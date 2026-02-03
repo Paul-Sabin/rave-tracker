@@ -5,10 +5,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from slowapi.errors import RateLimitExceeded
 
 from telegram import Update
+
+from .rate_limit import limiter
 
 from .routes import router
 from .admin import admin_router
@@ -67,6 +71,31 @@ def create_app() -> FastAPI:
 
     # Store templates in app state for access in routes
     app.state.templates = templates
+
+    # Register rate limiter state
+    app.state.limiter = limiter
+
+    # Add custom rate limit exceeded handler
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+        """Custom handler for rate limit exceeded - return friendly error page."""
+        templates = app.state.templates
+
+        # For login page, show user-friendly message
+        if "/login" in str(request.url):
+            return templates.TemplateResponse("login.html", {
+                "request": request,
+                "csrf_token": getattr(request.state, 'csrf_token', ''),
+                "error": "Too many login attempts. Please try again in a few minutes.",
+                "email": "",
+            }, status_code=429)
+
+        # For other pages, return JSON error
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please try again later."},
+            headers={"Retry-After": "900"}  # 15 minutes
+        )
 
     # Include routes
     app.include_router(router)
