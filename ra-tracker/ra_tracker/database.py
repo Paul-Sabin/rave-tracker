@@ -462,6 +462,51 @@ class Database:
                 (telegram_chat_id, user_id)
             )
 
+    def set_email_verified(self, user_id: int, verified: bool = True) -> None:
+        """Set a user's email verification status.
+
+        Args:
+            user_id: User ID to update
+            verified: Verification status (default True)
+        """
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET email_verified = ? WHERE id = ?",
+                (verified, user_id)
+            )
+
+    def get_unverified_user_by_email(self, email: str) -> Optional[User]:
+        """Get user only if email is not verified.
+
+        Used for resend verification flow to prevent spam to verified users.
+
+        Args:
+            email: User's email address
+
+        Returns:
+            User if found and not verified, None otherwise
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM users WHERE email = ? AND email_verified = 0",
+                (email,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return User(
+                id=row["id"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                display_name=row["display_name"],
+                is_admin=bool(row["is_admin"]),
+                email_verified=bool(row["email_verified"]),
+                telegram_chat_id=row["telegram_chat_id"],
+                telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            )
+
     def get_user_by_telegram_chat_id(self, chat_id: int) -> Optional[User]:
         """Get a user by their Telegram chat ID."""
         with self.get_connection() as conn:
