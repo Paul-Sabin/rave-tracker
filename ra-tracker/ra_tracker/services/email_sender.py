@@ -158,3 +158,50 @@ async def send_notification_email(
     except Exception as e:
         logger.error(f"Failed to send email to {user_email}: {e}")
         return False
+
+
+async def send_verification_email(
+    user_email: str,
+    user_id: int,
+    display_name: str,
+) -> bool:
+    """Send verification email with secure token link.
+
+    Args:
+        user_email: Recipient email address
+        user_id: User ID for token generation
+        display_name: User's display name for personalization
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping verification send")
+        return False
+
+    # Import here to avoid circular imports
+    from ..web.verification import generate_verification_token
+
+    config = get_config()
+    token = generate_verification_token(user_id)
+    verification_url = f"{config.app.base_url}/verify/{token}"
+
+    message = MessageSchema(
+        subject="Welcome to RA Tracker - verify your email",
+        recipients=[user_email],
+        template_body={
+            "display_name": display_name,
+            "verification_url": verification_url,
+        },
+        subtype=MessageType.plain,  # Plain text per CONTEXT.md decision
+    )
+
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message, template_name="verification.txt")
+        logger.info(f"Sent verification email to {user_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send verification to {user_email}: {e}")
+        return False

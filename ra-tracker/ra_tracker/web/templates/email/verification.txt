@@ -1,0 +1,12 @@
+Hi {{ display_name }},
+
+Welcome to RA Tracker! Please verify your email address by clicking the link below:
+
+{{ verification_url }}
+
+This link will expire in 24 hours.
+
+If you didn't create an account, you can safely ignore this email.
+
+--
+RA Tracker
