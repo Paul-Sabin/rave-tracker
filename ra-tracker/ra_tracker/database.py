@@ -212,6 +212,10 @@ MIGRATIONS = [
     """
     ALTER TABLE rules ADD COLUMN dashboard_mode TEXT DEFAULT 'local';
     """,
+    # Migration 9: Auto-verify admin users to prevent lockout after email verification requirement
+    """
+    UPDATE users SET email_verified = 1 WHERE is_admin = 1;
+    """,
 ]
 
 

@@ -89,6 +89,22 @@ def clear_session_cookie(response):
     response.delete_cookie(key="session_token", path="/")
 
 
+async def require_verified_email(
+    request: Request,
+    user: User = Depends(require_auth)
+) -> User:
+    """Require email verification, redirect to verify page if not verified.
+
+    Use this instead of require_auth for protected routes that need verification.
+    """
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": "/verify-email"}
+        )
+    return user
+
+
 async def require_admin(user: User = Depends(require_auth)) -> User:
     """Require admin privileges. Returns 403 Forbidden for non-admins."""
     if not user.is_admin:
