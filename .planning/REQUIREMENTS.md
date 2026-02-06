@@ -9,13 +9,13 @@ Requirements for Security Hardening & Account Lifecycle milestone.
 
 ### Authentication Hardening
 
-- [ ] **SEC-01**: Rate limiting on login route (5 attempts per 15 minutes per IP/email)
+- [x] **SEC-01**: Rate limiting on login route (5 attempts per 15 minutes per IP/email)
 - [ ] **SEC-02**: Rate limiting on password reset requests (3 per hour per email)
 - [x] **SEC-03**: Global CSRF protection on all POST forms (token-based)
-- [ ] **SEC-04**: Email verification required for new user registration
-- [ ] **SEC-05**: Existing unverified users must verify on next login
-- [ ] **SEC-06**: Verification email with secure token link
-- [ ] **SEC-07**: Resend verification email option
+- [x] **SEC-04**: Email verification required for new user registration
+- [x] **SEC-05**: Existing unverified users must verify on next login
+- [x] **SEC-06**: Verification email with secure token link
+- [x] **SEC-07**: Resend verification email option
 
 ### Account Management
 
@@ -31,12 +31,12 @@ Requirements for Security Hardening & Account Lifecycle milestone.
 ### Audit Logging
 
 - [x] **AUDIT-01**: Audit log database schema (event_type, user_id, ip, timestamp, details)
-- [ ] **AUDIT-02**: Log login attempts (success and failure with IP)
+- [x] **AUDIT-02**: Log login attempts (success and failure with IP)
 - [ ] **AUDIT-03**: Log password changes
 - [ ] **AUDIT-04**: Log password reset requests and completions
-- [ ] **AUDIT-05**: Log account creation
+- [x] **AUDIT-05**: Log account creation
 - [ ] **AUDIT-06**: Log account deletion requests and purges
-- [ ] **AUDIT-07**: Log email verification status changes
+- [x] **AUDIT-07**: Log email verification status changes
 - [ ] **AUDIT-08**: Admin audit log page at /admin/audit-log
 - [ ] **AUDIT-09**: Audit log filtering (by user, event type, date range)
 - [x] **AUDIT-10**: Forever retention (no auto-purge)
@@ -67,13 +67,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 6 | Pending |
+| SEC-01 | Phase 6 | Complete |
 | SEC-02 | Phase 7 | Pending |
 | SEC-03 | Phase 5 | Complete |
-| SEC-04 | Phase 6 | Pending |
-| SEC-05 | Phase 6 | Pending |
-| SEC-06 | Phase 6 | Pending |
-| SEC-07 | Phase 6 | Pending |
+| SEC-04 | Phase 6 | Complete |
+| SEC-05 | Phase 6 | Complete |
+| SEC-06 | Phase 6 | Complete |
+| SEC-07 | Phase 6 | Complete |
 | ACCT-01 | Phase 7 | Pending |
 | ACCT-02 | Phase 7 | Pending |
 | ACCT-03 | Phase 7 | Pending |
@@ -83,12 +83,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACCT-07 | Phase 8 | Pending |
 | ACCT-08 | Phase 8 | Pending |
 | AUDIT-01 | Phase 5 | Complete |
-| AUDIT-02 | Phase 6 | Pending |
+| AUDIT-02 | Phase 6 | Complete |
 | AUDIT-03 | Phase 7 | Pending |
 | AUDIT-04 | Phase 7 | Pending |
-| AUDIT-05 | Phase 6 | Pending |
+| AUDIT-05 | Phase 6 | Complete |
 | AUDIT-06 | Phase 8 | Pending |
-| AUDIT-07 | Phase 6 | Pending |
+| AUDIT-07 | Phase 6 | Complete |
 | AUDIT-08 | Phase 8 | Pending |
 | AUDIT-09 | Phase 8 | Pending |
 | AUDIT-10 | Phase 5 | Complete |
@@ -100,4 +100,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after Phase 5 completion*
+*Last updated: 2026-02-06 after Phase 6 completion*

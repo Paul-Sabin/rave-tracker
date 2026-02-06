@@ -36,9 +36,9 @@ Plans:
 **Plans:** 3 plans (Wave 1: 2 parallel, Wave 2: 1 sequential)
 
 Plans:
-- [ ] 06-01-PLAN.md - Rate limiting infrastructure and login audit logging
-- [ ] 06-02-PLAN.md - Email verification tokens and verification email
-- [ ] 06-03-PLAN.md - Verification flow UI and registration/login integration
+- [x] 06-01-PLAN.md - Rate limiting infrastructure and login audit logging
+- [x] 06-02-PLAN.md - Email verification tokens and verification email
+- [x] 06-03-PLAN.md - Verification flow UI and registration/login integration
 
 **Success Criteria:**
 1. New users receive verification email and cannot access dashboard until verified
@@ -84,7 +84,7 @@ Plans:
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete |
-| 6 | Email Verification & Login Hardening | 8 | Planned |
+| 6 | Email Verification & Login Hardening | 8 | Complete |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
@@ -122,4 +122,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-02*
-*Last updated: 2026-02-02 (Phase 6 planned)*
+*Last updated: 2026-02-06 (Phase 6 complete)*
