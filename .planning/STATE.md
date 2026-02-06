@@ -1,15 +1,15 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-06
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 6 - Email Verification & Login Hardening
+**Current Phase:** 7 - Password Management (next)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Email verification and login security hardening
+**Current focus:** Password management (reset, change, strength)
 
 ## Milestone Progress
 
@@ -22,18 +22,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 6 - Email Verification & Login Hardening
-Plan: 02 of 3 complete
-Status: In progress
-Last activity: 2026-02-03 - Completed 06-02-PLAN.md (Verification Token & Email Infrastructure)
+Plan: 03 of 3 complete
+Status: Phase complete
+Last activity: 2026-02-06 - Completed 06-03-PLAN.md (Email Verification Flow UI & Integration)
 
-Progress: [###-------] 33% of v2.1 (1/4 phases complete, 2/3 plans in phase 6)
+Progress: [#####-----] 50% of v2.1 (2/4 phases complete)
 
 ## v2.1 Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
-| 6 | Email Verification & Login Hardening | 8 | In Progress (2/3 plans) |
+| 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
 | 7 | Password Management | 7 | Pending |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
@@ -46,11 +46,12 @@ Progress: [###-------] 33% of v2.1 (1/4 phases complete, 2/3 plans in phase 6)
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
 
-**v2.1 Progress (2026-02-03):**
+**v2.1 Progress (2026-02-06):**
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 - 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
 - 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
 - 06-02: Verification token & email infrastructure (itsdangerous tokens, email template)
+- 06-03: Email verification flow (UI templates, routes, require_verified_email, admin migration)
 
 ## Accumulated Decisions
 
@@ -80,6 +81,9 @@ Key patterns established:
 - Verification tokens use 'email-verify' salt (separate from 'email-unsubscribe')
 - 24-hour verification token expiry
 - get_user_id_from_expired_token helper for auto-resend flow
+- Redirect unverified users to /verify-email (not 403)
+- Auto-send new verification email when expired link clicked
+- Migration 9 auto-verifies existing admin users
 
 **Technical Debt:**
 - None from v2.0
@@ -103,12 +107,14 @@ Key patterns established:
 | 2026-02-02 | Completed Phase 5 | Audit Foundation & CSRF Protection complete |
 | 2026-02-03 | Executed 06-01 | Login rate limiting and auth audit logging complete |
 | 2026-02-03 | Executed 06-02 | Verification token and email infrastructure complete |
+| 2026-02-06 | Executed 06-03 | Email verification flow UI and integration complete |
+| 2026-02-06 | Completed Phase 6 | Email Verification & Login Hardening complete |
 
 ## Session Continuity
 
-Last session: 2026-02-03
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-02-06
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
 
 ---
-*State updated: 2026-02-03*
+*State updated: 2026-02-06*
