@@ -9,25 +9,6 @@ from urllib.parse import parse_qs
 from fastapi import Request, Response
 from starlette.types import ASGIApp, Receive, Scope, Send, Message
 
-
-class _CSRFState:
-    """Simple state container that supports attribute access."""
-
-    def __init__(self, initial: dict = None):
-        object.__setattr__(self, "_data", initial or {})
-
-    def __getattr__(self, name: str):
-        try:
-            return self._data[name]
-        except KeyError:
-            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
-
-    def __setattr__(self, name: str, value):
-        self._data[name] = value
-
-    def __contains__(self, name: str):
-        return name in self._data
-
 logger = logging.getLogger(__name__)
 
 
@@ -81,20 +62,11 @@ class CSRFMiddleware:
             csrf_token = secrets.token_urlsafe(32)
 
         # Store token in request.state for template access
-        # Use our own simple state container to avoid conflicts with Starlette's State
-        if "state" not in scope:
-            scope["state"] = _CSRFState()
-        elif isinstance(scope["state"], dict):
-            # Convert dict to our state container
-            scope["state"] = _CSRFState(scope["state"])
-        elif hasattr(scope["state"], "__setattr__"):
-            # Has setattr, can set attributes directly (State or similar)
-            pass
-        else:
-            # Unknown type, wrap it
-            scope["state"] = _CSRFState()
-
-        scope["state"].csrf_token = csrf_token
+        # Starlette's request.state wraps scope["state"] dict with State class
+        # which provides attribute access. Just ensure it's a dict.
+        if "state" not in scope or not isinstance(scope["state"], dict):
+            scope["state"] = {}
+        scope["state"]["csrf_token"] = csrf_token
 
         method = scope.get("method", "GET")
 
