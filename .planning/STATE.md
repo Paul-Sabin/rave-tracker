@@ -1,8 +1,8 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-02-07
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 7 - Password Management (next)
+**Current Phase:** 7 - Password Management
 
 ## Project Reference
 
@@ -21,12 +21,12 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 ## Current Position
 
-Phase: 6 - Email Verification & Login Hardening
-Plan: 03 of 3 complete
-Status: Phase complete
-Last activity: 2026-02-06 - Completed 06-03-PLAN.md (Email Verification Flow UI & Integration)
+Phase: 7 - Password Management
+Plan: 01 of 3 complete
+Status: In progress
+Last activity: 2026-02-07 - Completed 07-01-PLAN.md (Password Infrastructure)
 
-Progress: [#####-----] 50% of v2.1 (2/4 phases complete)
+Progress: [######----] 60% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 plan 1/3)
 
 ## v2.1 Phase Summary
 
@@ -34,7 +34,7 @@ Progress: [#####-----] 50% of v2.1 (2/4 phases complete)
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
-| 7 | Password Management | 7 | Pending |
+| 7 | Password Management | 7 | In Progress (1/3 plans) |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
 ## What's Shipped
@@ -46,12 +46,13 @@ Progress: [#####-----] 50% of v2.1 (2/4 phases complete)
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
 
-**v2.1 Progress (2026-02-06):**
+**v2.1 Progress (2026-02-07):**
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 - 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
 - 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
 - 06-02: Verification token & email infrastructure (itsdangerous tokens, email template)
 - 06-03: Email verification flow (UI templates, routes, require_verified_email, admin migration)
+- 07-01: Password infrastructure (reset tokens, password validation, reset rate limiter)
 
 ## Accumulated Decisions
 
@@ -87,6 +88,10 @@ Key patterns established:
 - python-dotenv for sensitive config (.env file, gitignored, loaded at startup)
 - BREVO_SMTP_USERNAME/PASSWORD and SECRET_KEY/BASE_URL env vars (short names preferred)
 - Pure ASGI middleware for CSRF (avoids BaseHTTPMiddleware body consumption issues)
+- Password reset tokens use 'password-reset' salt (separate from verification)
+- NIST SP 800-63B password rules: min 8 chars, no complexity requirements, common password blocklist
+- ResetRateLimiter tracks email only (not IP) - targeted attack prevention
+- Case-insensitive common password comparison (prevents Password vs password bypass)
 
 **Technical Debt:**
 - None from v2.0
@@ -114,12 +119,13 @@ Key patterns established:
 | 2026-02-06 | Completed Phase 6 | Email Verification & Login Hardening complete |
 | 2026-02-07 | Fixed CSRF middleware | Rewrote as pure ASGI to fix body consumption issue |
 | 2026-02-07 | Added python-dotenv | Sensitive config via .env file, env var overrides for email/app |
+| 2026-02-07 | Executed 07-01 | Password infrastructure complete (tokens, validation, rate limiter) |
 
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Email verification working end-to-end
+Stopped at: Completed 07-01-PLAN.md (Password Infrastructure)
 Resume file: None
 
 ---
-*State updated: 2026-02-06*
+*State updated: 2026-02-07*
