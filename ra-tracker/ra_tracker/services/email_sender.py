@@ -205,3 +205,47 @@ async def send_verification_email(
     except Exception as e:
         logger.error(f"Failed to send verification to {user_email}: {e}")
         return False
+
+
+async def send_password_reset_email(
+    user_email: str,
+    user_id: int,
+) -> bool:
+    """Send password reset email with secure token link.
+
+    Args:
+        user_email: Recipient email address
+        user_id: User ID for token generation
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping reset email send")
+        return False
+
+    # Import here to avoid circular imports
+    from ..web.password_reset import generate_reset_token
+
+    config = get_config()
+    token = generate_reset_token(user_id)
+    reset_url = f"{config.app.base_url}/reset-password/{token}"
+
+    message = MessageSchema(
+        subject="Reset your password",
+        recipients=[user_email],
+        template_body={
+            "reset_url": reset_url,
+        },
+        subtype=MessageType.html,
+    )
+
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message, template_name="password_reset.html")
+        logger.info(f"Sent password reset email to {user_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send reset email to {user_email}: {e}")
+        return False
