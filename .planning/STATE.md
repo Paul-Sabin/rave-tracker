@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-07
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 7 - Password Management
+**Current Phase:** 7 - Password Management (COMPLETE)
 
 ## Project Reference
 
@@ -21,12 +21,12 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 ## Current Position
 
-Phase: 7 - Password Management
-Plan: 01 of 3 complete
-Status: In progress
-Last activity: 2026-02-07 - Completed 07-01-PLAN.md (Password Infrastructure)
+Phase: 7 - Password Management (COMPLETE)
+Plan: 3 of 3 complete
+Status: Phase complete
+Last activity: 2026-02-07 - Completed 07-03-PLAN.md (Password Change with Strength Meter)
 
-Progress: [######----] 60% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 plan 1/3)
+Progress: [########--] 80% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete)
 
 ## v2.1 Phase Summary
 
@@ -34,7 +34,7 @@ Progress: [######----] 60% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 |-------|------|--------------|--------|
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
-| 7 | Password Management | 7 | In Progress (1/3 plans) |
+| 7 | Password Management | 7 | Complete (3/3 plans) |
 | 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
 
 ## What's Shipped
@@ -53,6 +53,8 @@ Progress: [######----] 60% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 - 06-02: Verification token & email infrastructure (itsdangerous tokens, email template)
 - 06-03: Email verification flow (UI templates, routes, require_verified_email, admin migration)
 - 07-01: Password infrastructure (reset tokens, password validation, reset rate limiter)
+- 07-02: Password reset flow (forgot password form, reset email, reset routes)
+- 07-03: Password change (settings integration, strength meter, change routes)
 
 ## Accumulated Decisions
 
@@ -92,6 +94,9 @@ Key patterns established:
 - NIST SP 800-63B password rules: min 8 chars, no complexity requirements, common password blocklist
 - ResetRateLimiter tracks email only (not IP) - targeted attack prevention
 - Case-insensitive common password comparison (prevents Password vs password bypass)
+- Password change keeps session valid (user proved identity via current password)
+- Password reset invalidates all sessions (password may have been compromised)
+- zxcvbn CDN for client-side password strength meter (no build tooling)
 
 **Technical Debt:**
 - None from v2.0
@@ -120,11 +125,14 @@ Key patterns established:
 | 2026-02-07 | Fixed CSRF middleware | Rewrote as pure ASGI to fix body consumption issue |
 | 2026-02-07 | Added python-dotenv | Sensitive config via .env file, env var overrides for email/app |
 | 2026-02-07 | Executed 07-01 | Password infrastructure complete (tokens, validation, rate limiter) |
+| 2026-02-07 | Executed 07-02 | Password reset flow complete (forgot password, reset email, routes) |
+| 2026-02-07 | Executed 07-03 | Password change complete (settings, strength meter, routes) |
+| 2026-02-07 | Completed Phase 7 | Password Management complete |
 
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 07-01-PLAN.md (Password Infrastructure)
+Stopped at: Completed Phase 7 (Password Management)
 Resume file: None
 
 ---
