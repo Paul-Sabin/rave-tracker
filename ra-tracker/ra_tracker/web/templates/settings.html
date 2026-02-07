@@ -118,6 +118,25 @@
     </div>
 </div>
 
+<!-- Account Security -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Account Security</span>
+    </div>
+    <div class="security-options">
+        <div class="security-option">
+            <div class="security-info">
+                <span class="security-icon">&#x1F512;</span>
+                <div class="security-details">
+                    <span class="security-name">Password</span>
+                    <span class="security-desc text-muted">Change your account password</span>
+                </div>
+            </div>
+            <a href="/settings/change-password" class="btn btn-secondary">Change Password</a>
+        </div>
+    </div>
+</div>
+
 <!-- Telegram Settings (Admin) -->
 <div class="card">
     <div class="card-header">
@@ -381,6 +400,55 @@ input:checked + .toggle-slider:before {
     color: #1a1a2e;
 }
 
+/* Account security styles */
+.security-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.security-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--card-bg, #f8f9fa);
+    border-radius: 8px;
+    border: 1px solid var(--border, #dee2e6);
+}
+
+.security-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.security-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--primary, #1a1a2e);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.security-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.security-name {
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.security-desc {
+    font-size: 0.85rem;
+}
+
 /* Area search */
 #area-results {
     max-height: 200px;
@@ -413,6 +481,15 @@ input:checked + .toggle-slider:before {
 
     #test-telegram,
     #test-notifications-btn {
+        width: 100%;
+    }
+
+    .security-option {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .security-option .btn {
         width: 100%;
     }
 }
