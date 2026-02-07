@@ -113,6 +113,26 @@ class Config:
         if os.environ.get("RA_TRACKER_DB_PATH"):
             config.database.path = os.environ["RA_TRACKER_DB_PATH"]
 
+        # Email environment variable overrides
+        if os.environ.get("EMAIL_SMTP_SERVER"):
+            config.email.server = os.environ["EMAIL_SMTP_SERVER"]
+        if os.environ.get("EMAIL_SMTP_PORT"):
+            config.email.port = int(os.environ["EMAIL_SMTP_PORT"])
+        if os.environ.get("EMAIL_SMTP_USERNAME"):
+            config.email.username = os.environ["EMAIL_SMTP_USERNAME"]
+        if os.environ.get("EMAIL_SMTP_PASSWORD"):
+            config.email.password = os.environ["EMAIL_SMTP_PASSWORD"]
+        if os.environ.get("EMAIL_FROM_ADDRESS"):
+            config.email.from_address = os.environ["EMAIL_FROM_ADDRESS"]
+        if os.environ.get("EMAIL_FROM_NAME"):
+            config.email.from_name = os.environ["EMAIL_FROM_NAME"]
+
+        # App environment variable overrides
+        if os.environ.get("APP_SECRET_KEY"):
+            config.app.secret_key = os.environ["APP_SECRET_KEY"]
+        if os.environ.get("APP_BASE_URL"):
+            config.app.base_url = os.environ["APP_BASE_URL"]
+
         return config
 
     def save(self, config_path: str = "config.yaml") -> None:
