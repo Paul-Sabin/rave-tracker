@@ -4,15 +4,20 @@ import hmac
 import logging
 import secrets
 from typing import Set
+from urllib.parse import parse_qs
 
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import State
+from starlette.types import ASGIApp, Receive, Scope, Send, Message
 
 logger = logging.getLogger(__name__)
 
 
-class CSRFMiddleware(BaseHTTPMiddleware):
+class CSRFMiddleware:
     """CSRF protection using Double Submit Cookie pattern.
+
+    Implemented as pure ASGI middleware to avoid body consumption issues
+    with BaseHTTPMiddleware.
 
     - Generates CSRF token and sets as cookie (readable by JS)
     - For unsafe methods (POST, PUT, DELETE, PATCH):
@@ -23,24 +28,32 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app,
+        app: ASGIApp,
         cookie_name: str = "csrftoken",
         header_name: str = "x-csrftoken",
         form_field: str = "csrf_token",
         exempt_paths: Set[str] = None,
         safe_methods: Set[str] = None,
     ):
-        super().__init__(app)
+        self.app = app
         self.cookie_name = cookie_name
-        self.header_name = header_name.lower()  # Headers are case-insensitive
+        self.header_name = header_name.lower()
         self.form_field = form_field
         self.exempt_paths = exempt_paths or {"/telegram/webhook"}
         self.safe_methods = safe_methods or {"GET", "HEAD", "OPTIONS", "TRACE"}
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        path = scope.get("path", "")
+
         # Check if path is exempt
-        if request.url.path in self.exempt_paths:
-            return await call_next(request)
+        if path in self.exempt_paths:
+            await self.app(scope, receive, send)
+            return
 
         # Get or generate CSRF token
         csrf_cookie = request.cookies.get(self.cookie_name)
@@ -50,66 +63,106 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             csrf_token = secrets.token_urlsafe(32)
 
         # Store token in request.state for template access
-        request.state.csrf_token = csrf_token
+        # Ensure state is a State object (supports attribute access)
+        if "state" not in scope:
+            scope["state"] = State()
+        scope["state"].csrf_token = csrf_token
+
+        method = scope.get("method", "GET")
 
         # Validate on unsafe methods
-        if request.method not in self.safe_methods:
-            # Get submitted token from header (AJAX) or we'll check form later
-            submitted = request.headers.get(self.header_name)
+        if method not in self.safe_methods:
+            # Get submitted token from header (AJAX)
+            headers = dict(scope.get("headers", []))
+            submitted = headers.get(self.header_name.encode(), b"").decode()
 
             # If no header, try to read from form body
-            # Note: For form submissions, the form data will be read by the route
-            # We check header first (AJAX pattern) which covers most cases
             if not submitted:
-                # For URL-encoded forms, we can peek at the body
-                # But this is tricky with streaming - prefer header approach
-                # For now, allow form submissions through and let routes validate
-                # This works because our templates include hidden csrf_token field
-                content_type = request.headers.get("content-type", "")
-                if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-                    # Read form data - this caches it
+                content_type = headers.get(b"content-type", b"").decode()
+                if "application/x-www-form-urlencoded" in content_type:
+                    # Read and cache body for form parsing
+                    body_parts = []
+
+                    async def caching_receive() -> Message:
+                        message = await receive()
+                        if message["type"] == "http.request":
+                            body_parts.append(message.get("body", b""))
+                        return message
+
+                    # Read body
+                    while True:
+                        message = await caching_receive()
+                        if message["type"] == "http.request":
+                            if not message.get("more_body", False):
+                                break
+                        else:
+                            break
+
+                    body = b"".join(body_parts)
+
+                    # Parse form data to get CSRF token
                     try:
-                        form = await request.form()
-                        submitted = form.get(self.form_field)
+                        form_data = parse_qs(body.decode("utf-8"))
+                        submitted = form_data.get(self.form_field, [""])[0]
                     except Exception as e:
-                        logger.warning(f"Could not read form for CSRF: {e}")
+                        logger.warning(f"Could not parse form for CSRF: {e}")
+
+                    # Create a new receive that returns cached body
+                    body_sent = False
+
+                    async def cached_receive() -> Message:
+                        nonlocal body_sent
+                        if not body_sent:
+                            body_sent = True
+                            return {"type": "http.request", "body": body, "more_body": False}
+                        return {"type": "http.request", "body": b"", "more_body": False}
+
+                    receive = cached_receive
 
             # Validate token
             if not csrf_cookie:
-                logger.warning(f"CSRF validation failed: no cookie for {request.url.path}")
-                return Response(
+                logger.warning(f"CSRF validation failed: no cookie for {path}")
+                response = Response(
                     content="CSRF validation failed: missing token cookie",
                     status_code=403
                 )
+                await response(scope, receive, send)
+                return
 
             if not submitted:
-                logger.warning(f"CSRF validation failed: no submitted token for {request.url.path}")
-                return Response(
+                logger.warning(f"CSRF validation failed: no submitted token for {path}")
+                response = Response(
                     content="CSRF validation failed: missing token in request",
                     status_code=403
                 )
+                await response(scope, receive, send)
+                return
 
             if not hmac.compare_digest(csrf_cookie, submitted):
-                logger.warning(f"CSRF validation failed: token mismatch for {request.url.path}")
-                return Response(
+                logger.warning(f"CSRF validation failed: token mismatch for {path}")
+                response = Response(
                     content="CSRF validation failed: token mismatch",
                     status_code=403
                 )
+                await response(scope, receive, send)
+                return
 
-        # Call the actual route
-        response = await call_next(request)
-
-        # Set cookie on response if new token (or refresh existing)
-        # Cookie is NOT httponly so JS can read it
-        is_secure = request.url.scheme == "https"
-        response.set_cookie(
-            key=self.cookie_name,
-            value=csrf_token,
-            httponly=False,  # JS needs to read for AJAX
-            samesite="lax",
-            secure=is_secure,
-            path="/",
-            max_age=86400 * 7,  # 7 days
+        # Wrap send to add CSRF cookie to response
+        is_secure = scope.get("scheme", "http") == "https"
+        cookie_value = (
+            f"{self.cookie_name}={csrf_token}; "
+            f"Path=/; "
+            f"SameSite=Lax; "
+            f"Max-Age={86400 * 7}"
         )
+        if is_secure:
+            cookie_value += "; Secure"
 
-        return response
+        async def send_with_cookie(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"set-cookie", cookie_value.encode()))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_cookie)
