@@ -194,12 +194,12 @@ async def send_verification_email(
             "display_name": display_name,
             "verification_url": verification_url,
         },
-        subtype=MessageType.plain,  # Plain text per CONTEXT.md decision
+        subtype=MessageType.html,
     )
 
     try:
         fm = FastMail(conf)
-        await fm.send_message(message, template_name="verification.txt")
+        await fm.send_message(message, template_name="verification.html")
         logger.info(f"Sent verification email to {user_email}")
         return True
     except Exception as e:
