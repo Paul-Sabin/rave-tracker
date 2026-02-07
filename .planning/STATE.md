@@ -84,6 +84,9 @@ Key patterns established:
 - Redirect unverified users to /verify-email (not 403)
 - Auto-send new verification email when expired link clicked
 - Migration 9 auto-verifies existing admin users
+- python-dotenv for sensitive config (.env file, gitignored, loaded at startup)
+- BREVO_SMTP_USERNAME/PASSWORD and SECRET_KEY/BASE_URL env vars (short names preferred)
+- Pure ASGI middleware for CSRF (avoids BaseHTTPMiddleware body consumption issues)
 
 **Technical Debt:**
 - None from v2.0
@@ -109,11 +112,13 @@ Key patterns established:
 | 2026-02-03 | Executed 06-02 | Verification token and email infrastructure complete |
 | 2026-02-06 | Executed 06-03 | Email verification flow UI and integration complete |
 | 2026-02-06 | Completed Phase 6 | Email Verification & Login Hardening complete |
+| 2026-02-07 | Fixed CSRF middleware | Rewrote as pure ASGI to fix body consumption issue |
+| 2026-02-07 | Added python-dotenv | Sensitive config via .env file, env var overrides for email/app |
 
 ## Session Continuity
 
-Last session: 2026-02-06
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-02-07
+Stopped at: Email verification working end-to-end
 Resume file: None
 
 ---

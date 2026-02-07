@@ -50,6 +50,10 @@
 - `pyyaml>=6.0` - YAML configuration file parsing
 - `aiosqlite>=0.19.0` - Async SQLite support (listed but not actively used)
 - `argon2-cffi>=23.1.0` - Password hashing (Argon2id, OWASP 2025 recommended)
+- `python-dotenv>=1.0.0` - Load environment variables from .env file
+- `slowapi>=0.1.9` - Rate limiting for FastAPI routes
+- `itsdangerous>=2.0.0` - Signed token generation (verification, unsubscribe)
+- `fastapi-mail>=1.0.0` - Email sending via SMTP
 
 **Frontend (Milestone 2 - planned):**
 - Tailwind CSS - Utility-first CSS framework for responsive mobile-first design
@@ -60,21 +64,39 @@
 
 ## Configuration
 
-**Environment:**
-- YAML configuration file: `ra-tracker/config.yaml`
-- Example provided: `ra-tracker/config.example.yaml`
-- Environment variable overrides supported:
-  - `TELEGRAM_BOT_TOKEN` - Override telegram bot token
-  - `TELEGRAM_CHAT_ID` - Override telegram chat ID
-  - `RA_TRACKER_DB_PATH` - Override database path
-  - `RA_TRACKER_CONFIG` - Alternative config file path
+**Layered Configuration (priority order):**
+1. `.env` file - Sensitive secrets (loaded via python-dotenv at startup)
+2. Environment variables - Runtime overrides
+3. `config.yaml` - Base configuration with non-sensitive defaults
+
+**Files:**
+- `ra-tracker/config.yaml` - Main configuration (can use `${VAR}` placeholders)
+- `ra-tracker/config.example.yaml` - Template showing all options
+- `ra-tracker/.env` - Sensitive secrets (gitignored, never committed)
+
+**Environment Variable Overrides:**
+- `SECRET_KEY` / `APP_SECRET_KEY` - Token signing key (required)
+- `BASE_URL` / `APP_BASE_URL` - Public URL for email links
+- `BREVO_SMTP_USERNAME` / `EMAIL_SMTP_USERNAME` - SMTP username
+- `BREVO_SMTP_PASSWORD` / `EMAIL_SMTP_PASSWORD` - SMTP password
+- `EMAIL_SMTP_SERVER` - SMTP server hostname
+- `EMAIL_SMTP_PORT` - SMTP port
+- `EMAIL_FROM_ADDRESS` - From email address
+- `EMAIL_FROM_NAME` - From display name
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token
+- `TELEGRAM_CHAT_ID` - Legacy chat ID
+- `RA_TRACKER_DB_PATH` - Database file path
+- `RA_TRACKER_CONFIG` - Alternative config file path
 
 **Configuration Sections:**
-- `telegram` - Bot token and chat ID
+- `telegram` - Bot token, chat ID, webhook settings
 - `scheduler` - Fetch interval (hours), event horizon (days)
 - `web` - Host and port bindings
 - `database` - SQLite database path
 - `user` - Local area ID and name for filtering
+- `session` - Session timeout, secure cookie settings
+- `email` - SMTP server, credentials, from address
+- `app` - Secret key, base URL
 
 **Build:**
 - No build configuration - Runs directly as Python scripts

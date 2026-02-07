@@ -68,7 +68,38 @@ python -m ra_tracker.main --host 127.0.0.1 --port 3000
 
 ## Configuration
 
-Edit `config.yaml`:
+### Quick Start
+
+1. Copy the example config:
+   ```bash
+   cp config.example.yaml config.yaml
+   ```
+
+2. Create a `.env` file for sensitive values:
+   ```bash
+   # .env (gitignored - never commit this file)
+   SECRET_KEY=your-generated-secret-key
+   BREVO_SMTP_USERNAME=your-smtp-username
+   BREVO_SMTP_PASSWORD=your-smtp-password
+   BASE_URL=http://localhost:8080
+   ```
+
+3. Generate a secret key:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+
+### How Configuration Works
+
+The app uses a layered configuration approach:
+
+1. **config.yaml** - Base configuration with non-sensitive defaults
+2. **.env file** - Sensitive secrets (loaded via python-dotenv)
+3. **Environment variables** - Runtime overrides (highest priority)
+
+The `.env` file is loaded at startup before config.yaml is parsed, so environment variables from `.env` override any placeholder values in the YAML.
+
+### config.yaml Structure
 
 ```yaml
 telegram:
@@ -85,13 +116,46 @@ web:
 
 database:
   path: "./data/ra_tracker.db"
+
+email:
+  server: smtp-relay.brevo.com
+  port: 587
+  username: "${BREVO_SMTP_USERNAME}"  # Placeholder - overridden by .env
+  password: "${BREVO_SMTP_PASSWORD}"  # Placeholder - overridden by .env
+  from_address: "noreply@yourdomain.com"
+  from_name: "RA Tracker"
+  starttls: true
+  ssl_tls: false
+
+app:
+  secret_key: "${SECRET_KEY}"  # Placeholder - overridden by .env
+  base_url: "${BASE_URL}"      # Placeholder - overridden by .env
 ```
 
-Environment variables can also be used:
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `RA_TRACKER_DB_PATH`
-- `RA_TRACKER_CONFIG` (path to config file)
+### Environment Variables
+
+All settings can be overridden via environment variables:
+
+| Variable | Config Path | Description |
+|----------|-------------|-------------|
+| `SECRET_KEY` | `app.secret_key` | Required for token signing |
+| `BASE_URL` | `app.base_url` | Public URL for email links |
+| `BREVO_SMTP_USERNAME` | `email.username` | SMTP username (Brevo shorthand) |
+| `BREVO_SMTP_PASSWORD` | `email.password` | SMTP password (Brevo shorthand) |
+| `EMAIL_SMTP_SERVER` | `email.server` | SMTP server hostname |
+| `EMAIL_SMTP_PORT` | `email.port` | SMTP port |
+| `EMAIL_SMTP_USERNAME` | `email.username` | SMTP username (generic) |
+| `EMAIL_SMTP_PASSWORD` | `email.password` | SMTP password (generic) |
+| `EMAIL_FROM_ADDRESS` | `email.from_address` | From email address |
+| `EMAIL_FROM_NAME` | `email.from_name` | From display name |
+| `APP_SECRET_KEY` | `app.secret_key` | Alternative to SECRET_KEY |
+| `APP_BASE_URL` | `app.base_url` | Alternative to BASE_URL |
+| `TELEGRAM_BOT_TOKEN` | `telegram.bot_token` | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | `telegram.chat_id` | Legacy chat ID |
+| `RA_TRACKER_DB_PATH` | `database.path` | Database file path |
+| `RA_TRACKER_CONFIG` | - | Path to config file |
+
+**Priority:** `BREVO_*` and short names (`SECRET_KEY`, `BASE_URL`) take priority over `EMAIL_*` and `APP_*` variants.
 
 ## Web UI Pages
 
