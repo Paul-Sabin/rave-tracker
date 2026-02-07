@@ -1,3 +1,9 @@
+# Ignore the specific config file
+ra-tracker/config.yaml
+
+# Also ignore any environment files
+.env
+
 # Python artifacts
 venv/
 __pycache__/
@@ -17,6 +23,7 @@ claude-chat-exports/
 !ra-tracker/README.md
 !ra-tracker/PROJECT_STATUS.md
 !ra-tracker/ra_tracker/web/templates/email/*.txt
+!ra-tracker/ra_tracker/data/*.txt
 
 # Media
 ra-tracker/screenshots/
