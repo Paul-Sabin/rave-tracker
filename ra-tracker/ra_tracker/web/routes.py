@@ -11,9 +11,11 @@ from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .audit import log_audit_event
-from .rate_limit import login_limiter, limiter, RESEND_RATE_LIMIT
+from .rate_limit import login_limiter, limiter, RESEND_RATE_LIMIT, reset_limiter
 from .verification import generate_verification_token, verify_verification_token, get_user_id_from_expired_token
-from ..services.email_sender import send_verification_email
+from .password_reset import generate_reset_token, verify_reset_token
+from .password_validation import validate_password
+from ..services.email_sender import send_verification_email, send_password_reset_email
 
 from ..api.ra_client import RAClient
 from ..config import get_config
@@ -537,23 +539,28 @@ async def api_check_rule(rule_type: str, target_id: int, user: User = Depends(re
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, user: Optional[User] = Depends(get_current_user), verified: Optional[str] = None):
+async def login_page(
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+    verified: Optional[str] = None,
+    message: Optional[str] = None,
+):
     """Login page. Redirect to dashboard if already logged in."""
     if user:
         return RedirectResponse(url="/", status_code=303)
     templates = get_templates(request)
 
-    message = None
+    display_message = message  # From query param (e.g., after password reset)
     if verified == "1":
-        message = "Email verified! You can now log in."
+        display_message = "Email verified! You can now log in."
     elif verified == "already":
-        message = "Email already verified. Please log in."
+        display_message = "Email already verified. Please log in."
 
     return templates.TemplateResponse("login.html", {
         "request": request,
         "user": user,
         "csrf_token": getattr(request.state, 'csrf_token', ''),
-        "message": message,
+        "message": display_message,
     })
 
 
@@ -894,3 +901,231 @@ async def unsubscribe(request: Request, token: str):
             "success": False,
             "error": "An error occurred. Please try again or log in to manage notifications.",
         })
+
+
+# Password reset routes
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_form(request: Request):
+    """Show password reset request form."""
+    templates = get_templates(request)
+    return templates.TemplateResponse("password_reset_request.html", {
+        "request": request,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+    })
+
+
+@router.post("/forgot-password", response_class=HTMLResponse)
+async def request_password_reset(
+    request: Request,
+    email: str = Form(...),
+):
+    """Process password reset request."""
+    templates = get_templates(request)
+    db = get_db()
+
+    # Normalize email
+    email = email.lower().strip()
+
+    # Check rate limit BEFORE looking up user (timing attack prevention)
+    allowed, reason = reset_limiter.check_rate_limit(email)
+    if not allowed:
+        log_audit_event("password.reset_rate_limited", request,
+                       details={"email_hash": hashlib.sha256(email.encode()).hexdigest()[:16]})
+        return templates.TemplateResponse("password_reset_request.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "Too many requests. Try again later.",
+        })
+
+    # Record request for rate limiting (regardless of user existence)
+    reset_limiter.record_request(email)
+
+    # Look up user
+    user = db.get_user_by_email(email)
+
+    # Always show success (don't reveal if email exists)
+    if user:
+        await send_password_reset_email(user.email, user.id)
+        log_audit_event("password.reset_requested", request, user_id=user.id)
+    else:
+        log_audit_event("password.reset_unknown_email", request,
+                       details={"email_hash": hashlib.sha256(email.encode()).hexdigest()[:16]})
+
+    return templates.TemplateResponse("password_reset_request.html", {
+        "request": request,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "success": "If an account exists with that email, we've sent a reset link.",
+    })
+
+
+@router.get("/reset-password/{token}", response_class=HTMLResponse)
+async def reset_password_form(request: Request, token: str):
+    """Show password reset form."""
+    templates = get_templates(request)
+
+    # Validate token early to show appropriate message
+    try:
+        verify_reset_token(token)
+    except SignatureExpired:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "This reset link has expired.",
+            "show_request_new": True,
+        })
+    except BadSignature:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "Invalid reset link.",
+        })
+
+    return templates.TemplateResponse("password_reset_form.html", {
+        "request": request,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "token": token,
+    })
+
+
+@router.post("/reset-password/{token}", response_class=HTMLResponse)
+async def complete_password_reset(
+    request: Request,
+    token: str,
+    new_password: str = Form(...),
+):
+    """Complete password reset with new password."""
+    templates = get_templates(request)
+    db = get_db()
+
+    # Validate token
+    try:
+        data = verify_reset_token(token)
+        user_id = data["user_id"]
+    except SignatureExpired:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "This reset link has expired.",
+            "show_request_new": True,
+        })
+    except BadSignature:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "Invalid reset link.",
+        })
+
+    # Validate password
+    is_valid, error_msg = validate_password(new_password)
+    if not is_valid:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "token": token,
+            "error": error_msg,
+        })
+
+    # Get user
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return templates.TemplateResponse("password_reset_form.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "User not found.",
+        })
+
+    # Update password
+    from argon2 import PasswordHasher
+    hasher = PasswordHasher()
+    new_hash = hasher.hash(new_password)
+    db.update_user_password_hash(user_id, new_hash)
+
+    # CRITICAL: Invalidate ALL sessions (per CONTEXT.md - assume password was compromised)
+    db.delete_user_sessions(user_id)
+
+    log_audit_event("password.reset_completed", request, user_id=user_id)
+
+    # Redirect to login with success message
+    return RedirectResponse(
+        url="/login?message=Password+updated.+Please+log+in.",
+        status_code=303,
+    )
+
+
+# Password change routes (authenticated)
+
+
+@router.get("/settings/change-password", response_class=HTMLResponse)
+async def change_password_form(request: Request, user: User = Depends(require_verified_email)):
+    """Show change password form."""
+    templates = get_templates(request)
+    return templates.TemplateResponse("password_change.html", {
+        "request": request,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+    })
+
+
+@router.post("/settings/change-password", response_class=HTMLResponse)
+async def change_password(
+    request: Request,
+    user: User = Depends(require_verified_email),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+):
+    """Change password for authenticated user."""
+    templates = get_templates(request)
+    db = get_db()
+
+    # Verify current password using argon2
+    from argon2 import PasswordHasher
+    from argon2.exceptions import VerifyMismatchError
+    hasher = PasswordHasher()
+
+    try:
+        hasher.verify(user.password_hash, current_password)
+    except VerifyMismatchError:
+        log_audit_event("password.change_failure", request, user_id=user.id,
+                       details={"reason": "invalid_current_password"})
+        return templates.TemplateResponse("password_change.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "Current password is incorrect",
+        })
+
+    # Validate new password
+    is_valid, error_msg = validate_password(new_password)
+    if not is_valid:
+        return templates.TemplateResponse("password_change.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": error_msg,
+        })
+
+    # Check new password isn't same as current
+    try:
+        hasher.verify(user.password_hash, new_password)
+        # If verification succeeds, passwords match - reject
+        return templates.TemplateResponse("password_change.html", {
+            "request": request,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "error": "New password must be different from current password",
+        })
+    except VerifyMismatchError:
+        pass  # Good - passwords are different
+
+    # Update password
+    new_hash = hasher.hash(new_password)
+    db.update_user_password_hash(user.id, new_hash)
+
+    # NOTE: Do NOT invalidate current session on change (user proved identity)
+    # Only invalidate on reset (password may have been compromised)
+
+    log_audit_event("password.change_success", request, user_id=user.id)
+
+    return templates.TemplateResponse("password_change.html", {
+        "request": request,
+        "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "success": "Password updated successfully",
+    })
