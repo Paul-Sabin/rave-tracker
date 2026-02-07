@@ -25,6 +25,7 @@ limiter = Limiter(
 # Rate limit constants
 LOGIN_RATE_LIMIT = "5/15minutes"
 RESEND_RATE_LIMIT = "3/hour"
+RESET_RATE_LIMIT = "3/hour"
 
 
 def get_login_key(request: Request) -> str:
@@ -164,3 +165,68 @@ class LoginRateLimiter:
 
 # Global instance for login rate limiting
 login_limiter = LoginRateLimiter()
+
+
+class ResetRateLimiter:
+    """Rate limiter for password reset requests - tracks by email only.
+
+    3 requests per hour per email (per SEC-02).
+    Uses email hash for privacy (same pattern as LoginRateLimiter).
+    """
+
+    def __init__(self, max_requests: int = 3, window_minutes: int = 60):
+        """Initialize the reset rate limiter.
+
+        Args:
+            max_requests: Maximum requests before rate limiting (default 3)
+            window_minutes: Time window in minutes (default 60 = 1 hour)
+        """
+        self.max_requests = max_requests
+        self.window_seconds = window_minutes * 60
+        self._attempts: dict[str, list[float]] = {}
+
+    def _clean_old_attempts(self, key: str, current_time: float) -> None:
+        """Remove attempts outside the time window."""
+        if key in self._attempts:
+            cutoff = current_time - self.window_seconds
+            self._attempts[key] = [t for t in self._attempts[key] if t > cutoff]
+            if not self._attempts[key]:
+                del self._attempts[key]
+
+    def check_rate_limit(self, email: str) -> tuple[bool, Optional[str]]:
+        """Check if reset request is allowed.
+
+        Args:
+            email: Email requesting password reset
+
+        Returns:
+            Tuple of (allowed: bool, reason: Optional[str])
+            If not allowed, reason is 'email'
+        """
+        import time
+        current_time = time.time()
+        key = f"reset:email:{_hash_email(email)}"
+
+        self._clean_old_attempts(key, current_time)
+        count = len(self._attempts.get(key, []))
+
+        if count >= self.max_requests:
+            return False, "email"
+        return True, None
+
+    def record_request(self, email: str) -> None:
+        """Record a reset request.
+
+        Called regardless of whether user exists (timing attack prevention).
+        """
+        import time
+        current_time = time.time()
+        key = f"reset:email:{_hash_email(email)}"
+
+        if key not in self._attempts:
+            self._attempts[key] = []
+        self._attempts[key].append(current_time)
+
+
+# Global instance for reset rate limiting
+reset_limiter = ResetRateLimiter()
