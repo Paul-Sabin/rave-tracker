@@ -63,9 +63,13 @@ class CSRFMiddleware:
             csrf_token = secrets.token_urlsafe(32)
 
         # Store token in request.state for template access
-        # Ensure state is a State object (supports attribute access)
+        # Handle both State objects and dicts (depending on middleware order)
         if "state" not in scope:
             scope["state"] = State()
+        elif isinstance(scope["state"], dict):
+            # Convert dict to State, preserving existing values
+            existing = scope["state"]
+            scope["state"] = State(existing)
         scope["state"].csrf_token = csrf_token
 
         method = scope.get("method", "GET")
