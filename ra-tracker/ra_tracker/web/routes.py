@@ -7,6 +7,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -44,7 +46,11 @@ def get_templates(request: Request):
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, user: User = Depends(require_verified_email)):
+async def dashboard(
+    request: Request,
+    user: User = Depends(require_verified_email),
+    recovered: Optional[str] = None,
+):
     """Main dashboard showing upcoming events for current user."""
     templates = get_templates(request)
     db = get_db()
@@ -67,6 +73,11 @@ async def dashboard(request: Request, user: User = Depends(require_verified_emai
             events_by_date[date_key] = []
         events_by_date[date_key].append(event)
 
+    # Flash message for account recovery
+    flash_message = None
+    if recovered == "1":
+        flash_message = "Welcome back! Your account has been recovered."
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -82,6 +93,7 @@ async def dashboard(request: Request, user: User = Depends(require_verified_emai
             "local_area_id": config.user.local_area_id,
             "local_area_name": config.user.local_area_name,
             "has_local_area": bool(config.user.local_area_id),
+            "flash_message": flash_message,
         },
     )
 
@@ -544,6 +556,8 @@ async def login_page(
     user: Optional[User] = Depends(get_current_user),
     verified: Optional[str] = None,
     message: Optional[str] = None,
+    deleted: Optional[str] = None,
+    deletion_confirmed: Optional[str] = None,
 ):
     """Login page. Redirect to dashboard if already logged in."""
     if user:
@@ -555,6 +569,10 @@ async def login_page(
         display_message = "Email verified! You can now log in."
     elif verified == "already":
         display_message = "Email already verified. Please log in."
+    elif deleted == "1":
+        display_message = "Your account has been scheduled for deletion. Check your email for details."
+    elif deletion_confirmed == "1":
+        display_message = "Your account will be permanently deleted in 30 days."
 
     return templates.TemplateResponse("login.html", {
         "request": request,
@@ -634,6 +652,14 @@ async def login(
     # Rehash if needed (algorithm upgrade)
     if new_hash:
         db.update_user_password_hash(user.id, new_hash)
+
+    # Check if user is soft-deleted (in grace period)
+    if user.deleted_at:
+        # User is in grace period - redirect to recovery page
+        return RedirectResponse(
+            url=f"/recover-account?user_id={user.id}",
+            status_code=303,
+        )
 
     # Create new session
     token, expires_at = create_user_session(user.id)
@@ -1129,3 +1155,149 @@ async def change_password(
         "csrf_token": getattr(request.state, 'csrf_token', ''),
         "success": "Password updated successfully",
     })
+
+
+# Account deletion and recovery routes
+
+
+@router.post("/settings/delete-account")
+async def delete_account(
+    request: Request,
+    user: User = Depends(require_verified_email),
+    password: str = Form(...),
+):
+    """Request account deletion (soft delete with 30-day grace period)."""
+    templates = get_templates(request)
+    db = get_db()
+    config = get_config()
+    hasher = PasswordHasher()
+
+    # Verify password
+    try:
+        hasher.verify(user.password_hash, password)
+    except VerifyMismatchError:
+        return templates.TemplateResponse(
+            "settings.html",
+            {
+                "request": request,
+                "user": user,
+                "error": "Password incorrect",
+                "config": config,
+                "scheduler_status": get_scheduler_status(),
+                "telegram_configured": bool(config.telegram.bot_token),
+                "email_configured": is_email_configured(),
+                "masked_token": mask_token(config.telegram.bot_token),
+                "csrf_token": getattr(request.state, 'csrf_token', ''),
+            },
+            status_code=400,
+        )
+
+    # Calculate purge date (30 days from now)
+    scheduled_purge = datetime.utcnow() + timedelta(days=30)
+
+    # Soft delete user
+    db.soft_delete_user(user.id, scheduled_purge)
+
+    # Log audit event
+    log_audit_event("account.delete_request", request, user_id=user.id)
+
+    # Delete all sessions for this user
+    db.delete_user_sessions(user.id)
+
+    # Send confirmation email (non-blocking)
+    try:
+        from ..services.email_sender import send_deletion_confirmation_email
+        await send_deletion_confirmation_email(
+            email=user.email,
+            display_name=user.display_name,
+            scheduled_purge_date=scheduled_purge.strftime("%B %d, %Y"),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send deletion confirmation email: {e}")
+
+    # Clear session cookie and redirect
+    response = RedirectResponse(url="/login?deleted=1", status_code=303)
+    clear_session_cookie(response)
+    return response
+
+
+def mask_token(token: str) -> str:
+    """Mask a token for display, showing only first and last 5 characters."""
+    if not token:
+        return ""
+    if len(token) > 10:
+        return token[:5] + "*" * (len(token) - 10) + token[-5:]
+    return "*" * len(token)
+
+
+@router.get("/recover-account", response_class=HTMLResponse)
+async def recover_account_page(
+    request: Request,
+    user_id: int,
+):
+    """Show account recovery prompt for soft-deleted user."""
+    templates = get_templates(request)
+    db = get_db()
+
+    user = db.get_user_by_id(user_id)
+    if not user or not user.deleted_at:
+        return RedirectResponse(url="/login", status_code=303)
+
+    scheduled_purge_date = "Unknown"
+    if user.scheduled_purge_at:
+        scheduled_purge_date = user.scheduled_purge_at.strftime("%B %d, %Y")
+
+    return templates.TemplateResponse(
+        "recover_account.html",
+        {
+            "request": request,
+            "user_id": user_id,
+            "scheduled_purge_date": scheduled_purge_date,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+        },
+    )
+
+
+@router.post("/recover-account")
+async def recover_account_action(
+    request: Request,
+    user_id: int = Form(...),
+    action: str = Form(...),
+):
+    """Handle account recovery decision."""
+    db = get_db()
+
+    user = db.get_user_by_id(user_id)
+    if not user or not user.deleted_at:
+        return RedirectResponse(url="/login", status_code=303)
+
+    if action == "recover":
+        # Recover the account
+        db.recover_user(user_id)
+
+        # Log audit event
+        log_audit_event("account.recover", request, user_id=user_id)
+
+        # Create new session
+        token, expires_at = create_user_session(user_id)
+
+        # Send recovery confirmation email (non-blocking)
+        try:
+            from ..services.email_sender import send_recovery_confirmation_email
+            await send_recovery_confirmation_email(
+                email=user.email,
+                display_name=user.display_name,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send recovery confirmation email: {e}")
+
+        # Redirect to dashboard with flash message
+        response = RedirectResponse(url="/?recovered=1", status_code=303)
+        set_session_cookie(response, token, expires_at, request=request)
+        return response
+
+    else:
+        # Continue deletion - just redirect back to login
+        # Log that user explicitly declined recovery
+        log_audit_event("account.recovery_declined", request, user_id=user_id)
+        return RedirectResponse(url="/login?deletion_confirmed=1", status_code=303)
