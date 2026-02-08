@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-08
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (2/3 plans complete)
+**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (3/3 plans complete)
 
 ## Project Reference
 
@@ -17,16 +17,16 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 |-----------|--------|-------|
 | 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
 | 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
-| 3 - Security Hardening | In Progress | 4 phases (5-8), 25 requirements |
+| 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements |
 
 ## Current Position
 
 Phase: 8 - Account Lifecycle & Admin Audit UI
-Plan: 2 of 3 complete
-Status: In progress
-Last activity: 2026-02-08 - Completed 08-01-PLAN.md (Soft Delete Infrastructure)
+Plan: 3 of 3 complete
+Status: Phase complete
+Last activity: 2026-02-08 - Completed 08-03-PLAN.md (Account Deletion and Recovery Flows)
 
-Progress: [#########=] 90% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8: 2/3)
+Progress: [##########] 100% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8 complete)
 
 ## v2.1 Phase Summary
 
@@ -35,7 +35,7 @@ Progress: [#########=] 90% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
 | 7 | Password Management | 7 | Complete (3/3 plans) |
-| 8 | Account Lifecycle & Admin Audit UI | 7 | In Progress (2/3 plans) |
+| 8 | Account Lifecycle & Admin Audit UI | 7 | Complete (3/3 plans) |
 
 ## What's Shipped
 
@@ -57,6 +57,7 @@ Progress: [#########=] 90% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 - 07-03: Password change (settings integration, strength meter, change routes)
 - 08-01: Soft delete infrastructure (migration 10, 6 database methods, daily purge cron job)
 - 08-02: Admin audit log (filtering, pagination, audit_log.html template)
+- 08-03: Account deletion and recovery (Danger Zone, password modal, recovery interstitial, emails)
 
 ## Accumulated Decisions
 
@@ -104,6 +105,9 @@ Key patterns established:
 - Audit log anonymization: NULL user_id + anonymized flag + 8-char SHA256 hash
 - log_audit_event_direct helper for background job audit logging
 - Audit log filtering uses LEFT JOIN for user info, prefix matching for event type/IP
+- Password-only confirmation for account deletion (no checkbox or typing 'delete')
+- Recovery via login intercept shows interstitial before session creation
+- Flash messages via query params (deleted, deletion_confirmed, recovered)
 
 **Technical Debt:**
 - None from v2.0
@@ -137,12 +141,15 @@ Key patterns established:
 | 2026-02-07 | Completed Phase 7 | Password Management complete |
 | 2026-02-08 | Executed 08-01 | Soft delete infrastructure (migration, methods, purge cron job) |
 | 2026-02-08 | Executed 08-02 | Admin audit log complete (filtering, pagination, template) |
+| 2026-02-08 | Executed 08-03 | Account deletion and recovery flows complete |
+| 2026-02-08 | Completed Phase 8 | Account Lifecycle & Admin Audit UI complete |
+| 2026-02-08 | Completed Milestone 3 | v2.1 Security Hardening complete |
 
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 08-01-PLAN.md (Soft Delete Infrastructure)
-Resume file: .planning/phases/08-account-lifecycle-admin-audit/08-03-PLAN.md
+Stopped at: Completed v2.1 Security Hardening milestone
+Resume file: None
 
 ---
 *State updated: 2026-02-08*
