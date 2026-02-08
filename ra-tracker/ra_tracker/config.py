@@ -114,24 +114,26 @@ class Config:
             config.database.path = os.environ["RA_TRACKER_DB_PATH"]
 
         # Email environment variable overrides
+        # Supports both EMAIL_SMTP_* and BREVO_SMTP_* naming conventions
         if os.environ.get("EMAIL_SMTP_SERVER"):
             config.email.server = os.environ["EMAIL_SMTP_SERVER"]
         if os.environ.get("EMAIL_SMTP_PORT"):
             config.email.port = int(os.environ["EMAIL_SMTP_PORT"])
-        if os.environ.get("EMAIL_SMTP_USERNAME"):
-            config.email.username = os.environ["EMAIL_SMTP_USERNAME"]
-        if os.environ.get("EMAIL_SMTP_PASSWORD"):
-            config.email.password = os.environ["EMAIL_SMTP_PASSWORD"]
+        if os.environ.get("BREVO_SMTP_USERNAME") or os.environ.get("EMAIL_SMTP_USERNAME"):
+            config.email.username = os.environ.get("BREVO_SMTP_USERNAME") or os.environ["EMAIL_SMTP_USERNAME"]
+        if os.environ.get("BREVO_SMTP_PASSWORD") or os.environ.get("EMAIL_SMTP_PASSWORD"):
+            config.email.password = os.environ.get("BREVO_SMTP_PASSWORD") or os.environ["EMAIL_SMTP_PASSWORD"]
         if os.environ.get("EMAIL_FROM_ADDRESS"):
             config.email.from_address = os.environ["EMAIL_FROM_ADDRESS"]
         if os.environ.get("EMAIL_FROM_NAME"):
             config.email.from_name = os.environ["EMAIL_FROM_NAME"]
 
         # App environment variable overrides
-        if os.environ.get("APP_SECRET_KEY"):
-            config.app.secret_key = os.environ["APP_SECRET_KEY"]
-        if os.environ.get("APP_BASE_URL"):
-            config.app.base_url = os.environ["APP_BASE_URL"]
+        # Supports both APP_* and shorter naming conventions
+        if os.environ.get("SECRET_KEY") or os.environ.get("APP_SECRET_KEY"):
+            config.app.secret_key = os.environ.get("SECRET_KEY") or os.environ["APP_SECRET_KEY"]
+        if os.environ.get("BASE_URL") or os.environ.get("APP_BASE_URL"):
+            config.app.base_url = os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]
 
         return config
 

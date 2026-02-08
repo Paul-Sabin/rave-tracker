@@ -12,3 +12,18 @@ user:
 web:
   host: 0.0.0.0
   port: 8080
+
+# Email notification settings 
+email:
+  server: smtp-relay.brevo.com
+  port: 587
+  username: "${BREVO_SMTP_USERNAME}"
+  password: "${BREVO_SMTP_PASSWORD}"
+  from_address: "ravetracker@whotrustswho.com"
+  from_name: "Rave Tracker"
+  starttls: true
+  ssl_tls: false
+
+app:
+  secret_key: "${SECRET_KEY}"
+  base_url: "${BASE_URL}"

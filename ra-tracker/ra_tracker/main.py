@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import uvicorn
+from dotenv import load_dotenv
 
 from .config import Config, get_config, set_config
 from .database import Database, get_db, set_db
@@ -79,7 +80,10 @@ def main():
     setup_logging(args.verbose)
     logger.info("Starting RA Tracker")
 
-    # Load configuration
+    # Load environment variables from .env file (if present)
+    load_dotenv()
+
+    # Load configuration (env vars override config file values)
     config = Config.load(args.config)
     set_config(config)
 
