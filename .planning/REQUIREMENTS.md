@@ -1,47 +1,24 @@
-# Requirements: RA Tracker v2.1
+# Requirements: Rave Tracker v2.2
 
-**Defined:** 2026-02-02
+**Defined:** 2026-02-08
 **Core Value:** Users never miss events from artists, venues, or promoters they care about
 
-## v2.1 Requirements
+## v2.2 Requirements
 
-Requirements for Security Hardening & Account Lifecycle milestone.
+Requirements for UX Polish & Branding milestone.
 
-### Authentication Hardening
+### Branding
 
-- [x] **SEC-01**: Rate limiting on login route (5 attempts per 15 minutes per IP/email)
-- [x] **SEC-02**: Rate limiting on password reset requests (3 per hour per email)
-- [x] **SEC-03**: Global CSRF protection on all POST forms (token-based)
-- [x] **SEC-04**: Email verification required for new user registration
-- [x] **SEC-05**: Existing unverified users must verify on next login
-- [x] **SEC-06**: Verification email with secure token link
-- [x] **SEC-07**: Resend verification email option
+- [ ] **BRAND-01**: All user-facing instances of "RA Tracker" display as "Rave Tracker" (page titles, nav, login, emails, footer)
+- [ ] **BRAND-02**: Email "from" name displays as "Rave Tracker" instead of "RA Tracker"
 
-### Account Management
+### UX
 
-- [x] **ACCT-01**: Password reset request form (enter email)
-- [x] **ACCT-02**: Password reset email with secure expiring token (24h)
-- [x] **ACCT-03**: Password reset completion form (enter new password)
-- [x] **ACCT-04**: Change password form (current + new password, authenticated)
-- [ ] **ACCT-05**: Delete account request (password confirmation)
-- [ ] **ACCT-06**: Soft delete marks account inactive (30-day grace period)
-- [ ] **ACCT-07**: Account recovery during grace period (login restores)
-- [ ] **ACCT-08**: Hard purge after grace period (cascade delete all user data)
+- [ ] **UX-01**: User is prompted to select a local region (suggesting Berlin) before creating their first rule, if no region is set
+- [ ] **UX-02**: Dashboard area toggle labels read "Global events" and "Local only" instead of "All Areas" and "{region} only"
+- [ ] **UX-03**: Legacy admin welcome banner removed from dashboard
 
-### Audit Logging
-
-- [x] **AUDIT-01**: Audit log database schema (event_type, user_id, ip, timestamp, details)
-- [x] **AUDIT-02**: Log login attempts (success and failure with IP)
-- [x] **AUDIT-03**: Log password changes
-- [x] **AUDIT-04**: Log password reset requests and completions
-- [x] **AUDIT-05**: Log account creation
-- [ ] **AUDIT-06**: Log account deletion requests and purges
-- [x] **AUDIT-07**: Log email verification status changes
-- [ ] **AUDIT-08**: Admin audit log page at /admin/audit-log
-- [ ] **AUDIT-09**: Audit log filtering (by user, event type, date range)
-- [x] **AUDIT-10**: Forever retention (no auto-purge)
-
-## v2.2+ Candidates
+## v2.3+ Candidates
 
 Deferred to future milestones.
 
@@ -56,10 +33,9 @@ Explicitly excluded from this milestone.
 
 | Feature | Reason |
 |---------|--------|
-| OAuth/social login | Email/password auth sufficient, avoid external dependencies |
-| Hardware security keys | Complexity beyond current needs |
-| Real-time login alerts | Email notifications sufficient for v2.1 |
-| Audit log pagination | Filtering sufficient for expected volume |
+| Internal folder/module renaming | User-facing rebrand only, keep ra-tracker/ra_tracker internally |
+| RA API references in code | Must retain for functionality — only user-facing text changes |
+| Region auto-detection | Simple prompt with Berlin suggestion sufficient |
 
 ## Traceability
 
@@ -67,37 +43,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 6 | Complete |
-| SEC-02 | Phase 7 | Complete |
-| SEC-03 | Phase 5 | Complete |
-| SEC-04 | Phase 6 | Complete |
-| SEC-05 | Phase 6 | Complete |
-| SEC-06 | Phase 6 | Complete |
-| SEC-07 | Phase 6 | Complete |
-| ACCT-01 | Phase 7 | Complete |
-| ACCT-02 | Phase 7 | Complete |
-| ACCT-03 | Phase 7 | Complete |
-| ACCT-04 | Phase 7 | Complete |
-| ACCT-05 | Phase 8 | Pending |
-| ACCT-06 | Phase 8 | Pending |
-| ACCT-07 | Phase 8 | Pending |
-| ACCT-08 | Phase 8 | Pending |
-| AUDIT-01 | Phase 5 | Complete |
-| AUDIT-02 | Phase 6 | Complete |
-| AUDIT-03 | Phase 7 | Complete |
-| AUDIT-04 | Phase 7 | Complete |
-| AUDIT-05 | Phase 6 | Complete |
-| AUDIT-06 | Phase 8 | Pending |
-| AUDIT-07 | Phase 6 | Complete |
-| AUDIT-08 | Phase 8 | Pending |
-| AUDIT-09 | Phase 8 | Pending |
-| AUDIT-10 | Phase 5 | Complete |
+| BRAND-01 | — | Pending |
+| BRAND-02 | — | Pending |
+| UX-01 | — | Pending |
+| UX-02 | — | Pending |
+| UX-03 | — | Pending |
 
 **Coverage:**
-- v2.1 requirements: 25 total
-- Mapped to phases: 25
-- Unmapped: 0
+- v2.2 requirements: 5 total
+- Mapped to phases: 0
+- Unmapped: 5
 
 ---
-*Requirements defined: 2026-02-02*
-*Last updated: 2026-02-08 after Phase 7 completion*
+*Requirements defined: 2026-02-08*
+*Last updated: 2026-02-08 after initial definition*
