@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log - Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold">Admin: Audit Log</h1>
+        <p class="text-muted">Security event history ({{ pagination.total }} total entries)</p>
+    </div>
+
+    <div class="flex gap-4 mb-6">
+        <a href="/admin/rules" class="btn btn-secondary">Rules</a>
+        <a href="/admin/users" class="btn btn-secondary">Users</a>
+        <a href="/admin/audit-log" class="btn btn-primary">Audit Log</a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card filter-card">
+        <form class="filter-bar" method="get" action="/admin/audit-log">
+            <div class="filter-group">
+                <label for="user_search">User</label>
+                <input type="text" id="user_search" name="user_search"
+                       placeholder="Email or name" value="{{ filters.user }}" class="form-control">
+            </div>
+
+            <div class="filter-group">
+                <label for="event_type">Event Type</label>
+                <select id="event_type" name="event_type" class="form-control">
+                    <option value="">All Events</option>
+                    {% for type in event_types %}
+                    <option value="{{ type }}" {% if filters.event_type == type %}selected{% endif %}>
+                        {{ type }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="start_date">From</label>
+                <input type="date" id="start_date" name="start_date"
+                       value="{{ filters.start_date }}" class="form-control">
+            </div>
+
+            <div class="filter-group">
+                <label for="end_date">To</label>
+                <input type="date" id="end_date" name="end_date"
+                       value="{{ filters.end_date }}" class="form-control">
+            </div>
+
+            <div class="filter-group">
+                <label for="ip">IP Address</label>
+                <input type="text" id="ip" name="ip"
+                       placeholder="192.168..." value="{{ filters.ip }}" class="form-control">
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="/admin/audit-log" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results count -->
+    <p class="results-count">
+        Showing {{ logs|length }} of {{ pagination.total }} entries
+        {% if pagination.total_pages > 1 %}(page {{ pagination.page }} of {{ pagination.total_pages }}){% endif %}
+    </p>
+
+    <!-- Audit Log Table -->
+    <div class="card">
+        <table class="table audit-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Event</th>
+                    <th class="ip-column">IP</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="audit-row">
+                    <td class="timestamp">{{ log.timestamp[:19] if log.timestamp else '-' }}</td>
+                    <td>
+                        {% if log.user_id is none and log.details and log.details.get('anonymized') %}
+                            <span class="text-muted">[Deleted User]</span>
+                        {% elif log.user_display_name %}
+                            {{ log.user_display_name }}
+                        {% elif log.user_email %}
+                            {{ log.user_email }}
+                        {% else %}
+                            <span class="text-muted">System</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge event-badge">{{ log.event_type }}</span></td>
+                    <td class="ip-cell ip-column">{{ log.ip_address or '-' }}</td>
+                    <td>
+                        {% if log.details %}
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleDetails({{ loop.index }})">
+                            Details
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if log.details %}
+                <tr id="details-{{ loop.index }}" class="details-row" style="display:none;">
+                    <td colspan="5">
+                        <pre class="json-details">{{ log.details | tojson(indent=2) }}</pre>
+                    </td>
+                </tr>
+                {% endif %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-8">No audit logs found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+        <a href="/admin/audit-log?page={{ pagination.page - 1 }}&user_search={{ filters.user }}&event_type={{ filters.event_type }}&ip={{ filters.ip }}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}" class="btn btn-secondary">
+            Previous
+        </a>
+        {% else %}
+        <button class="btn btn-secondary" disabled>Previous</button>
+        {% endif %}
+
+        <span class="pagination-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+
+        {% if pagination.has_next %}
+        <a href="/admin/audit-log?page={{ pagination.page + 1 }}&user_search={{ filters.user }}&event_type={{ filters.event_type }}&ip={{ filters.ip }}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}" class="btn btn-secondary">
+            Next
+        </a>
+        {% else %}
+        <button class="btn btn-secondary" disabled>Next</button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Filter bar styles */
+.filter-card {
+    margin-bottom: 1rem;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-muted, #aaaaaa);
+}
+
+.filter-group input,
+.filter-group select {
+    min-width: 150px;
+}
+
+.filter-group input[type="date"] {
+    min-width: 140px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.results-count {
+    margin: 1rem 0;
+    color: var(--color-text-muted, #aaaaaa);
+}
+
+/* Audit table styles */
+.audit-table {
+    width: 100%;
+}
+
+.audit-table th,
+.audit-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border, #2a2a4e);
+}
+
+.timestamp {
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.ip-cell {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.event-badge {
+    background: var(--color-bg-dark, #1a1a2e);
+    color: var(--color-text, #eeeeee);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.details-row {
+    background: var(--color-bg-dark, #1a1a2e);
+}
+
+.json-details {
+    margin: 0;
+    padding: 1rem;
+    background: var(--color-bg-dark, #1a1a2e);
+    color: var(--color-text, #eeeeee);
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    border: 1px solid var(--color-border, #2a2a4e);
+}
+
+/* Pagination styles */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.pagination-info {
+    color: var(--color-text-muted, #aaaaaa);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+    }
+
+    .filter-actions {
+        flex-direction: column;
+    }
+
+    .filter-actions .btn {
+        width: 100%;
+    }
+
+    .audit-table {
+        font-size: 0.85rem;
+    }
+
+    .ip-column {
+        display: none;  /* Hide IP column on mobile */
+    }
+
+    .timestamp {
+        font-size: 0.8rem;
+    }
+}
+</style>
+
+<script>
+function toggleDetails(index) {
+    const row = document.getElementById('details-' + index);
+    if (row.style.display === 'none') {
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
