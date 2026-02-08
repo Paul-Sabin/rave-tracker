@@ -1,5 +1,7 @@
 """Database models and connection management for RA Tracker - Simplified."""
 
+import hashlib
+import json
 import secrets
 import sqlite3
 from contextlib import contextmanager
@@ -239,6 +241,8 @@ class User:
     telegram_enabled: bool = False  # Telegram notifications on/off
     email_enabled: bool = True  # Email notifications on/off (default enabled)
     created_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None  # Soft delete timestamp (NULL = active)
+    scheduled_purge_at: Optional[datetime] = None  # When hard purge will occur
 
 
 @dataclass
@@ -415,6 +419,8 @@ class Database:
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
             )
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
@@ -435,6 +441,8 @@ class Database:
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
             )
 
     def verify_password(self, stored_hash: str, password: str) -> tuple[bool, Optional[str]]:
@@ -1397,6 +1405,99 @@ class Database:
                 (event_type, user_id, ip_address, details, target_type, target_id),
             )
             return cursor.lastrowid
+
+    def get_audit_logs_filtered(
+        self,
+        user_search: Optional[str] = None,
+        event_type: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        start_date: Optional[str] = None,  # ISO format YYYY-MM-DD
+        end_date: Optional[str] = None,    # ISO format YYYY-MM-DD
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[List[dict], int]:
+        """Query audit logs with filters. Returns (logs, total_count).
+
+        Args:
+            user_search: Search by email or display_name (partial match)
+            event_type: Filter by event type (prefix match)
+            ip_address: Filter by IP address (prefix match)
+            start_date: Filter by date >= start_date (ISO format YYYY-MM-DD)
+            end_date: Filter by date <= end_date (ISO format YYYY-MM-DD)
+            limit: Maximum number of results (default 50)
+            offset: Number of results to skip (default 0)
+
+        Returns:
+            Tuple of (logs list, total count for pagination)
+        """
+        with self.get_connection() as conn:
+            # Build query dynamically
+            where_clauses = ["1=1"]
+            params = []
+
+            if user_search:
+                # Search by email or display_name (join with users table)
+                where_clauses.append("(u.email LIKE ? OR u.display_name LIKE ?)")
+                params.extend([f"%{user_search}%", f"%{user_search}%"])
+
+            if event_type:
+                where_clauses.append("al.event_type LIKE ?")
+                params.append(f"{event_type}%")
+
+            if ip_address:
+                where_clauses.append("al.ip_address LIKE ?")
+                params.append(f"{ip_address}%")
+
+            if start_date:
+                where_clauses.append("DATE(al.timestamp) >= ?")
+                params.append(start_date)
+
+            if end_date:
+                where_clauses.append("DATE(al.timestamp) <= ?")
+                params.append(end_date)
+
+            where_sql = " AND ".join(where_clauses)
+
+            # Count total
+            count = conn.execute(
+                f"""SELECT COUNT(*) FROM audit_logs al
+                    LEFT JOIN users u ON al.user_id = u.id
+                    WHERE {where_sql}""",
+                params
+            ).fetchone()[0]
+
+            # Fetch page with user info
+            query = f"""
+                SELECT al.*, u.email as user_email, u.display_name as user_display_name
+                FROM audit_logs al
+                LEFT JOIN users u ON al.user_id = u.id
+                WHERE {where_sql}
+                ORDER BY al.timestamp DESC
+                LIMIT ? OFFSET ?
+            """
+            params.extend([limit, offset])
+
+            cursor = conn.execute(query, params)
+            columns = [desc[0] for desc in cursor.description]
+            logs = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            # Parse JSON details for each log
+            for log in logs:
+                if log.get('details'):
+                    try:
+                        log['details'] = json.loads(log['details'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+            return logs, count
+
+    def get_distinct_event_types(self) -> List[str]:
+        """Get list of distinct event types for filter dropdown."""
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT DISTINCT event_type FROM audit_logs ORDER BY event_type"
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     def get_audit_logs(
         self,
