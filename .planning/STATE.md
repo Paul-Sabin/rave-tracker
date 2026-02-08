@@ -1,41 +1,33 @@
-# Project State: RA Tracker
+# Project State: Rave Tracker
 
 **Last Updated:** 2026-02-08
-**Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (3/3 plans complete)
+**Current Milestone:** v2.2 UX Polish & Branding
+**Current Phase:** Not started (defining requirements)
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-02)
+See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Account lifecycle (deletion, recovery) and admin audit log viewing
+**Current focus:** Rebrand to "Rave Tracker", improve region selection UX, clean up legacy UI
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| 1 - Core Functionality | Complete | Single-user RA Tracker with event fetching, rules, notifications |
+| 1 - Core Functionality | Complete | Single-user event tracker with fetching, rules, notifications |
 | 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
-| 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements |
+| 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements shipped |
+| 4 - UX Polish & Branding | In Progress | Defining requirements |
 
 ## Current Position
 
-Phase: 8 - Account Lifecycle & Admin Audit UI
-Plan: 3 of 3 complete
-Status: Phase complete
-Last activity: 2026-02-08 - Completed 08-03-PLAN.md (Account Deletion and Recovery Flows)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-08 — Milestone v2.2 started
 
-Progress: [##########] 100% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8 complete)
-
-## v2.1 Phase Summary
-
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
-| 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
-| 7 | Password Management | 7 | Complete (3/3 plans) |
-| 8 | Account Lifecycle & Admin Audit UI | 7 | Complete (3/3 plans) |
+Progress: [░░░░░░░░░░] 0% of v2.2
 
 ## What's Shipped
 
@@ -46,18 +38,14 @@ Progress: [##########] 100% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
 
-**v2.1 Progress (2026-02-08):**
-- 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
-- 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
-- 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
-- 06-02: Verification token & email infrastructure (itsdangerous tokens, email template)
-- 06-03: Email verification flow (UI templates, routes, require_verified_email, admin migration)
-- 07-01: Password infrastructure (reset tokens, password validation, reset rate limiter)
-- 07-02: Password reset flow (forgot password form, reset email, reset routes)
-- 07-03: Password change (settings integration, strength meter, change routes)
-- 08-01: Soft delete infrastructure (migration 10, 6 database methods, daily purge cron job)
-- 08-02: Admin audit log (filtering, pagination, audit_log.html template)
-- 08-03: Account deletion and recovery (Danger Zone, password modal, recovery interstitial, emails)
+**v2.1 Security Hardening (2026-02-08):**
+- Audit logging infrastructure with forever retention
+- CSRF protection (Double Submit Cookie pattern)
+- Login rate limiting (dual IP/email)
+- Email verification (mandatory for all users)
+- Password reset and change flows
+- Soft-delete account with 30-day recovery
+- Admin audit log with filtering and pagination
 
 ## Accumulated Decisions
 
@@ -110,7 +98,7 @@ Key patterns established:
 - Flash messages via query params (deleted, deletion_confirmed, recovered)
 
 **Technical Debt:**
-- None from v2.0
+- None
 
 **Blockers:**
 - None
@@ -144,11 +132,12 @@ Key patterns established:
 | 2026-02-08 | Executed 08-03 | Account deletion and recovery flows complete |
 | 2026-02-08 | Completed Phase 8 | Account Lifecycle & Admin Audit UI complete |
 | 2026-02-08 | Completed Milestone 3 | v2.1 Security Hardening complete |
+| 2026-02-08 | Initialized Milestone 4 | v2.2 UX Polish & Branding started |
 
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed v2.1 Security Hardening milestone
+Stopped at: Defining v2.2 requirements
 Resume file: None
 
 ---

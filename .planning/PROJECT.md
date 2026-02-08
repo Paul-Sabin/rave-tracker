@@ -1,38 +1,38 @@
-# RA Tracker
+# Rave Tracker
 
 ## What This Is
 
-A multi-user event tracker that monitors ra.co for upcoming events from artists, venues, and promoters you follow. Each user can create tracking rules, configure notification preferences (Telegram and/or Email), and browse events on a mobile-friendly dashboard.
+A multi-user event tracker that monitors ra.co for upcoming events from artists, venues, and promoters you follow. Each user can create tracking rules, configure notification preferences (Telegram and/or Email), and browse events on a mobile-friendly dashboard. Branded as "Rave Tracker" (not affiliated with RA).
 
 ## Core Value
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
-## Current Milestone: v2.1 Security Hardening & Account Lifecycle
+## Current Milestone: v2.2 UX Polish & Branding
 
-**Goal:** Harden authentication, add account management features, and implement audit logging while maintaining mobile-first UI patterns.
+**Goal:** Rebrand to "Rave Tracker", improve region selection UX, and clean up legacy UI elements.
 
 **Target features:**
-- Rate limiting on sensitive routes (5 attempts / 15 min)
-- Global CSRF protection on all forms
-- Mandatory email verification (all users, existing verify on next login)
-- Token-based password reset via email
-- Authenticated password change
-- Soft-delete account with 30-day grace period
-- Audit logging with forever retention and admin UI
+- Rebrand all user-facing text from "RA Tracker" to "Rave Tracker"
+- One-time local region prompt before first rule creation
+- Clearer toggle labels on dashboard ("Global events" / "Local only")
+- Remove legacy admin welcome banner
 
 ## Current State
 
-**Version:** v2.0 Multi-User Support (shipped 2026-02-01)
+**Version:** v2.1 Security Hardening (shipped 2026-02-08)
 
 **Capabilities:**
-- User registration with privacy consent
-- Secure login/logout with session management
+- User registration with privacy consent and email verification
+- Secure login/logout with session management and CSRF protection
+- Rate limiting on login and password reset
 - Per-user tracking rules for artists, venues, promoters
 - Dual-mode filtering: dashboard visibility vs notifications (Global/Local/Off)
 - Telegram bot linking with /link, /stop, /start commands
 - Email notifications with one-click unsubscribe
-- Admin dashboard for user/rule oversight
+- Password reset and change flows
+- Soft-delete account with 30-day recovery period
+- Admin dashboard with audit log viewing
 - Mobile-first responsive design (375px+, 44px touch targets)
 
 **Tech Stack:**
@@ -90,31 +90,35 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [x] PRIVACY-03: Explicit consent checkbox — v2.0
 - [x] PRIVACY-04: Privacy Policy link on registration — v2.0
 
+**Milestone 3: Security Hardening**
+- [x] SEC-01: Rate limiting on login (5 attempts / 15 min) — v2.1
+- [x] SEC-02: Rate limiting on password reset requests — v2.1
+- [x] SEC-03: Global CSRF protection on all POST forms — v2.1
+- [x] SEC-04: Mandatory email verification for all users — v2.1
+- [x] SEC-05: Existing users must verify on next login — v2.1
+- [x] ACCOUNT-01: Password reset via email link (token-based, expiring) — v2.1
+- [x] ACCOUNT-02: Change password when logged in — v2.1
+- [x] ACCOUNT-03: Soft-delete account with 30-day grace period — v2.1
+- [x] ACCOUNT-04: Account recovery during grace period — v2.1
+- [x] ACCOUNT-05: Hard purge after grace period (cascade delete) — v2.1
+- [x] AUDIT-01: Log login attempts (success/fail) — v2.1
+- [x] AUDIT-02: Log password changes and resets — v2.1
+- [x] AUDIT-03: Log account creation and deletion — v2.1
+- [x] AUDIT-04: Log email verification status changes — v2.1
+- [x] AUDIT-05: Dedicated /admin/audit-log page with filtering — v2.1
+- [x] AUDIT-06: Forever retention (no auto-purge) — v2.1
+
 ### Active
 
-<!-- v2.1 Security Hardening & Account Lifecycle -->
+<!-- v2.2 UX Polish & Branding -->
 
-**Authentication Hardening:**
-- [ ] SEC-01: Rate limiting on login (5 attempts / 15 min)
-- [ ] SEC-02: Rate limiting on password reset requests
-- [ ] SEC-03: Global CSRF protection on all POST forms
-- [ ] SEC-04: Mandatory email verification for all users
-- [ ] SEC-05: Existing users must verify on next login
+**Branding:**
+- [ ] BRAND-01: Rebrand all user-facing text from "RA Tracker" to "Rave Tracker"
 
-**Account Management:**
-- [ ] ACCOUNT-01: Password reset via email link (token-based, expiring)
-- [ ] ACCOUNT-02: Change password when logged in
-- [ ] ACCOUNT-03: Soft-delete account with 30-day grace period
-- [ ] ACCOUNT-04: Account recovery during grace period
-- [ ] ACCOUNT-05: Hard purge after grace period (cascade delete)
-
-**Audit Logging:**
-- [ ] AUDIT-01: Log login attempts (success/fail)
-- [ ] AUDIT-02: Log password changes and resets
-- [ ] AUDIT-03: Log account creation and deletion
-- [ ] AUDIT-04: Log email verification status changes
-- [ ] AUDIT-05: Dedicated /admin/audit-log page with filtering
-- [ ] AUDIT-06: Forever retention (no auto-purge)
+**UX Improvements:**
+- [ ] UX-01: One-time local region prompt before first rule creation (suggest Berlin)
+- [ ] UX-02: Dashboard toggle labels changed to "Global events" / "Local only"
+- [ ] UX-03: Remove legacy admin welcome banner
 
 ### Out of Scope
 
@@ -158,4 +162,4 @@ Users never miss events from artists, venues, or promoters they care about — a
 | AJAX form submissions | Preserve scroll position | ✓ Good |
 
 ---
-*Last updated: 2026-02-02 after v2.1 milestone initialization*
+*Last updated: 2026-02-08 after v2.2 milestone initialization*
