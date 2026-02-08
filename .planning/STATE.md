@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-08
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (IN PROGRESS)
+**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (2/3 plans complete)
 
 ## Project Reference
 
@@ -22,11 +22,11 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 8 - Account Lifecycle & Admin Audit UI
-Plan: 2 of 4 complete
+Plan: 2 of 3 complete
 Status: In progress
-Last activity: 2026-02-08 - Completed 08-02-PLAN.md (Admin Audit Log)
+Last activity: 2026-02-08 - Completed 08-01-PLAN.md (Soft Delete Infrastructure)
 
-Progress: [########=-] 85% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8: 2/4)
+Progress: [#########=] 90% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8: 2/3)
 
 ## v2.1 Phase Summary
 
@@ -35,7 +35,7 @@ Progress: [########=-] 85% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
 | 7 | Password Management | 7 | Complete (3/3 plans) |
-| 8 | Account Lifecycle & Admin Audit UI | 7 | In Progress (2/4 plans) |
+| 8 | Account Lifecycle & Admin Audit UI | 7 | In Progress (2/3 plans) |
 
 ## What's Shipped
 
@@ -55,7 +55,7 @@ Progress: [########=-] 85% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 - 07-01: Password infrastructure (reset tokens, password validation, reset rate limiter)
 - 07-02: Password reset flow (forgot password form, reset email, reset routes)
 - 07-03: Password change (settings integration, strength meter, change routes)
-- 08-01: Soft delete schema (deleted_at, scheduled_purge_at columns, get_user_by_id update)
+- 08-01: Soft delete infrastructure (migration 10, 6 database methods, daily purge cron job)
 - 08-02: Admin audit log (filtering, pagination, audit_log.html template)
 
 ## Accumulated Decisions
@@ -100,6 +100,9 @@ Key patterns established:
 - Password reset invalidates all sessions (password may have been compromised)
 - zxcvbn CDN for client-side password strength meter (no build tooling)
 - Soft delete with 30-day grace period (deleted_at + scheduled_purge_at columns)
+- Daily purge cron job at 3 AM UTC using APScheduler CronTrigger
+- Audit log anonymization: NULL user_id + anonymized flag + 8-char SHA256 hash
+- log_audit_event_direct helper for background job audit logging
 - Audit log filtering uses LEFT JOIN for user info, prefix matching for event type/IP
 
 **Technical Debt:**
@@ -132,14 +135,14 @@ Key patterns established:
 | 2026-02-07 | Executed 07-02 | Password reset flow complete (forgot password, reset email, routes) |
 | 2026-02-07 | Executed 07-03 | Password change complete (settings, strength meter, routes) |
 | 2026-02-07 | Completed Phase 7 | Password Management complete |
-| 2026-02-08 | Executed 08-01 | Soft delete schema complete (migration, User dataclass) |
+| 2026-02-08 | Executed 08-01 | Soft delete infrastructure (migration, methods, purge cron job) |
 | 2026-02-08 | Executed 08-02 | Admin audit log complete (filtering, pagination, template) |
 
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 08-02-PLAN.md (Admin Audit Log)
-Resume file: None
+Stopped at: Completed 08-01-PLAN.md (Soft Delete Infrastructure)
+Resume file: .planning/phases/08-account-lifecycle-admin-audit/08-03-PLAN.md
 
 ---
 *State updated: 2026-02-08*
