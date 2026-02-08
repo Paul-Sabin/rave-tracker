@@ -249,3 +249,80 @@ async def send_password_reset_email(
     except Exception as e:
         logger.error(f"Failed to send reset email to {user_email}: {e}")
         return False
+
+
+async def send_deletion_confirmation_email(
+    email: str,
+    display_name: Optional[str],
+    scheduled_purge_date: str,
+) -> bool:
+    """Send account deletion confirmation email.
+
+    Args:
+        email: Recipient email address
+        display_name: User's display name for personalization
+        scheduled_purge_date: Formatted date when account will be purged
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping deletion confirmation send")
+        return False
+
+    message = MessageSchema(
+        subject="RA Tracker - Account Deletion Requested",
+        recipients=[email],
+        template_body={
+            "display_name": display_name,
+            "scheduled_purge_date": scheduled_purge_date,
+        },
+        subtype=MessageType.html,
+    )
+
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message, template_name="account_deleted.html")
+        logger.info(f"Sent deletion confirmation email to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send deletion confirmation to {email}: {e}")
+        return False
+
+
+async def send_recovery_confirmation_email(
+    email: str,
+    display_name: Optional[str],
+) -> bool:
+    """Send account recovery confirmation email.
+
+    Args:
+        email: Recipient email address
+        display_name: User's display name for personalization
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping recovery confirmation send")
+        return False
+
+    message = MessageSchema(
+        subject="RA Tracker - Account Recovered",
+        recipients=[email],
+        template_body={
+            "display_name": display_name,
+        },
+        subtype=MessageType.html,
+    )
+
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message, template_name="account_recovered.html")
+        logger.info(f"Sent recovery confirmation email to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send recovery confirmation to {email}: {e}")
+        return False

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Account Deletion Requested</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h1 style="color: #dc3545;">Account Deletion Requested</h1>
+
+    <p>Hi {{ display_name or 'there' }},</p>
+
+    <p>Your RA Tracker account has been scheduled for deletion.</p>
+
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Scheduled deletion date:</strong> {{ scheduled_purge_date }}</p>
+    </div>
+
+    <h2 style="color: #1a1a2e;">Want to recover your account?</h2>
+
+    <p>You have 30 days to change your mind. Simply log in to RA Tracker before the deletion date, and you'll be prompted to recover your account.</p>
+
+    <p>After {{ scheduled_purge_date }}, your account and all associated data will be permanently deleted.</p>
+
+    <p style="color: #6c757d; font-size: 0.9em;">
+        If you didn't request this deletion, please log in immediately to recover your account, then change your password.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+
+    <p style="color: #6c757d; font-size: 0.85em;">
+        This email was sent by RA Tracker. You received this because a deletion was requested for your account.
+    </p>
+</body>
+</html>
