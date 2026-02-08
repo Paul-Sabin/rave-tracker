@@ -1,15 +1,15 @@
 # Project State: RA Tracker
 
-**Last Updated:** 2026-02-07
+**Last Updated:** 2026-02-08
 **Current Milestone:** v2.1 Security Hardening & Account Lifecycle
-**Current Phase:** 7 - Password Management (COMPLETE)
+**Current Phase:** 8 - Account Lifecycle & Admin Audit UI (IN PROGRESS)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Password management (reset, change, strength)
+**Current focus:** Account lifecycle (deletion, recovery) and admin audit log viewing
 
 ## Milestone Progress
 
@@ -21,12 +21,12 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 ## Current Position
 
-Phase: 7 - Password Management (COMPLETE)
-Plan: 3 of 3 complete
-Status: Phase complete
-Last activity: 2026-02-07 - Completed 07-03-PLAN.md (Password Change with Strength Meter)
+Phase: 8 - Account Lifecycle & Admin Audit UI
+Plan: 2 of 4 complete
+Status: In progress
+Last activity: 2026-02-08 - Completed 08-02-PLAN.md (Admin Audit Log)
 
-Progress: [########--] 80% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete)
+Progress: [########=-] 85% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 complete, Phase 8: 2/4)
 
 ## v2.1 Phase Summary
 
@@ -35,7 +35,7 @@ Progress: [########--] 80% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 | 5 | Audit Foundation & CSRF Protection | 3 | Complete (2/2 plans) |
 | 6 | Email Verification & Login Hardening | 8 | Complete (3/3 plans) |
 | 7 | Password Management | 7 | Complete (3/3 plans) |
-| 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
+| 8 | Account Lifecycle & Admin Audit UI | 7 | In Progress (2/4 plans) |
 
 ## What's Shipped
 
@@ -46,7 +46,7 @@ Progress: [########--] 80% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 - Mobile-first responsive UI with Tailwind CSS v4
 - Privacy Policy with explicit consent
 
-**v2.1 Progress (2026-02-07):**
+**v2.1 Progress (2026-02-08):**
 - 05-01: Audit logging infrastructure (audit_logs table, log_audit_event helper)
 - 05-02: CSRF protection (Double Submit Cookie pattern, fetch wrapper, form fields)
 - 06-01: Login rate limiting (SlowAPI, dual IP/email, auth audit events)
@@ -55,6 +55,8 @@ Progress: [########--] 80% of v2.1 (Phase 5 complete, Phase 6 complete, Phase 7 
 - 07-01: Password infrastructure (reset tokens, password validation, reset rate limiter)
 - 07-02: Password reset flow (forgot password form, reset email, reset routes)
 - 07-03: Password change (settings integration, strength meter, change routes)
+- 08-01: Soft delete schema (deleted_at, scheduled_purge_at columns, get_user_by_id update)
+- 08-02: Admin audit log (filtering, pagination, audit_log.html template)
 
 ## Accumulated Decisions
 
@@ -97,6 +99,8 @@ Key patterns established:
 - Password change keeps session valid (user proved identity via current password)
 - Password reset invalidates all sessions (password may have been compromised)
 - zxcvbn CDN for client-side password strength meter (no build tooling)
+- Soft delete with 30-day grace period (deleted_at + scheduled_purge_at columns)
+- Audit log filtering uses LEFT JOIN for user info, prefix matching for event type/IP
 
 **Technical Debt:**
 - None from v2.0
@@ -128,12 +132,14 @@ Key patterns established:
 | 2026-02-07 | Executed 07-02 | Password reset flow complete (forgot password, reset email, routes) |
 | 2026-02-07 | Executed 07-03 | Password change complete (settings, strength meter, routes) |
 | 2026-02-07 | Completed Phase 7 | Password Management complete |
+| 2026-02-08 | Executed 08-01 | Soft delete schema complete (migration, User dataclass) |
+| 2026-02-08 | Executed 08-02 | Admin audit log complete (filtering, pagination, template) |
 
 ## Session Continuity
 
-Last session: 2026-02-07
-Stopped at: Completed Phase 7 (Password Management)
+Last session: 2026-02-08
+Stopped at: Completed 08-02-PLAN.md (Admin Audit Log)
 Resume file: None
 
 ---
-*State updated: 2026-02-07*
+*State updated: 2026-02-08*
