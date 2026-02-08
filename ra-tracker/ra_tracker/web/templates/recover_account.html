@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Account Recovery - RA Tracker{% endblock %}
+
+{% block content %}
+<div class="recovery-container">
+    <div class="recovery-card">
+        <div class="recovery-icon">&#x26A0;</div>
+        <h1>Account Scheduled for Deletion</h1>
+
+        <p class="recovery-message">
+            Your account is scheduled to be permanently deleted on
+            <strong>{{ scheduled_purge_date }}</strong>.
+        </p>
+
+        <p class="recovery-question">Would you like to recover your account?</p>
+
+        <form action="/recover-account" method="post" class="recovery-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="user_id" value="{{ user_id }}">
+
+            <div class="recovery-actions">
+                <button type="submit" name="action" value="recover" class="btn btn-success btn-lg">
+                    Yes, Recover My Account
+                </button>
+                <button type="submit" name="action" value="continue_deletion" class="btn btn-secondary btn-lg">
+                    No, Continue Deletion
+                </button>
+            </div>
+        </form>
+
+        <p class="recovery-note text-muted">
+            If you recover, your account will be restored immediately with all your data intact.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.recovery-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.recovery-card {
+    background: var(--card-bg, white);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recovery-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.recovery-card h1 {
+    color: #dc3545;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.recovery-message {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.recovery-question {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 1.5rem 0;
+}
+
+.recovery-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    min-height: 56px;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.recovery-note {
+    font-size: 0.9rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .recovery-card {
+        padding: 1.5rem;
+    }
+
+    .recovery-card h1 {
+        font-size: 1.25rem;
+    }
+}
+</style>
+{% endblock %}
