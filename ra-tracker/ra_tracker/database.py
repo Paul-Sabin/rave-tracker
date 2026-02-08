@@ -524,6 +524,8 @@ class Database:
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
             )
 
     def get_user_by_telegram_chat_id(self, chat_id: int) -> Optional[User]:
@@ -544,6 +546,8 @@ class Database:
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
             )
 
     def set_user_telegram_enabled(self, user_id: int, enabled: bool) -> None:
@@ -687,6 +691,195 @@ class Database:
                 (now,)
             )
             return cursor.rowcount
+
+    # Soft delete operations
+    def soft_delete_user(self, user_id: int, scheduled_purge_at: datetime) -> bool:
+        """Soft delete a user account with scheduled purge date.
+
+        Sets deleted_at to current time and scheduled_purge_at to provided date.
+        User cannot log in while soft-deleted but can recover during grace period.
+
+        Args:
+            user_id: User ID to soft delete
+            scheduled_purge_at: When the hard purge will occur (typically 30 days)
+
+        Returns:
+            True if user found and updated, False otherwise
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE users
+                SET deleted_at = ?, scheduled_purge_at = ?
+                WHERE id = ?
+                """,
+                (datetime.utcnow().isoformat(), scheduled_purge_at.isoformat(), user_id)
+            )
+            return cursor.rowcount > 0
+
+    def recover_user(self, user_id: int) -> bool:
+        """Recover a soft-deleted user account.
+
+        Clears deleted_at and scheduled_purge_at to restore account access.
+
+        Args:
+            user_id: User ID to recover
+
+        Returns:
+            True if user found and updated, False otherwise
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE users
+                SET deleted_at = NULL, scheduled_purge_at = NULL
+                WHERE id = ?
+                """,
+                (user_id,)
+            )
+            return cursor.rowcount > 0
+
+    def get_users_pending_purge(self, before: datetime) -> List[User]:
+        """Get users whose scheduled_purge_at is before the given time.
+
+        Used by the daily purge cron job to find accounts past grace period.
+
+        Args:
+            before: Get users scheduled for purge before this time
+
+        Returns:
+            List of User objects pending purge
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM users
+                WHERE deleted_at IS NOT NULL
+                AND scheduled_purge_at <= ?
+                """,
+                (before.isoformat(),)
+            )
+            return [
+                User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    display_name=row["display_name"],
+                    is_admin=bool(row["is_admin"]),
+                    email_verified=bool(row["email_verified"]),
+                    telegram_chat_id=row["telegram_chat_id"],
+                    telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
+                    email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                    deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                    scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                )
+                for row in cursor.fetchall()
+            ]
+
+    def anonymize_audit_logs_for_user(self, user_id: int) -> int:
+        """Anonymize audit logs for a purged user.
+
+        Sets user_id to NULL and adds anonymization metadata to details JSON.
+        Stores first 8 chars of SHA256 hash of original user_id for correlation.
+
+        Args:
+            user_id: User ID whose audit logs should be anonymized
+
+        Returns:
+            Count of rows updated
+        """
+        # Hash the user_id for correlation (first 8 chars of SHA256)
+        user_id_hash = hashlib.sha256(str(user_id).encode()).hexdigest()[:8]
+
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE audit_logs
+                SET user_id = NULL,
+                    details = json_set(
+                        COALESCE(details, '{}'),
+                        '$.anonymized', 1,
+                        '$.original_user_id_hash', ?
+                    )
+                WHERE user_id = ?
+                """,
+                (user_id_hash, user_id)
+            )
+            return cursor.rowcount
+
+    def hard_delete_user(self, user_id: int) -> bool:
+        """Permanently delete a user and all their data.
+
+        Deletes in order to respect foreign keys:
+        1. event_rules (for user's rules)
+        2. notifications
+        3. rules
+        4. sessions
+        5. telegram_link_codes
+        6. user record
+
+        Args:
+            user_id: User ID to permanently delete
+
+        Returns:
+            True if user was deleted, False if user not found
+        """
+        with self.get_connection() as conn:
+            # Check if user exists
+            cursor = conn.execute("SELECT 1 FROM users WHERE id = ?", (user_id,))
+            if cursor.fetchone() is None:
+                return False
+
+            # Delete event_rules for user's rules
+            conn.execute(
+                """
+                DELETE FROM event_rules
+                WHERE rule_id IN (SELECT id FROM rules WHERE user_id = ?)
+                """,
+                (user_id,)
+            )
+
+            # Delete notifications for user
+            conn.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
+
+            # Delete rules for user
+            conn.execute("DELETE FROM rules WHERE user_id = ?", (user_id,))
+
+            # Delete sessions for user
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+            # Delete telegram link codes for user
+            conn.execute("DELETE FROM telegram_link_codes WHERE user_id = ?", (user_id,))
+
+            # Finally delete the user
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+            return True
+
+    def is_user_deleted(self, user_id: int) -> Optional[datetime]:
+        """Check if a user is soft-deleted.
+
+        Used by login flow to detect pending deletion and show recovery prompt.
+
+        Args:
+            user_id: User ID to check
+
+        Returns:
+            scheduled_purge_at datetime if user is soft-deleted, None otherwise
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT scheduled_purge_at FROM users
+                WHERE id = ? AND deleted_at IS NOT NULL
+                """,
+                (user_id,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None
 
     # Rule operations
     def add_rule(self, rule: Rule, user_id: Optional[int] = None) -> int:
@@ -1369,6 +1562,8 @@ class Database:
                     telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                     email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                     created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                    deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
+                    scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
                 )
                 for row in cursor.fetchall()
             ]
