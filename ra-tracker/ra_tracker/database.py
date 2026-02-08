@@ -216,6 +216,13 @@ MIGRATIONS = [
     """
     UPDATE users SET email_verified = 1 WHERE is_admin = 1;
     """,
+    # Migration 10: Add soft delete columns for account deletion with 30-day grace period
+    """
+    ALTER TABLE users ADD COLUMN deleted_at DATETIME;
+    """,
+    """
+    ALTER TABLE users ADD COLUMN scheduled_purge_at DATETIME;
+    """,
 ]
 
 
