@@ -1,16 +1,19 @@
 """Scheduled jobs for RA Tracker."""
 
+import hashlib
 import logging
 from datetime import datetime
 from typing import Optional, List, Dict
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ..config import get_config
 from ..database import get_db, Event, Rule
 from ..services.fetcher import Fetcher
 from ..services.notifier import Notifier, notify_users_for_events
+from ..web.audit import log_audit_event_direct
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +135,57 @@ def fetch_and_notify():
         logger.error(f"Error in fetch_and_notify: {e}", exc_info=True)
 
 
+def purge_expired_accounts():
+    """Daily job: permanently delete accounts past 30-day grace period.
+
+    This job runs daily at 3 AM to:
+    1. Find all users with scheduled_purge_at <= now
+    2. Anonymize their audit logs (set user_id=NULL, add anonymization metadata)
+    3. Log the purge event
+    4. Hard delete all user data
+    """
+    logger.info("Starting account purge job")
+
+    db = get_db()
+    now = datetime.utcnow()
+
+    # Find accounts to purge
+    expired_users = db.get_users_pending_purge(before=now)
+
+    if not expired_users:
+        logger.info("Purge complete. No accounts to purge.")
+        return
+
+    purged_count = 0
+    for user in expired_users:
+        try:
+            # Anonymize audit logs first (before we lose user context)
+            anonymized = db.anonymize_audit_logs_for_user(user.id)
+            logger.info(f"Anonymized {anonymized} audit logs for user {user.id}")
+
+            # Log the purge event BEFORE deleting (so we have user context)
+            # Use email hash for correlation without storing PII
+            email_hash = hashlib.sha256(user.email.encode()).hexdigest()[:8]
+            log_audit_event_direct(
+                event_type="account.purge",
+                user_id=None,  # Will be anonymized anyway
+                ip_address=None,  # Background job, no IP
+                details={"purged_user_email_hash": email_hash},
+                target_type="user",
+                target_id=user.id,
+            )
+
+            # Delete all user data
+            db.hard_delete_user(user.id)
+
+            purged_count += 1
+            logger.info(f"Purged user {user.id}")
+        except Exception as e:
+            logger.error(f"Failed to purge user {user.id}: {e}")
+
+    logger.info(f"Purge complete. {purged_count}/{len(expired_users)} accounts deleted.")
+
+
 def get_scheduler() -> BackgroundScheduler:
     """Get or create the global scheduler instance."""
     global _scheduler
@@ -147,6 +201,7 @@ def start_scheduler():
 
     fetch_interval = config.scheduler.fetch_interval_hours
 
+    # Event fetch job - runs on configured interval
     scheduler.add_job(
         fetch_and_notify,
         trigger=IntervalTrigger(hours=fetch_interval),
@@ -154,8 +209,17 @@ def start_scheduler():
         name="Fetch events and send notifications",
         replace_existing=True,
     )
-
     logger.info(f"Scheduled fetch job to run every {fetch_interval} hours")
+
+    # Account purge job - runs daily at 3 AM UTC
+    scheduler.add_job(
+        purge_expired_accounts,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="purge_expired_accounts",
+        name="Purge accounts past 30-day grace period",
+        replace_existing=True,
+    )
+    logger.info("Scheduled purge job to run daily at 3:00 AM UTC")
 
     if not scheduler.running:
         scheduler.start()

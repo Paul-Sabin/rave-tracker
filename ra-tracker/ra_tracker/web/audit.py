@@ -68,3 +68,54 @@ def log_audit_event(
         # Log errors but don't fail the request - audit is non-blocking
         logger.error(f"Failed to write audit log: {e}")
         return -1
+
+
+def log_audit_event_direct(
+    event_type: str,
+    user_id: Optional[int],
+    ip_address: Optional[str],
+    details: Optional[Dict[str, Any]] = None,
+    target_type: Optional[str] = None,
+    target_id: Optional[int] = None,
+) -> int:
+    """Log audit event directly without Request object (for background jobs).
+
+    Use this when logging from background jobs, cron tasks, or other contexts
+    where a FastAPI Request is not available.
+
+    Args:
+        event_type: Category.action format (e.g., 'account.purge')
+        user_id: User who triggered event (None for system actions)
+        ip_address: IP address if applicable (None for background jobs)
+        details: Additional context as JSON-serializable dict
+        target_type: Type of resource affected (e.g., 'user')
+        target_id: ID of affected resource
+
+    Returns:
+        ID of the created audit log entry, or -1 on error
+    """
+    # Serialize details to JSON
+    details_json = None
+    if details:
+        try:
+            details_json = json.dumps(details)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Failed to serialize audit details: {e}")
+            details_json = json.dumps({"error": "serialization_failed"})
+
+    db = get_db()
+    try:
+        log_id = db.add_audit_log(
+            event_type=event_type,
+            user_id=user_id,
+            ip_address=ip_address,
+            details=details_json,
+            target_type=target_type,
+            target_id=target_id,
+        )
+        logger.debug(f"Audit log {log_id}: {event_type} user={user_id}")
+        return log_id
+    except Exception as e:
+        # Log errors but don't fail - audit is non-blocking
+        logger.error(f"Failed to write audit log: {e}")
+        return -1
