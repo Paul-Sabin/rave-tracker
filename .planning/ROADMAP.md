@@ -75,6 +75,12 @@ Plans:
 **Goal:** Users can delete their accounts with a recovery period, and admins can view complete audit history
 **Depends on:** Phase 7
 **Requirements:** ACCT-05, ACCT-06, ACCT-07, ACCT-08, AUDIT-06, AUDIT-08, AUDIT-09
+**Plans:** 3 plans (Wave 1: 2 parallel, Wave 2: 1 sequential)
+
+Plans:
+- [ ] 08-01-PLAN.md - Account deletion infrastructure (soft delete, purge job)
+- [ ] 08-02-PLAN.md - Admin audit log UI with filtering
+- [ ] 08-03-PLAN.md - Account deletion and recovery flow
 
 **Success Criteria:**
 1. User can request account deletion (password confirmation required)
@@ -128,4 +134,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-02*
-*Last updated: 2026-02-08 (Phase 7 complete)*
+*Last updated: 2026-02-08 (Phase 8 planned)*
