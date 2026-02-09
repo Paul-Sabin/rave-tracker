@@ -120,7 +120,7 @@ def fetch_and_notify():
                 if results and config.telegram.chat_id:
                     try:
                         notifier = Notifier()
-                        admin_msg = f"RA Tracker: Notified {total_users} user(s) about {len(new_events_list)} event(s)"
+                        admin_msg = f"Rave Tracker: Notified {total_users} user(s) about {len(new_events_list)} event(s)"
                         from ..services.notifier import _run_async
                         _run_async(notifier.bot.send_message(
                             chat_id=config.telegram.chat_id,

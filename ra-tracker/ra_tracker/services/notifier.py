@@ -195,7 +195,7 @@ class Notifier:
         try:
             await self.bot.send_message(
                 chat_id=self.config.telegram.chat_id,
-                text="🎵 RA Tracker test - configuration working!",
+                text="🎵 Rave Tracker test - configuration working!",
             )
             return True
         except TelegramError as e:
@@ -250,7 +250,7 @@ class Notifier:
                 by_rule[key] = {"rule": rule, "events": []}
             by_rule[key]["events"].append(event)
 
-        lines = [f"🎵 RA Tracker: {len(new_events)} new events found!", ""]
+        lines = [f"🎵 Rave Tracker: {len(new_events)} new events found!", ""]
 
         for key, data in by_rule.items():
             rule = data["rule"]
@@ -308,7 +308,7 @@ class Notifier:
         # Sort events by date
         sorted_events = sorted(new_events, key=lambda x: (x[0].date or datetime.max.date(), x[0].start_time or datetime.max))
 
-        lines = [f"🎵 RA Tracker: {len(new_events)} new event(s)!", ""]
+        lines = [f"🎵 Rave Tracker: {len(new_events)} new event(s)!", ""]
 
         for event, rules in sorted_events:
             # Date and time

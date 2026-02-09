@@ -134,9 +134,9 @@ async def send_notification_email(
 
     # Build subject
     if len(events) == 1:
-        subject = f"RA Tracker: New event - {events[0][0].title[:40]}"
+        subject = f"Rave Tracker: New event - {events[0][0].title[:40]}"
     else:
-        subject = f"RA Tracker: {len(events)} new event(s) found!"
+        subject = f"Rave Tracker: {len(events)} new event(s) found!"
 
     message = MessageSchema(
         subject=subject,
@@ -188,7 +188,7 @@ async def send_verification_email(
     verification_url = f"{config.app.base_url}/verify/{token}"
 
     message = MessageSchema(
-        subject="Welcome to RA Tracker - verify your email",
+        subject="Welcome to Rave Tracker - verify your email",
         recipients=[user_email],
         template_body={
             "display_name": display_name,
@@ -272,7 +272,7 @@ async def send_deletion_confirmation_email(
         return False
 
     message = MessageSchema(
-        subject="RA Tracker - Account Deletion Requested",
+        subject="Rave Tracker - Account Deletion Requested",
         recipients=[email],
         template_body={
             "display_name": display_name,
@@ -310,7 +310,7 @@ async def send_recovery_confirmation_email(
         return False
 
     message = MessageSchema(
-        subject="RA Tracker - Account Recovered",
+        subject="Rave Tracker - Account Recovered",
         recipients=[email],
         template_body={
             "display_name": display_name,

@@ -24,7 +24,7 @@ async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "Usage: /link YOUR_CODE\n\n"
-            "Get your code from RA Tracker Settings > Notifications > Link Telegram"
+            "Get your code from Rave Tracker Settings > Notifications > Link Telegram"
         )
         return
 
@@ -45,14 +45,14 @@ async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if link_record.get("used_at"):
         await update.message.reply_text(
             "This code has already been used.\n\n"
-            "Please generate a new code from RA Tracker Settings."
+            "Please generate a new code from Rave Tracker Settings."
         )
         return
 
     if link_record["expires_at"] < datetime.now():
         await update.message.reply_text(
             "This code has expired.\n\n"
-            "Please generate a new code from RA Tracker Settings."
+            "Please generate a new code from Rave Tracker Settings."
         )
         return
 
@@ -62,7 +62,7 @@ async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = db.get_user_by_id(user_id)
     if user and user.telegram_chat_id and user.telegram_chat_id != chat_id:
         await update.message.reply_text(
-            "Your RA Tracker account is already linked to a different Telegram account.\n\n"
+            "Your Rave Tracker account is already linked to a different Telegram account.\n\n"
             "To change, first unlink from Settings, then link again."
         )
         return
@@ -90,8 +90,8 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not user:
         await update.message.reply_text(
-            "This Telegram account is not linked to any RA Tracker account.\n\n"
-            "To link, visit RA Tracker Settings > Notifications > Link Telegram"
+            "This Telegram account is not linked to any Rave Tracker account.\n\n"
+            "To link, visit Rave Tracker Settings > Notifications > Link Telegram"
         )
         return
 
@@ -101,7 +101,7 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Telegram notifications disabled.\n\n"
         "To re-enable:\n"
         "- Send /start here, OR\n"
-        "- Toggle on in RA Tracker Settings"
+        "- Toggle on in Rave Tracker Settings"
     )
     logger.info(f"User {user.id} disabled Telegram notifications via /stop")
 
@@ -124,9 +124,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Not linked - show welcome
         await update.message.reply_text(
-            "Welcome to RA Tracker Bot!\n\n"
+            "Welcome to Rave Tracker Bot!\n\n"
             "To link your account:\n"
-            "1. Log in to RA Tracker\n"
+            "1. Log in to Rave Tracker\n"
             "2. Go to Settings > Notifications\n"
             "3. Click 'Link Telegram'\n"
             "4. Send the code here with /link CODE"
