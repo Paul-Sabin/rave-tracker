@@ -5,6 +5,24 @@
 {% block content %}
 <h1>Tracking Rules</h1>
 
+{% if not has_local_area %}
+<div class="card" style="border-color: #ffc107; background: rgba(255, 193, 7, 0.1);">
+    <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="font-size: 1.5rem; flex-shrink: 0;">📍</div>
+        <div style="flex: 1;">
+            <p class="font-bold mb-1" style="color: #ffc107;">Set your local region first</p>
+            <p class="text-muted">
+                Choose your city so you can filter events to your area.
+                We suggest starting with <strong>Berlin</strong> if you're unsure.
+            </p>
+            <a href="/settings" class="btn btn-primary mt-2" style="min-height: 44px;">
+                Go to Settings
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Search and Add -->
 <div class="card">
     <div class="card-header">

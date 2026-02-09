@@ -111,6 +111,8 @@ async def rules_page(request: Request, user: User = Depends(require_verified_ema
     venues = [r for r in rules if r.rule_type == "venue"]
     promoters = [r for r in rules if r.rule_type == "promoter"]
 
+    config = get_config()
+
     return templates.TemplateResponse(
         "rules.html",
         {
@@ -121,6 +123,8 @@ async def rules_page(request: Request, user: User = Depends(require_verified_ema
             "artists": artists,
             "venues": venues,
             "promoters": promoters,
+            "has_local_area": bool(config.user.local_area_id),
+            "local_area_name": config.user.local_area_name,
         },
     )
 
