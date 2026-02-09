@@ -9,14 +9,14 @@ Requirements for UX Polish & Branding milestone.
 
 ### Branding
 
-- [ ] **BRAND-01**: All user-facing instances of "RA Tracker" display as "Rave Tracker" (page titles, nav, login, emails, footer)
-- [ ] **BRAND-02**: Email "from" name displays as "Rave Tracker" instead of "RA Tracker"
+- [x] **BRAND-01**: All user-facing instances of "RA Tracker" display as "Rave Tracker" (page titles, nav, login, emails, footer)
+- [x] **BRAND-02**: Email "from" name displays as "Rave Tracker" instead of "RA Tracker"
 
 ### UX
 
-- [ ] **UX-01**: User is prompted to select a local region (suggesting Berlin) before creating their first rule, if no region is set
-- [ ] **UX-02**: Dashboard area toggle labels read "Global events" and "Local only" instead of "All Areas" and "{region} only"
-- [ ] **UX-03**: Legacy admin welcome banner removed from dashboard
+- [x] **UX-01**: User is prompted to select a local region (suggesting Berlin) before creating their first rule, if no region is set
+- [x] **UX-02**: Dashboard area toggle labels read "Global events" and "Local only" instead of "All Areas" and "{region} only"
+- [x] **UX-03**: Legacy admin welcome banner removed from dashboard
 
 ## v2.3+ Candidates
 
@@ -43,11 +43,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRAND-01 | Phase 9 | Pending |
-| BRAND-02 | Phase 9 | Pending |
-| UX-01 | Phase 9 | Pending |
-| UX-02 | Phase 9 | Pending |
-| UX-03 | Phase 9 | Pending |
+| BRAND-01 | Phase 9 | Complete |
+| BRAND-02 | Phase 9 | Complete |
+| UX-01 | Phase 9 | Complete |
+| UX-02 | Phase 9 | Complete |
+| UX-03 | Phase 9 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 5 total
@@ -56,4 +56,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-08*
-*Last updated: 2026-02-08 after roadmap creation*
+*Last updated: 2026-02-09 after Phase 9 completion*

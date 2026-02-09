@@ -52,6 +52,12 @@ Progress: [██████████] 100% overall (Phase 9: 2/2 plans comp
 - Soft-delete account with 30-day recovery
 - Admin audit log with filtering and pagination
 
+**v2.2 UX Polish & Branding (2026-02-09):**
+- Rebranded all user-facing text to "Rave Tracker" (25 files)
+- Dashboard toggles: "Global events" / "Local only"
+- Region selection prompt on rules page (suggests Berlin)
+- Legacy admin welcome banner removed
+
 ## Accumulated Context
 
 **Decisions (v2.1):**

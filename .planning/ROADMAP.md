@@ -5,7 +5,7 @@
 - ✅ **v1.0 MVP** - Single-user event tracker (shipped 2026-01-19)
 - ✅ **v2.0 Multi-User Support** - Phases 1-4 (shipped 2026-02-01)
 - ✅ **v2.1 Security Hardening** - Phases 5-8 (shipped 2026-02-08)
-- 🚧 **v2.2 UX Polish & Branding** - Phase 9 (in progress)
+- ✅ **v2.2 UX Polish & Branding** - Phase 9 (shipped 2026-02-09)
 
 ## Phases
 
@@ -97,7 +97,7 @@ Plans:
 
 </details>
 
-### 🚧 v2.2 UX Polish & Branding (In Progress)
+### ✅ v2.2 UX Polish & Branding (Shipped 2026-02-09)
 
 **Milestone Goal:** Rebrand to "Rave Tracker", improve region selection UX, and clean up legacy UI elements.
 
@@ -105,17 +105,11 @@ Plans:
 **Goal**: Application presents as "Rave Tracker" with improved region selection UX
 **Depends on**: Phase 8
 **Requirements**: BRAND-01, BRAND-02, UX-01, UX-02, UX-03
-**Success Criteria** (what must be TRUE):
-  1. User sees "Rave Tracker" branding throughout application (nav, titles, footer)
-  2. User receives emails from "Rave Tracker" (not "RA Tracker")
-  3. User without region sees prompt to select region before first rule
-  4. User sees clear "Global events" and "Local only" toggle labels on dashboard
-  5. User sees clean dashboard without legacy admin banner
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Rebrand all user-facing text to "Rave Tracker"
-- [ ] 09-02-PLAN.md — UX improvements (toggle labels, region prompt, banner removal)
+- [x] 09-01: Rebrand all user-facing text to "Rave Tracker"
+- [x] 09-02: UX improvements (toggle labels, region prompt, banner removal)
 
 ## Progress
 
@@ -132,4 +126,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Email Verification & Login Hardening | v2.1 | 3/3 | Complete | 2026-02-06 |
 | 7. Password Management | v2.1 | 3/3 | Complete | 2026-02-07 |
 | 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
-| 9. UX Polish & Branding | v2.2 | 0/2 | Not started | - |
+| 9. UX Polish & Branding | v2.2 | 2/2 | Complete | 2026-02-09 |
