@@ -1,137 +1,134 @@
-# Milestone v2.1: Security Hardening & Account Lifecycle
+# Roadmap: Rave Tracker
 
-**Status:** In Progress
-**Phases:** 5-8
-**Total Requirements:** 25
+## Milestones
 
-## Overview
-
-Harden authentication with rate limiting and CSRF protection, implement mandatory email verification, add password reset and change functionality, enable soft-delete account with recovery, and build comprehensive audit logging with admin visibility.
+- ✅ **v1.0 MVP** - Single-user event tracker (shipped 2026-01-19)
+- ✅ **v2.0 Multi-User Support** - Phases 1-4 (shipped 2026-02-01)
+- ✅ **v2.1 Security Hardening** - Phases 5-8 (shipped 2026-02-08)
+- 🚧 **v2.2 UX Polish & Branding** - Phase 9 (in progress)
 
 ## Phases
 
-### Phase 5: Audit Foundation & CSRF Protection
+<details>
+<summary>✅ v1.0 MVP - SHIPPED 2026-01-19</summary>
 
-**Goal:** Establish audit logging infrastructure and global form security so all subsequent features can log events securely
-**Depends on:** v2.0 (authentication, sessions)
-**Requirements:** AUDIT-01, AUDIT-10, SEC-03
-**Plans:** 2 plans (Wave 1: parallel)
+Single-user event tracker with fetching, rules, and notifications.
+
+</details>
+
+<details>
+<summary>✅ v2.0 Multi-User Support (Phases 1-4) - SHIPPED 2026-02-01</summary>
+
+### Phase 1: Database Foundation
+**Goal**: Multi-user database schema ready
+**Plans**: 2 plans
 
 Plans:
-- [x] 05-01-PLAN.md - Audit log schema and service
-- [x] 05-02-PLAN.md - CSRF middleware and template integration
+- [x] 01-01: Database schema and models
+- [x] 01-02: Migration and data seeding
 
-**Success Criteria:**
-1. All POST forms include CSRF token and reject requests without valid token
-2. Audit log table exists with event_type, user_id, ip, timestamp, details columns
-3. Audit records are never deleted (forever retention enforced at schema level)
+### Phase 2: Authentication System
+**Goal**: Users can securely access their accounts
+**Plans**: 3 plans
 
----
+Plans:
+- [x] 02-01: Password infrastructure (Argon2id hashing)
+- [x] 02-02: Login and registration routes
+- [x] 02-03: Authentication UI (login, register, logout)
+
+### Phase 3: Multi-Tenant Access Control
+**Goal**: Users access only their own data
+**Plans**: 4 plans
+
+Plans:
+- [x] 03-01: Session management and middleware
+- [x] 03-02: User-scoped rules and events
+- [x] 03-03: Privacy policy with explicit consent
+- [x] 03-04: UI updates for multi-user mode
+
+### Phase 4: User Notification Delivery
+**Goal**: Users receive notifications via their chosen channels
+**Plans**: 3 plans
+
+Plans:
+- [x] 04-01: Telegram bot linking and notifications
+- [x] 04-02: Email notifications infrastructure
+- [x] 04-03: Notification preferences and delivery logic
+
+</details>
+
+<details>
+<summary>✅ v2.1 Security Hardening (Phases 5-8) - SHIPPED 2026-02-08</summary>
+
+### Phase 5: Audit Foundation & CSRF Protection
+**Goal**: Security events are logged and CSRF attacks are prevented
+**Plans**: 2 plans
+
+Plans:
+- [x] 05-01: Audit logging infrastructure
+- [x] 05-02: CSRF protection (Double Submit Cookie)
 
 ### Phase 6: Email Verification & Login Hardening
-
-**Goal:** Users must verify email ownership before using the application, with protection against brute-force login attempts
-**Depends on:** Phase 5
-**Requirements:** SEC-01, SEC-04, SEC-05, SEC-06, SEC-07, AUDIT-02, AUDIT-05, AUDIT-07
-**Plans:** 3 plans (Wave 1: 2 parallel, Wave 2: 1 sequential)
+**Goal**: Only verified email addresses can receive notifications, login attempts are rate-limited
+**Plans**: 3 plans
 
 Plans:
-- [x] 06-01-PLAN.md - Rate limiting infrastructure and login audit logging
-- [x] 06-02-PLAN.md - Email verification tokens and verification email
-- [x] 06-03-PLAN.md - Verification flow UI and registration/login integration
-
-**Success Criteria:**
-1. New users receive verification email and cannot access dashboard until verified
-2. Existing unverified users are redirected to verification prompt on login
-3. User can request new verification email if original expired/lost
-4. After 5 failed login attempts in 15 minutes, further attempts are blocked (by IP and email)
-5. All login attempts (success/fail), account creations, and verification status changes appear in audit log
-
----
+- [x] 06-01: Login rate limiting and auth audit logging
+- [x] 06-02: Verification token infrastructure
+- [x] 06-03: Email verification flow UI
 
 ### Phase 7: Password Management
-
-**Goal:** Users can reset forgotten passwords via email and change passwords when logged in
-**Depends on:** Phase 6 (email token infrastructure)
-**Requirements:** SEC-02, ACCT-01, ACCT-02, ACCT-03, ACCT-04, AUDIT-03, AUDIT-04
-**Plans:** 3 plans (Wave 1: 1, Wave 2: 2 parallel)
+**Goal**: Users can reset forgotten passwords and change existing passwords
+**Plans**: 3 plans
 
 Plans:
-- [x] 07-01-PLAN.md - Password infrastructure (tokens, validation, rate limiting)
-- [x] 07-02-PLAN.md - Password reset flow (forgot password, email, reset form)
-- [x] 07-03-PLAN.md - Password change (authenticated, settings integration)
-
-**Success Criteria:**
-1. User can request password reset by entering email, receives link with 24h expiring token
-2. User can set new password via reset link without being logged in
-3. Logged-in user can change password by confirming current password
-4. Password reset requests are rate-limited (3 per hour per email)
-5. All password changes and reset requests/completions appear in audit log
-
----
+- [x] 07-01: Password reset infrastructure
+- [x] 07-02: Password reset flow (forgot password, reset email)
+- [x] 07-03: Password change (settings, strength meter)
 
 ### Phase 8: Account Lifecycle & Admin Audit UI
-
-**Goal:** Users can delete their accounts with a recovery period, and admins can view complete audit history
-**Depends on:** Phase 7
-**Requirements:** ACCT-05, ACCT-06, ACCT-07, ACCT-08, AUDIT-06, AUDIT-08, AUDIT-09
-**Plans:** 3 plans (Wave 1: 2 parallel, Wave 2: 1 sequential)
+**Goal**: Users can delete accounts with recovery grace period, admins can review audit logs
+**Plans**: 3 plans
 
 Plans:
-- [ ] 08-01-PLAN.md - Account deletion infrastructure (soft delete, purge job)
-- [ ] 08-02-PLAN.md - Admin audit log UI with filtering
-- [ ] 08-03-PLAN.md - Account deletion and recovery flow
+- [x] 08-01: Soft delete and purge infrastructure
+- [x] 08-02: Admin audit log UI
+- [x] 08-03: Account deletion and recovery flows
 
-**Success Criteria:**
-1. User can request account deletion (password confirmation required)
-2. Deleted account enters 30-day grace period (soft delete, cannot login)
-3. User can recover account by logging in during grace period
-4. After 30 days, account and all user data are permanently purged
-5. Admin can view audit log at /admin/audit-log with filtering by user, event type, and date range
+</details>
 
----
+### 🚧 v2.2 UX Polish & Branding (In Progress)
+
+**Milestone Goal:** Rebrand to "Rave Tracker", improve region selection UX, and clean up legacy UI elements.
+
+#### Phase 9: UX Polish & Branding
+**Goal**: Application presents as "Rave Tracker" with improved region selection UX
+**Depends on**: Phase 8
+**Requirements**: BRAND-01, BRAND-02, UX-01, UX-02, UX-03
+**Success Criteria** (what must be TRUE):
+  1. User sees "Rave Tracker" branding throughout application (nav, titles, footer)
+  2. User receives emails from "Rave Tracker" (not "RA Tracker")
+  3. User without region sees prompt to select region before first rule
+  4. User sees clear "Global events" and "Local only" toggle labels on dashboard
+  5. User sees clean dashboard without legacy admin banner
+**Plans**: TBD
+
+Plans:
+- [ ] 09-01: TBD (during planning)
 
 ## Progress
 
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 5 | Audit Foundation & CSRF Protection | 3 | Complete |
-| 6 | Email Verification & Login Hardening | 8 | Complete |
-| 7 | Password Management | 7 | Complete |
-| 8 | Account Lifecycle & Admin Audit UI | 7 | Pending |
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
 
-**Coverage:** 25/25 requirements mapped
-
-## Requirement Mapping
-
-| Requirement | Phase | Description |
-|-------------|-------|-------------|
-| SEC-01 | 6 | Rate limiting on login route |
-| SEC-02 | 7 | Rate limiting on password reset requests |
-| SEC-03 | 5 | Global CSRF protection |
-| SEC-04 | 6 | Email verification for new users |
-| SEC-05 | 6 | Existing users verify on next login |
-| SEC-06 | 6 | Verification email with token link |
-| SEC-07 | 6 | Resend verification email option |
-| ACCT-01 | 7 | Password reset request form |
-| ACCT-02 | 7 | Password reset email with token |
-| ACCT-03 | 7 | Password reset completion form |
-| ACCT-04 | 7 | Change password form |
-| ACCT-05 | 8 | Delete account request |
-| ACCT-06 | 8 | Soft delete with grace period |
-| ACCT-07 | 8 | Account recovery during grace |
-| ACCT-08 | 8 | Hard purge after grace period |
-| AUDIT-01 | 5 | Audit log database schema |
-| AUDIT-02 | 6 | Log login attempts |
-| AUDIT-03 | 7 | Log password changes |
-| AUDIT-04 | 7 | Log password reset events |
-| AUDIT-05 | 6 | Log account creation |
-| AUDIT-06 | 8 | Log account deletion events |
-| AUDIT-07 | 6 | Log email verification changes |
-| AUDIT-08 | 8 | Admin audit log page |
-| AUDIT-09 | 8 | Audit log filtering |
-| AUDIT-10 | 5 | Forever retention policy |
-
----
-*Roadmap created: 2026-02-02*
-*Last updated: 2026-02-08 (Phase 8 planned)*
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Database Foundation | v2.0 | 2/2 | Complete | 2026-01-23 |
+| 2. Authentication System | v2.0 | 3/3 | Complete | 2026-01-27 |
+| 3. Multi-Tenant Access Control | v2.0 | 4/4 | Complete | 2026-01-29 |
+| 4. User Notification Delivery | v2.0 | 3/3 | Complete | 2026-01-31 |
+| 5. Audit Foundation & CSRF Protection | v2.1 | 2/2 | Complete | 2026-02-02 |
+| 6. Email Verification & Login Hardening | v2.1 | 3/3 | Complete | 2026-02-06 |
+| 7. Password Management | v2.1 | 3/3 | Complete | 2026-02-07 |
+| 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
+| 9. UX Polish & Branding | v2.2 | 0/? | Not started | - |

@@ -2,14 +2,14 @@
 
 **Last Updated:** 2026-02-08
 **Current Milestone:** v2.2 UX Polish & Branding
-**Current Phase:** Not started (defining requirements)
+**Current Phase:** Phase 9 (ready to plan)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Rebrand to "Rave Tracker", improve region selection UX, clean up legacy UI
+**Current focus:** UX Polish & Branding (rebrand to "Rave Tracker", improve region selection, clean up legacy UI)
 
 ## Milestone Progress
 
@@ -18,18 +18,23 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 | 1 - Core Functionality | Complete | Single-user event tracker with fetching, rules, notifications |
 | 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
 | 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements shipped |
-| 4 - UX Polish & Branding | In Progress | Defining requirements |
+| 4 - UX Polish & Branding | In Progress | 1 phase (9), 5 requirements, roadmap created |
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-08 — Milestone v2.2 started
+Phase: 9 of 9 (UX Polish & Branding)
+Plan: Ready to plan
+Status: Roadmap created, ready for phase planning
+Last activity: 2026-02-08 — Roadmap created for v2.2
 
-Progress: [░░░░░░░░░░] 0% of v2.2
+Progress: [████████░░] 80% overall (8/9 phases complete across all milestones)
 
 ## What's Shipped
+
+**v1.0 MVP (2026-01-19):**
+- Single-user event tracker with ra.co scraping
+- Artist/venue/promoter rules
+- Daily event checking
 
 **v2.0 Multi-User Support (2026-02-01):**
 - Multi-user authentication with Argon2id password hashing
@@ -46,17 +51,6 @@ Progress: [░░░░░░░░░░] 0% of v2.2
 - Password reset and change flows
 - Soft-delete account with 30-day recovery
 - Admin audit log with filtering and pagination
-
-## Accumulated Decisions
-
-See .planning/milestones/v2.0-ROADMAP.md for full decision log from Milestone 2.
-
-Key patterns established:
-- Argon2id for password hashing
-- httponly/secure/samesite cookies
-- Cycling buttons for mode toggles
-- AJAX forms to preserve scroll position
-- 44px touch targets (WCAG AAA)
 
 ## Accumulated Context
 
@@ -97,6 +91,11 @@ Key patterns established:
 - Recovery via login intercept shows interstitial before session creation
 - Flash messages via query params (deleted, deletion_confirmed, recovered)
 
+**Decisions (v2.2):**
+- User-facing rebrand only: "Rave Tracker" in UI, keep ra-tracker/ra_tracker internally
+- RA API references unchanged (required for functionality)
+- Simple region prompt with Berlin suggestion (no auto-detection)
+
 **Technical Debt:**
 - None
 
@@ -133,11 +132,12 @@ Key patterns established:
 | 2026-02-08 | Completed Phase 8 | Account Lifecycle & Admin Audit UI complete |
 | 2026-02-08 | Completed Milestone 3 | v2.1 Security Hardening complete |
 | 2026-02-08 | Initialized Milestone 4 | v2.2 UX Polish & Branding started |
+| 2026-02-08 | Created v2.2 Roadmap | Phase 9 defined, ready for planning |
 
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Defining v2.2 requirements
+Stopped at: Roadmap created for v2.2 milestone
 Resume file: None
 
 ---
