@@ -53,7 +53,7 @@ class EmailConfig:
     username: str = ""
     password: str = ""
     from_address: str = ""
-    from_name: str = "RA Tracker"
+    from_name: str = "Rave Tracker"
     starttls: bool = True
     ssl_tls: bool = False
 
