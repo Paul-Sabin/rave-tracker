@@ -111,10 +111,11 @@ Plans:
   3. User without region sees prompt to select region before first rule
   4. User sees clear "Global events" and "Local only" toggle labels on dashboard
   5. User sees clean dashboard without legacy admin banner
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: TBD (during planning)
+- [ ] 09-01-PLAN.md — Rebrand all user-facing text to "Rave Tracker"
+- [ ] 09-02-PLAN.md — UX improvements (toggle labels, region prompt, banner removal)
 
 ## Progress
 
@@ -131,4 +132,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Email Verification & Login Hardening | v2.1 | 3/3 | Complete | 2026-02-06 |
 | 7. Password Management | v2.1 | 3/3 | Complete | 2026-02-07 |
 | 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
-| 9. UX Polish & Branding | v2.2 | 0/? | Not started | - |
+| 9. UX Polish & Branding | v2.2 | 0/2 | Not started | - |
