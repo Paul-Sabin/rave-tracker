@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-09
 **Current Milestone:** v2.2 UX Polish & Branding
-**Current Phase:** Phase 9 (in progress - 1/2 plans complete)
+**Current Phase:** Phase 9 (in progress - 2/2 plans complete)
 
 ## Project Reference
 
@@ -18,16 +18,16 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 | 1 - Core Functionality | Complete | Single-user event tracker with fetching, rules, notifications |
 | 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
 | 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements shipped |
-| 4 - UX Polish & Branding | In Progress | 1 phase (9), 5 requirements, roadmap created |
+| 4 - UX Polish & Branding | Complete | 1 phase (9), 5 requirements, 2 plans shipped |
 
 ## Current Position
 
 Phase: 9 of 9 (UX Polish & Branding)
-Plan: 1 of 2 complete
-Status: Executing phase 9
-Last activity: 2026-02-09 — Completed 09-01: User-facing rebrand to "Rave Tracker"
+Plan: 2 of 2 complete
+Status: Phase 9 complete
+Last activity: 2026-02-09 — Completed 09-02: Dashboard UX improvements and region guidance
 
-Progress: [████████░░] 85% overall (Phase 9: 1/2 plans complete)
+Progress: [██████████] 100% overall (Phase 9: 2/2 plans complete)
 
 ## What's Shipped
 
@@ -95,7 +95,9 @@ Progress: [████████░░] 85% overall (Phase 9: 1/2 plans compl
 - User-facing rebrand only: "Rave Tracker" in UI, keep ra-tracker/ra_tracker internally (09-01)
 - Preserved "View on RA" and "RA Pick" references (external service, not our brand) (09-01)
 - RA API references unchanged (required for functionality)
-- Simple region prompt with Berlin suggestion (no auto-detection)
+- Simple region prompt with Berlin suggestion (no auto-detection) (09-02)
+- Non-blocking region setup: users can create rules without region configured (09-02)
+- Removed legacy migration banner (v1→v2 migration complete) (09-02)
 
 **Technical Debt:**
 - None
@@ -135,11 +137,14 @@ Progress: [████████░░] 85% overall (Phase 9: 1/2 plans compl
 | 2026-02-08 | Initialized Milestone 4 | v2.2 UX Polish & Branding started |
 | 2026-02-08 | Created v2.2 Roadmap | Phase 9 defined, ready for planning |
 | 2026-02-09 | Executed 09-01 | User-facing rebrand to "Rave Tracker" complete |
+| 2026-02-09 | Executed 09-02 | Dashboard UX improvements and region guidance complete |
+| 2026-02-09 | Completed Phase 9 | UX Polish & Branding complete |
+| 2026-02-09 | Completed Milestone 4 | v2.2 UX Polish & Branding complete |
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 09-01-PLAN.md
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
 
 ---
