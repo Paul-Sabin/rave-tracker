@@ -171,11 +171,11 @@
             <input type="text" id="local_area_search" class="form-control"
                    placeholder="Search for your city..." autocomplete="off">
             <div id="area-results"></div>
-            <input type="hidden" id="local_area_id" name="local_area_id" value="{{ config.user.local_area_id or '' }}">
-            <input type="hidden" id="local_area_name" name="local_area_name" value="{{ config.user.local_area_name }}">
-            {% if config.user.local_area_name %}
+            <input type="hidden" id="local_area_id" name="local_area_id" value="{{ user.local_area_id or '' }}">
+            <input type="hidden" id="local_area_name" name="local_area_name" value="{{ user.local_area_name }}">
+            {% if user.local_area_name %}
             <div id="selected-area" class="mt-1">
-                <span class="badge badge-success">{{ config.user.local_area_name }}</span>
+                <span class="badge badge-success">{{ user.local_area_name }}</span>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="clearArea()">Clear</button>
             </div>
             {% else %}

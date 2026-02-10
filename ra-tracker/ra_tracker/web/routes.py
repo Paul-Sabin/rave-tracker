@@ -54,11 +54,10 @@ async def dashboard(
     """Main dashboard showing upcoming events for current user."""
     templates = get_templates(request)
     db = get_db()
-    config = get_config()
 
     # Get user-scoped events, rules, and stats
     # Pass local_area_id for dashboard_mode filtering
-    local_area_id = config.user.local_area_id
+    local_area_id = user.local_area_id
     events = db.get_upcoming_events_for_user(user.id, local_area_id=local_area_id)
     rules = db.get_all_rules(user_id=user.id)
     stats = db.get_user_stats(user.id)
@@ -90,9 +89,9 @@ async def dashboard(
             "stats": stats,
             "legacy_data": legacy_data,
             "scheduler_status": status,
-            "local_area_id": config.user.local_area_id,
-            "local_area_name": config.user.local_area_name,
-            "has_local_area": bool(config.user.local_area_id),
+            "local_area_id": user.local_area_id,
+            "local_area_name": user.local_area_name,
+            "has_local_area": bool(user.local_area_id),
             "flash_message": flash_message,
         },
     )
@@ -111,8 +110,6 @@ async def rules_page(request: Request, user: User = Depends(require_verified_ema
     venues = [r for r in rules if r.rule_type == "venue"]
     promoters = [r for r in rules if r.rule_type == "promoter"]
 
-    config = get_config()
-
     return templates.TemplateResponse(
         "rules.html",
         {
@@ -123,8 +120,8 @@ async def rules_page(request: Request, user: User = Depends(require_verified_ema
             "artists": artists,
             "venues": venues,
             "promoters": promoters,
-            "has_local_area": bool(config.user.local_area_id),
-            "local_area_name": config.user.local_area_name,
+            "has_local_area": bool(user.local_area_id),
+            "local_area_name": user.local_area_name,
         },
     )
 
@@ -276,9 +273,13 @@ async def save_settings(
 
     config.scheduler.fetch_interval_hours = fetch_interval_hours
 
-    # Update local area settings
-    config.user.local_area_id = local_area_id if local_area_id else None
-    config.user.local_area_name = local_area_name
+    # Update local area settings (per-user, stored in database)
+    db = get_db()
+    db.update_user_local_area(
+        user.id,
+        local_area_id if local_area_id else None,
+        local_area_name
+    )
 
     config.save()
 
