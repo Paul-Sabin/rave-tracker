@@ -1,8 +1,8 @@
 # Project State: Rave Tracker
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-02-10
 **Current Milestone:** v2.2 UX Polish & Branding
-**Current Phase:** Phase 9 (in progress - 2/2 plans complete)
+**Current Phase:** Phase 9 (complete - 3/3 plans complete)
 
 ## Project Reference
 
@@ -18,16 +18,16 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 | 1 - Core Functionality | Complete | Single-user event tracker with fetching, rules, notifications |
 | 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
 | 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements shipped |
-| 4 - UX Polish & Branding | Complete | 1 phase (9), 5 requirements, 2 plans shipped |
+| 4 - UX Polish & Branding | Complete | 1 phase (9), 5 requirements, 3 plans shipped |
 
 ## Current Position
 
 Phase: 9 of 9 (UX Polish & Branding)
-Plan: 2 of 2 complete
+Plan: 3 of 3 complete
 Status: Phase 9 complete
-Last activity: 2026-02-09 — Completed 09-02: Dashboard UX improvements and region guidance
+Last activity: 2026-02-10 — Completed 09-03: Per-user local area storage
 
-Progress: [██████████] 100% overall (Phase 9: 2/2 plans complete)
+Progress: [██████████] 100% overall (Phase 9: 3/3 plans complete)
 
 ## What's Shipped
 
@@ -52,11 +52,12 @@ Progress: [██████████] 100% overall (Phase 9: 2/2 plans comp
 - Soft-delete account with 30-day recovery
 - Admin audit log with filtering and pagination
 
-**v2.2 UX Polish & Branding (2026-02-09):**
+**v2.2 UX Polish & Branding (2026-02-10):**
 - Rebranded all user-facing text to "Rave Tracker" (25 files)
 - Dashboard toggles: "Global events" / "Local only"
 - Region selection prompt on rules page (suggests Berlin)
 - Legacy admin welcome banner removed
+- Per-user local area storage in database (independent preferences per user)
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Progress: [██████████] 100% overall (Phase 9: 2/2 plans comp
 - Simple region prompt with Berlin suggestion (no auto-detection) (09-02)
 - Non-blocking region setup: users can create rules without region configured (09-02)
 - Removed legacy migration banner (v1→v2 migration complete) (09-02)
+- Per-user local area storage in database instead of global config (09-03)
+- Scheduler continues using config.yaml for global notification filter (09-03)
+- Existing Berlin value not migrated to admin user (one-time re-set via settings) (09-03)
 
 **Technical Debt:**
 - None
@@ -144,14 +148,15 @@ Progress: [██████████] 100% overall (Phase 9: 2/2 plans comp
 | 2026-02-08 | Created v2.2 Roadmap | Phase 9 defined, ready for planning |
 | 2026-02-09 | Executed 09-01 | User-facing rebrand to "Rave Tracker" complete |
 | 2026-02-09 | Executed 09-02 | Dashboard UX improvements and region guidance complete |
-| 2026-02-09 | Completed Phase 9 | UX Polish & Branding complete |
-| 2026-02-09 | Completed Milestone 4 | v2.2 UX Polish & Branding complete |
+| 2026-02-10 | Executed 09-03 | Per-user local area storage complete (gap closure) |
+| 2026-02-10 | Completed Phase 9 | UX Polish & Branding complete |
+| 2026-02-10 | Completed Milestone 4 | v2.2 UX Polish & Branding complete |
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-02-10
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
 
 ---
-*State updated: 2026-02-09*
+*State updated: 2026-02-10*
