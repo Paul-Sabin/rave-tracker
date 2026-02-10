@@ -225,6 +225,14 @@ MIGRATIONS = [
     """
     ALTER TABLE users ADD COLUMN scheduled_purge_at DATETIME;
     """,
+    # Migration 11: Add local_area_id for per-user local area preference
+    """
+    ALTER TABLE users ADD COLUMN local_area_id INTEGER;
+    """,
+    # Migration 12: Add local_area_name for per-user local area preference
+    """
+    ALTER TABLE users ADD COLUMN local_area_name TEXT DEFAULT '';
+    """,
 ]
 
 
@@ -240,6 +248,8 @@ class User:
     telegram_chat_id: Optional[int] = None  # For Telegram linking (Phase 4)
     telegram_enabled: bool = False  # Telegram notifications on/off
     email_enabled: bool = True  # Email notifications on/off (default enabled)
+    local_area_id: Optional[int] = None  # User's preferred local area for filtering
+    local_area_name: str = ""  # Display name of local area
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None  # Soft delete timestamp (NULL = active)
     scheduled_purge_at: Optional[datetime] = None  # When hard purge will occur
@@ -418,6 +428,8 @@ class Database:
                 telegram_chat_id=row["telegram_chat_id"],
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                local_area_name=row["local_area_name"] or "",
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                 deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                 scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
@@ -440,6 +452,8 @@ class Database:
                 telegram_chat_id=row["telegram_chat_id"],
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                local_area_name=row["local_area_name"] or "",
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                 deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                 scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
@@ -523,6 +537,8 @@ class Database:
                 telegram_chat_id=row["telegram_chat_id"],
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                local_area_name=row["local_area_name"] or "",
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                 deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                 scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
@@ -545,6 +561,8 @@ class Database:
                 telegram_chat_id=row["telegram_chat_id"],
                 telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                local_area_name=row["local_area_name"] or "",
                 created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                 deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                 scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
@@ -564,6 +582,14 @@ class Database:
             conn.execute(
                 "UPDATE users SET email_enabled = ? WHERE id = ?",
                 (enabled, user_id)
+            )
+
+    def update_user_local_area(self, user_id: int, local_area_id: Optional[int], local_area_name: str) -> None:
+        """Update a user's local area preference."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET local_area_id = ?, local_area_name = ? WHERE id = ?",
+                (local_area_id, local_area_name, user_id)
             )
 
     # Telegram link code operations
@@ -770,6 +796,8 @@ class Database:
                     telegram_chat_id=row["telegram_chat_id"],
                     telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                     email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                    local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                    local_area_name=row["local_area_name"] or "",
                     created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                     deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                     scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
@@ -1561,6 +1589,8 @@ class Database:
                     telegram_chat_id=row["telegram_chat_id"],
                     telegram_enabled=bool(row["telegram_enabled"]) if row["telegram_enabled"] is not None else False,
                     email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
+                    local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
+                    local_area_name=row["local_area_name"] or "",
                     created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
                     deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
                     scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
