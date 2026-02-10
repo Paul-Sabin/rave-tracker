@@ -1,4 +1,57 @@
-# Project Milestones: RA Tracker
+# Project Milestones: Rave Tracker
+
+## v2.2 UX Polish & Branding (Shipped: 2026-02-10)
+
+**Delivered:** Rebranded to "Rave Tracker", improved region selection UX with per-user local area storage, and cleaned up legacy UI elements.
+
+**Phases completed:** Phase 9 (3 plans)
+
+**Key accomplishments:**
+
+- Rebranded all user-facing text from "RA Tracker" to "Rave Tracker" (web UI, emails, Telegram)
+- Dashboard toggle labels changed to "Global events" / "Local only"
+- Region selection prompt for new users without configured local area
+- Per-user local area storage moved from global config to database
+- Legacy admin welcome banner removed
+
+**Stats:**
+
+- 3 plans across 1 phase
+- 27 files modified
+- 5 requirements shipped (BRAND-01, BRAND-02, UX-01, UX-02, UX-03)
+
+**Git range:** `feat(09-01)` → `feat(09-03)`
+
+**What's next:** TBD
+
+---
+
+## v2.1 Security Hardening (Shipped: 2026-02-08)
+
+**Delivered:** Comprehensive security hardening with audit logging, CSRF protection, email verification, password management, and account lifecycle.
+
+**Phases completed:** 5-8 (11 plans total)
+
+**Key accomplishments:**
+
+- Audit logging infrastructure with forever retention
+- CSRF protection (Double Submit Cookie pattern)
+- Login rate limiting (dual IP/email) and password reset rate limiting
+- Mandatory email verification for all users
+- Password reset and change flows with NIST SP 800-63B compliance
+- Soft-delete account with 30-day recovery period
+- Admin audit log UI with filtering and pagination
+
+**Stats:**
+
+- 11 plans across 4 phases
+- 25 requirements shipped
+
+**Git range:** `feat(05-01)` → `feat(08-03)`
+
+**What's next:** v2.2 UX Polish & Branding
+
+---
 
 ## v2.0 Multi-User Support (Shipped: 2026-02-01)
 
@@ -24,7 +77,7 @@
 
 **Git range:** `feat(01-01)` → `feat(04-05)`
 
-**What's next:** Deployment, security hardening, or feature expansion
+**What's next:** v2.1 Security Hardening
 
 ---
 
@@ -43,3 +96,4 @@
 **What's next:** v2.0 Multi-User Support
 
 ---
+

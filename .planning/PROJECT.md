@@ -8,19 +8,9 @@ A multi-user event tracker that monitors ra.co for upcoming events from artists,
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
-## Current Milestone: v2.2 UX Polish & Branding
-
-**Goal:** Rebrand to "Rave Tracker", improve region selection UX, and clean up legacy UI elements.
-
-**Target features:**
-- Rebrand all user-facing text from "RA Tracker" to "Rave Tracker"
-- One-time local region prompt before first rule creation
-- Clearer toggle labels on dashboard ("Global events" / "Local only")
-- Remove legacy admin welcome banner
-
 ## Current State
 
-**Version:** v2.1 Security Hardening (shipped 2026-02-08)
+**Version:** v2.2 UX Polish & Branding (shipped 2026-02-10)
 
 **Capabilities:**
 - User registration with privacy consent and email verification
@@ -108,17 +98,16 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [x] AUDIT-05: Dedicated /admin/audit-log page with filtering — v2.1
 - [x] AUDIT-06: Forever retention (no auto-purge) — v2.1
 
+**Milestone 4: UX Polish & Branding**
+- [x] BRAND-01: Rebrand all user-facing text from "RA Tracker" to "Rave Tracker" — v2.2
+- [x] BRAND-02: Email "from" name displays as "Rave Tracker" — v2.2
+- [x] UX-01: One-time local region prompt before first rule creation — v2.2
+- [x] UX-02: Dashboard toggle labels "Global events" / "Local only" — v2.2
+- [x] UX-03: Remove legacy admin welcome banner — v2.2
+
 ### Active
 
-<!-- v2.2 UX Polish & Branding -->
-
-**Branding:**
-- [ ] BRAND-01: Rebrand all user-facing text from "RA Tracker" to "Rave Tracker"
-
-**UX Improvements:**
-- [ ] UX-01: One-time local region prompt before first rule creation (suggest Berlin)
-- [ ] UX-02: Dashboard toggle labels changed to "Global events" / "Local only"
-- [ ] UX-03: Remove legacy admin welcome banner
+<!-- Next milestone TBD -->
 
 ### Out of Scope
 
@@ -131,7 +120,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 ## Context
 
 **Codebase:**
-- 4,467 lines of Python across 15 modules
+- 6,605 lines of Python across 15 modules
 - Layered architecture: API client → Services → Web/Scheduler → Database
 - Full codebase documentation in `.planning/codebase/`
 
@@ -160,6 +149,9 @@ Users never miss events from artists, venues, or promoters they care about — a
 | 44px touch targets | WCAG AAA accessibility | ✓ Good |
 | Cycling buttons for rule modes | Clear UX, single toggle per setting | ✓ Good |
 | AJAX form submissions | Preserve scroll position | ✓ Good |
+| User-facing rebrand only | Keep ra-tracker/ra_tracker internally, avoid churn | ✓ Good |
+| Per-user local area in DB | User preferences in database, not global config | ✓ Good |
+| Simple region prompt | No auto-detection, Berlin suggestion sufficient | ✓ Good |
 
 ---
-*Last updated: 2026-02-08 after v2.2 milestone initialization*
+*Last updated: 2026-02-10 after v2.2 milestone completion*
