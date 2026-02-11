@@ -8,6 +8,18 @@ A multi-user event tracker that monitors ra.co for upcoming events from artists,
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
+## Current Milestone: v3.0 Production Deployment & Hosting
+
+**Goal:** Transition the app from local development to a live, publicly accessible host with PostgreSQL and scraper resilience.
+
+**Target features:**
+- Evaluate and select hosting provider (Railway, Fly.io, or DigitalOcean) for FastAPI + PostgreSQL
+- Migrate from SQLite to PostgreSQL with DATABASE_URL support
+- Transition all secrets to secure host environment variables
+- Configure production web server (gunicorn + uvicorn workers)
+- Harden RA.co scraper against data center IP blocks (User-Agent rotation, 403/429 handling, backoff)
+- Automated HTTPS/SSL and custom domain preparation
+
 ## Current State
 
 **Version:** v2.2 UX Polish & Branding (shipped 2026-02-10)
@@ -107,7 +119,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ### Active
 
-<!-- Next milestone TBD -->
+<!-- v3.0 Production Deployment & Hosting -->
 
 ### Out of Scope
 
@@ -131,7 +143,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ## Constraints
 
-- **Database:** SQLite — simpler deployment, sufficient scale
+- **Database:** PostgreSQL for production (migrating from SQLite)
 - **Stack:** Python/FastAPI — consistency with existing code
 - **Auth:** Built-in (no OAuth) — avoid external dependencies
 - **Email:** Requires SMTP configuration by admin
@@ -154,4 +166,4 @@ Users never miss events from artists, venues, or promoters they care about — a
 | Simple region prompt | No auto-detection, Berlin suggestion sufficient | ✓ Good |
 
 ---
-*Last updated: 2026-02-10 after v2.2 milestone completion*
+*Last updated: 2026-02-10 after v3.0 milestone initialization*
