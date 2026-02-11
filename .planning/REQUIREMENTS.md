@@ -82,37 +82,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | TBD | Pending |
-| DB-02 | TBD | Pending |
-| DB-03 | TBD | Pending |
-| DB-04 | TBD | Pending |
-| DB-05 | TBD | Pending |
-| SRV-01 | TBD | Pending |
-| SRV-02 | TBD | Pending |
-| SRV-03 | TBD | Pending |
-| SRV-04 | TBD | Pending |
-| ENV-01 | TBD | Pending |
-| ENV-02 | TBD | Pending |
-| ENV-03 | TBD | Pending |
-| SCRAPE-01 | TBD | Pending |
-| SCRAPE-02 | TBD | Pending |
-| SCRAPE-03 | TBD | Pending |
-| SCRAPE-04 | TBD | Pending |
-| HOST-01 | TBD | Pending |
-| HOST-02 | TBD | Pending |
-| HOST-03 | TBD | Pending |
-| HOST-04 | TBD | Pending |
-| HOST-05 | TBD | Pending |
-| OBS-01 | TBD | Pending |
-| OBS-02 | TBD | Pending |
-| OBS-03 | TBD | Pending |
-| OBS-04 | TBD | Pending |
+| ENV-01 | Phase 10 | Pending |
+| ENV-02 | Phase 10 | Pending |
+| ENV-03 | Phase 10 | Pending |
+| DB-01 | Phase 11 | Pending |
+| DB-02 | Phase 11 | Pending |
+| DB-03 | Phase 11 | Pending |
+| DB-04 | Phase 11 | Pending |
+| DB-05 | Phase 11 | Pending |
+| SRV-01 | Phase 11 | Pending |
+| SRV-02 | Phase 11 | Pending |
+| SRV-03 | Phase 11 | Pending |
+| SRV-04 | Phase 11 | Pending |
+| HOST-01 | Phase 12 | Pending |
+| HOST-02 | Phase 12 | Pending |
+| HOST-03 | Phase 12 | Pending |
+| HOST-04 | Phase 12 | Pending |
+| HOST-05 | Phase 12 | Pending |
+| SCRAPE-01 | Phase 13 | Pending |
+| SCRAPE-02 | Phase 13 | Pending |
+| SCRAPE-03 | Phase 13 | Pending |
+| SCRAPE-04 | Phase 13 | Pending |
+| OBS-01 | Phase 14 | Pending |
+| OBS-02 | Phase 14 | Pending |
+| OBS-03 | Phase 14 | Pending |
+| OBS-04 | Phase 14 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25
+- Mapped to phases: 25
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-10*
-*Last updated: 2026-02-10 after initial definition*
+*Last updated: 2026-02-11 after roadmap creation*

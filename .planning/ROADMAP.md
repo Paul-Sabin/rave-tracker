@@ -6,6 +6,7 @@
 - ✅ **v2.0 Multi-User Support** - Phases 1-4 (shipped 2026-02-01)
 - ✅ **v2.1 Security Hardening** - Phases 5-8 (shipped 2026-02-08)
 - ✅ **v2.2 UX Polish & Branding** - Phase 9 (shipped 2026-02-10)
+- 🚧 **v3.0 Production Deployment & Hosting** - Phases 10-14 (in progress)
 
 ## Phases
 
@@ -111,10 +112,90 @@ Plans:
 
 </details>
 
+### 🚧 v3.0 Production Deployment & Hosting (In Progress)
+
+**Milestone Goal:** Transition the app from local development to a live, publicly accessible host with PostgreSQL and scraper resilience.
+
+#### Phase 10: Environment & Secrets Cleanup
+**Goal**: All secrets externalized from config files to environment variables before cloud deployment
+**Depends on**: Nothing (first phase of milestone)
+**Requirements**: ENV-01, ENV-02, ENV-03
+**Success Criteria** (what must be TRUE):
+  1. Application starts successfully using only environment variables for all secrets (DATABASE_URL, SMTP credentials, CSRF secret, Telegram bot token, SECRET_KEY)
+  2. config.yaml contains no hardcoded secrets (uses placeholders or omits secret fields entirely)
+  3. .env.example file documents all required environment variables with example values
+  4. All previously exposed secrets have been rotated (new Telegram bot token, new SMTP password, new SECRET_KEY generated)
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: TBD
+
+#### Phase 11: PostgreSQL Migration & Production Server
+**Goal**: Application runs on PostgreSQL with multi-worker ASGI server and separated scheduler process
+**Depends on**: Phase 10 (requires environment variable configuration)
+**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, SRV-01, SRV-02, SRV-03, SRV-04
+**Success Criteria** (what must be TRUE):
+  1. Application connects to PostgreSQL via DATABASE_URL and handles both postgres:// and postgresql:// prefixes correctly
+  2. All database queries execute successfully against PostgreSQL (parameter placeholders, boolean types, serial IDs work correctly)
+  3. Application runs under gunicorn with uvicorn workers (multi-process web server)
+  4. Scheduler runs as a single separate process (not duplicated across web workers)
+  5. /health endpoint returns 200 with database connectivity status and returns 503 if database unavailable
+  6. Application handles graceful shutdown (in-flight requests complete before process exit)
+  7. Connection pooling configured appropriately for worker count (prevents connection exhaustion)
+**Plans**: TBD
+
+Plans:
+- [ ] 11-01: TBD
+
+#### Phase 12: Hosting & SSL Deployment
+**Goal**: Application deployed to managed hosting provider with HTTPS, custom domain, and automated backups
+**Depends on**: Phase 11 (requires production-ready infrastructure)
+**Requirements**: HOST-01, HOST-02, HOST-03, HOST-04, HOST-05
+**Success Criteria** (what must be TRUE):
+  1. Application is accessible via HTTPS with valid SSL certificate (no browser warnings)
+  2. Application is accessible via custom domain (DNS configured correctly)
+  3. PostgreSQL database has automated backups configured (daily or provider-managed)
+  4. Git push triggers automatic deployment to hosting provider
+  5. Application runs stably in production environment (web workers and scheduler process both running)
+**Plans**: TBD
+
+Plans:
+- [ ] 12-01: TBD
+
+#### Phase 13: Scraper Resilience
+**Goal**: RA.co scraper handles cloud IP blocking, API failures, and transient errors gracefully
+**Depends on**: Phase 12 (requires live deployment to test cloud IP behavior)
+**Requirements**: SCRAPE-01, SCRAPE-02, SCRAPE-03, SCRAPE-04
+**Success Criteria** (what must be TRUE):
+  1. Scraper implements exponential backoff on 403/429/5xx responses (retries with increasing delays: 1s, 2s, 4s)
+  2. Scraper rotates User-Agent strings across requests (reduces fingerprinting risk)
+  3. Scraper handles extended API outages without crashing (circuit breaker prevents infinite retries)
+  4. Scraper logs all response status codes (enables monitoring of blocking patterns)
+  5. Application continues serving existing events even when scraper is blocked or API is down
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+
+#### Phase 14: Observability & Monitoring
+**Goal**: Production issues are detected and debuggable via structured logging, error tracking, and scraper health monitoring
+**Depends on**: Phase 13 (requires stable scraper to monitor)
+**Requirements**: OBS-01, OBS-02, OBS-03, OBS-04
+**Success Criteria** (what must be TRUE):
+  1. Application emits structured JSON logs with request IDs and HTTP status codes
+  2. Errors are tracked in external system (Sentry or equivalent) with stack traces and context
+  3. Scraper health is visible (success/failure rate, last successful fetch time, current status)
+  4. Alerts trigger on 3+ consecutive scraper fetch failures (email or Telegram notification to admin)
+  5. Admin can diagnose production issues using logs and error tracking without SSH access
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -127,3 +208,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Password Management | v2.1 | 3/3 | Complete | 2026-02-07 |
 | 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
 | 9. UX Polish & Branding | v2.2 | 3/3 | Complete | 2026-02-10 |
+| 10. Environment & Secrets | v3.0 | 0/0 | Not started | - |
+| 11. PostgreSQL & Server | v3.0 | 0/0 | Not started | - |
+| 12. Hosting & SSL | v3.0 | 0/0 | Not started | - |
+| 13. Scraper Resilience | v3.0 | 0/0 | Not started | - |
+| 14. Observability | v3.0 | 0/0 | Not started | - |
+
+---
+*Roadmap created: 2026-02-11*
+*Last updated: 2026-02-11*

@@ -1,164 +1,80 @@
-# Project State: Rave Tracker
-
-**Last Updated:** 2026-02-10
-**Current Milestone:** v3.0 Production Deployment & Hosting
-**Current Phase:** Not started (defining requirements)
+# Project State
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Production Deployment & Hosting (PostgreSQL migration, hosting, scraper resilience)
-
-## Milestone Progress
-
-| Milestone | Status | Notes |
-|-----------|--------|-------|
-| 1 - Core Functionality | Complete | Single-user event tracker with fetching, rules, notifications |
-| 2 - Multi-User Support | Complete | 4 phases, 14 plans, 25 requirements shipped |
-| 3 - Security Hardening | Complete | 4 phases (5-8), 25 requirements shipped |
-| 4 - UX Polish & Branding | Complete | 1 phase (9), 5 requirements, 3 plans shipped |
-| 5 - Production Deployment | In Progress | Defining requirements |
+**Current focus:** Phase 10 - Environment & Secrets Cleanup
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-10 — Milestone v3.0 started
+Phase: 10 of 14 (Environment & Secrets Cleanup)
+Plan: 0 of 0 in current phase
+Status: Ready to plan
+Last activity: 2026-02-11 - v3.0 milestone roadmap created
 
-Progress: Defining requirements for v3.0
+Progress: [█████░░░░░] 64% (27/42 total plans complete, v3.0 plans TBD)
 
-## What's Shipped
+## Performance Metrics
 
-**v1.0 MVP (2026-01-19):**
-- Single-user event tracker with ra.co scraping
-- Artist/venue/promoter rules
-- Daily event checking
+**Velocity:**
+- Total plans completed: 27 (phases 1-9)
+- Average duration: Not tracked for v1.0-v2.2
+- Total execution time: Not tracked for v1.0-v2.2
 
-**v2.0 Multi-User Support (2026-02-01):**
-- Multi-user authentication with Argon2id password hashing
-- Per-user rules and notification isolation
-- Telegram bot linking and Email notifications
-- Mobile-first responsive UI with Tailwind CSS v4
-- Privacy Policy with explicit consent
+**By Phase:**
 
-**v2.1 Security Hardening (2026-02-08):**
-- Audit logging infrastructure with forever retention
-- CSRF protection (Double Submit Cookie pattern)
-- Login rate limiting (dual IP/email)
-- Email verification (mandatory for all users)
-- Password reset and change flows
-- Soft-delete account with 30-day recovery
-- Admin audit log with filtering and pagination
+| Phase | Plans | Milestone |
+|-------|-------|-----------|
+| 1. Database Foundation | 2/2 | v2.0 |
+| 2. Authentication System | 3/3 | v2.0 |
+| 3. Multi-Tenant Access Control | 4/4 | v2.0 |
+| 4. User Notification Delivery | 3/3 | v2.0 |
+| 5. Audit Foundation & CSRF | 2/2 | v2.1 |
+| 6. Email Verification & Login | 3/3 | v2.1 |
+| 7. Password Management | 3/3 | v2.1 |
+| 8. Account Lifecycle & Admin UI | 3/3 | v2.1 |
+| 9. UX Polish & Branding | 3/3 | v2.2 |
 
-**v2.2 UX Polish & Branding (2026-02-10):**
-- Rebranded all user-facing text to "Rave Tracker" (25 files)
-- Dashboard toggles: "Global events" / "Local only"
-- Region selection prompt on rules page (suggests Berlin)
-- Legacy admin welcome banner removed
-- Per-user local area storage in database (independent preferences per user)
+**Recent Trend:**
+v3.0 milestone starting - velocity tracking begins with Phase 10
+
+*Velocity tracking starts with v3.0 milestone*
 
 ## Accumulated Context
 
-**Decisions (v2.1):**
-- Forever retention for audit logs (no auto-purge) per AUDIT-10
-- JSON details column for flexible audit context without schema migrations
-- Non-blocking audit writes (errors logged but don't fail requests)
-- Event type format: category.action (e.g., auth.login_success, rule.create)
-- Double Submit Cookie pattern for CSRF (stateless, no server-side token storage)
-- CSRF cookie httponly=False (JS must read for AJAX header injection)
-- Telegram webhook exempt from CSRF (external caller with own auth)
-- Dual rate limiting: both IP AND email must pass (prevents distributed attacks)
-- Email SHA256-hashed in rate limit keys (privacy: no plaintext storage)
-- Rate limit checked BEFORE password verification (prevents timing attacks)
-- Successful login clears rate limit counters (no lockout after correct password)
-- Verification tokens use 'email-verify' salt (separate from 'email-unsubscribe')
-- 24-hour verification token expiry
-- get_user_id_from_expired_token helper for auto-resend flow
-- Redirect unverified users to /verify-email (not 403)
-- Auto-send new verification email when expired link clicked
-- Migration 9 auto-verifies existing admin users
-- python-dotenv for sensitive config (.env file, gitignored, loaded at startup)
-- BREVO_SMTP_USERNAME/PASSWORD and SECRET_KEY/BASE_URL env vars (short names preferred)
-- Pure ASGI middleware for CSRF (avoids BaseHTTPMiddleware body consumption issues)
-- Password reset tokens use 'password-reset' salt (separate from verification)
-- NIST SP 800-63B password rules: min 8 chars, no complexity requirements, common password blocklist
-- ResetRateLimiter tracks email only (not IP) - targeted attack prevention
-- Case-insensitive common password comparison (prevents Password vs password bypass)
-- Password change keeps session valid (user proved identity via current password)
-- Password reset invalidates all sessions (password may have been compromised)
-- zxcvbn CDN for client-side password strength meter (no build tooling)
-- Soft delete with 30-day grace period (deleted_at + scheduled_purge_at columns)
-- Daily purge cron job at 3 AM UTC using APScheduler CronTrigger
-- Audit log anonymization: NULL user_id + anonymized flag + 8-char SHA256 hash
-- log_audit_event_direct helper for background job audit logging
-- Audit log filtering uses LEFT JOIN for user info, prefix matching for event type/IP
-- Password-only confirmation for account deletion (no checkbox or typing 'delete')
-- Recovery via login intercept shows interstitial before session creation
-- Flash messages via query params (deleted, deletion_confirmed, recovered)
+### Decisions
 
-**Decisions (v2.2):**
-- User-facing rebrand only: "Rave Tracker" in UI, keep ra-tracker/ra_tracker internally (09-01)
-- Preserved "View on RA" and "RA Pick" references (external service, not our brand) (09-01)
-- RA API references unchanged (required for functionality)
-- Simple region prompt with Berlin suggestion (no auto-detection) (09-02)
-- Non-blocking region setup: users can create rules without region configured (09-02)
-- Removed legacy migration banner (v1→v2 migration complete) (09-02)
-- Per-user local area storage in database instead of global config (09-03)
-- Scheduler continues using config.yaml for global notification filter (09-03)
-- Existing Berlin value not migrated to admin user (one-time re-set via settings) (09-03)
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
 
-**Technical Debt:**
-- None
+- v2.2: User-facing rebrand only (keep ra-tracker/ra_tracker internally, avoid churn)
+- v2.2: Per-user local area in DB (user preferences in database, not global config)
+- v3.0: PostgreSQL for production (migrating from SQLite)
 
-**Blockers:**
-- None
+### Pending Todos
 
-## Session History
+None yet.
 
-| Date | Action | Outcome |
-|------|--------|---------|
-| 2026-01-19 | Initialized Milestone 2 | PROJECT.md, REQUIREMENTS.md, ROADMAP.md |
-| 2026-01-23 | Executed Phase 1 | Database schema complete |
-| 2026-01-27 | Executed Phase 2 | Authentication complete |
-| 2026-01-29 | Executed Phase 3 | Multi-tenant access complete |
-| 2026-01-31 | Executed Phase 4 | User notifications complete |
-| 2026-02-01 | Completed Milestone 2 | Archived to milestones/v2.0-* |
-| 2026-02-02 | Initialized Milestone 3 | v2.1 ROADMAP.md, STATE.md updated |
-| 2026-02-02 | Executed 05-01 | Audit logging infrastructure complete |
-| 2026-02-02 | Executed 05-02 | CSRF protection complete |
-| 2026-02-02 | Completed Phase 5 | Audit Foundation & CSRF Protection complete |
-| 2026-02-03 | Executed 06-01 | Login rate limiting and auth audit logging complete |
-| 2026-02-03 | Executed 06-02 | Verification token and email infrastructure complete |
-| 2026-02-06 | Executed 06-03 | Email verification flow UI and integration complete |
-| 2026-02-06 | Completed Phase 6 | Email Verification & Login Hardening complete |
-| 2026-02-07 | Fixed CSRF middleware | Rewrote as pure ASGI to fix body consumption issue |
-| 2026-02-07 | Added python-dotenv | Sensitive config via .env file, env var overrides for email/app |
-| 2026-02-07 | Executed 07-01 | Password infrastructure complete (tokens, validation, rate limiter) |
-| 2026-02-07 | Executed 07-02 | Password reset flow complete (forgot password, reset email, routes) |
-| 2026-02-07 | Executed 07-03 | Password change complete (settings, strength meter, routes) |
-| 2026-02-07 | Completed Phase 7 | Password Management complete |
-| 2026-02-08 | Executed 08-01 | Soft delete infrastructure (migration, methods, purge cron job) |
-| 2026-02-08 | Executed 08-02 | Admin audit log complete (filtering, pagination, template) |
-| 2026-02-08 | Executed 08-03 | Account deletion and recovery flows complete |
-| 2026-02-08 | Completed Phase 8 | Account Lifecycle & Admin Audit UI complete |
-| 2026-02-08 | Completed Milestone 3 | v2.1 Security Hardening complete |
-| 2026-02-08 | Initialized Milestone 4 | v2.2 UX Polish & Branding started |
-| 2026-02-08 | Created v2.2 Roadmap | Phase 9 defined, ready for planning |
-| 2026-02-09 | Executed 09-01 | User-facing rebrand to "Rave Tracker" complete |
-| 2026-02-09 | Executed 09-02 | Dashboard UX improvements and region guidance complete |
-| 2026-02-10 | Executed 09-03 | Per-user local area storage complete (gap closure) |
-| 2026-02-10 | Completed Phase 9 | UX Polish & Branding complete |
-| 2026-02-10 | Completed Milestone 4 | v2.2 UX Polish & Branding complete |
-| 2026-02-10 | Initialized Milestone 5 | v3.0 Production Deployment & Hosting started |
+### Blockers/Concerns
+
+**Phase 10 (Environment & Secrets):**
+- Research identified secrets currently hardcoded in config.yaml (bot token, SMTP password, secret_key)
+- All exposed secrets MUST be rotated after externalization (security requirement)
+
+**Phase 11 (PostgreSQL Migration):**
+- Raw SQL queries use SQLite-specific syntax (? placeholders, INTEGER booleans, AUTOINCREMENT)
+- All 15 Python modules using database.py need query verification against PostgreSQL
+- APScheduler must be separated from web workers to prevent 4x duplicate jobs
+
+**Phase 12 (Hosting):**
+- Hosting provider selection needed (Railway vs Render vs Fly.io)
+- Cloud IP blocking severity unknown (ra.co's rate limiting policies for data center IPs)
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: Initialized v3.0 milestone, defining requirements
+Last session: 2026-02-11
+Stopped at: Roadmap and STATE.md created for v3.0 milestone
 Resume file: None
-
----
-*State updated: 2026-02-10*
+Next: `/gsd:plan-phase 10`
