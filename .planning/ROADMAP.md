@@ -125,10 +125,10 @@ Plans:
   2. config.yaml contains no hardcoded secrets (uses placeholders or omits secret fields entirely)
   3. .env.example file documents all required environment variables with example values
   4. All previously exposed secrets have been rotated (new Telegram bot token, new SMTP password, new SECRET_KEY generated)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 10-01: TBD
+- [ ] 10-01-PLAN.md — Externalize secrets, add startup validation, rotate credentials
 
 #### Phase 11: PostgreSQL Migration & Production Server
 **Goal**: Application runs on PostgreSQL with multi-worker ASGI server and separated scheduler process
@@ -208,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Password Management | v2.1 | 3/3 | Complete | 2026-02-07 |
 | 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
 | 9. UX Polish & Branding | v2.2 | 3/3 | Complete | 2026-02-10 |
-| 10. Environment & Secrets | v3.0 | 0/0 | Not started | - |
+| 10. Environment & Secrets | v3.0 | 0/1 | In progress | - |
 | 11. PostgreSQL & Server | v3.0 | 0/0 | Not started | - |
 | 12. Hosting & SSL | v3.0 | 0/0 | Not started | - |
 | 13. Scraper Resilience | v3.0 | 0/0 | Not started | - |
