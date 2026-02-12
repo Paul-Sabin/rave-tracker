@@ -1,29 +1,32 @@
+app:
+  base_url: http://localhost:8080
+  secret_key: ""  # Set via SECRET_KEY env var
 database:
   path: ./data/ra_tracker.db
+email:
+  from_address: ravetracker@whotrustswho.com
+  from_name: Rave Tracker
+  password: ""  # Set via BREVO_SMTP_PASSWORD env var
+  port: 587
+  server: smtp-relay.brevo.com
+  ssl_tls: false
+  starttls: true
+  username: ""  # Set via BREVO_SMTP_USERNAME env var
 scheduler:
   event_horizon_days: 100
   fetch_interval_hours: 6
+session:
+  secure_cookies: true
+  timeout_days: 30
 telegram:
-  bot_token: 8200624905:AAFcNY1sdCHpakoVbeJBh6PQvFon3xfxxac
+  bot_token: ""  # Set via TELEGRAM_BOT_TOKEN env var
   chat_id: '769647676'
+  use_webhook: false
+  webhook_secret: ''
+  webhook_url: ''
 user:
   local_area_id: 34
   local_area_name: Berlin
 web:
   host: 0.0.0.0
   port: 8080
-
-# Email notification settings 
-email:
-  server: smtp-relay.brevo.com
-  port: 587
-  username: "${BREVO_SMTP_USERNAME}"
-  password: "${BREVO_SMTP_PASSWORD}"
-  from_address: "ravetracker@whotrustswho.com"
-  from_name: "Rave Tracker"
-  starttls: true
-  ssl_tls: false
-
-app:
-  secret_key: "${SECRET_KEY}"
-  base_url: "${BASE_URL}"

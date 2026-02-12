@@ -1,6 +1,6 @@
 # Telegram configuration
 telegram:
-  bot_token: "YOUR_BOT_TOKEN"
+  bot_token: ""  # Set via TELEGRAM_BOT_TOKEN env var
   chat_id: "YOUR_CHAT_ID"  # Legacy - now per-user
   webhook_secret: ""  # For webhook verification
   use_webhook: false  # Set true if using webhooks
@@ -34,8 +34,8 @@ session:
 email:
   server: smtp.gmail.com
   port: 587
-  username: ""
-  password: ""  # Use app password for Gmail
+  username: ""  # Set via BREVO_SMTP_USERNAME env var
+  password: ""  # Set via BREVO_SMTP_PASSWORD env var
   from_address: ""
   from_name: RA Tracker
   starttls: true
@@ -43,5 +43,5 @@ email:
 
 # Application settings
 app:
-  secret_key: ""  # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  secret_key: ""  # Set via SECRET_KEY env var - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
   base_url: http://localhost:8080
