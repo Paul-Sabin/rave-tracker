@@ -75,6 +75,29 @@ class Config:
     email: EmailConfig = field(default_factory=EmailConfig)
     app: AppConfig = field(default_factory=AppConfig)
 
+    def _validate_required_secrets(self) -> None:
+        """Validate that required secrets are set.
+
+        Raises:
+            ValueError: If any required secrets are missing.
+        """
+        missing = []
+
+        if not self.telegram.bot_token:
+            missing.append(("TELEGRAM_BOT_TOKEN", "telegram bot token"))
+
+        if not self.app.secret_key:
+            missing.append(("SECRET_KEY", "application secret key for token signing"))
+
+        if not self.email.password:
+            missing.append(("BREVO_SMTP_PASSWORD or EMAIL_SMTP_PASSWORD", "SMTP password for email delivery"))
+
+        if missing:
+            missing_list = "\n".join(f"  - {var} ({desc})" for var, desc in missing)
+            raise ValueError(
+                f"Missing required secrets. Set these environment variables (see .env.example):\n{missing_list}"
+            )
+
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> "Config":
         """Load configuration from YAML file."""
@@ -134,6 +157,9 @@ class Config:
             config.app.secret_key = os.environ.get("SECRET_KEY") or os.environ["APP_SECRET_KEY"]
         if os.environ.get("BASE_URL") or os.environ.get("APP_BASE_URL"):
             config.app.base_url = os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]
+
+        # Validate required secrets
+        config._validate_required_secrets()
 
         return config
 
