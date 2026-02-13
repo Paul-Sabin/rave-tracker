@@ -1,0 +1,2 @@
+web: gunicorn ra_tracker.web.app:app --bind 0.0.0.0:${PORT:-8080} --workers ${WEB_CONCURRENCY:-4} --worker-class uvicorn.workers.UvicornWorker --graceful-timeout 30 --timeout 60
+scheduler: python -m ra_tracker.main --scheduler-only -c config.yaml

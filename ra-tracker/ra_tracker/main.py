@@ -63,6 +63,11 @@ def main():
         help="Disable the scheduler (web server only)",
     )
     parser.add_argument(
+        "--scheduler-only",
+        action="store_true",
+        help="Run scheduler only (no web server). Use for dedicated scheduler process.",
+    )
+    parser.add_argument(
         "--host",
         default=None,
         help="Web server host (overrides config)",
@@ -102,6 +107,22 @@ def main():
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
+    # Scheduler-only mode (for production: separate scheduler process)
+    if args.scheduler_only:
+        logger.info("Running in scheduler-only mode (no web server)")
+        start_scheduler()
+        logger.info(f"Scheduler started (fetch every {config.scheduler.fetch_interval_hours} hours)")
+        logger.info("Scheduler running. Press Ctrl+C to stop.")
+        # Block until signal received
+        try:
+            signal.pause()  # Unix only
+        except AttributeError:
+            # Windows fallback
+            import time
+            while True:
+                time.sleep(3600)
+        return
 
     # Fetch-only mode
     if args.fetch_only:

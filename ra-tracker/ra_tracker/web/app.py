@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -56,6 +57,9 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    # Ensure environment variables are loaded (for gunicorn mode which bypasses main.py)
+    load_dotenv()
+
     app = FastAPI(
         title="Rave Tracker",
         description="Track ra.co events and get Telegram notifications",
