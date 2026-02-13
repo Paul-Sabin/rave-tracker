@@ -142,10 +142,12 @@ Plans:
   5. /health endpoint returns 200 with database connectivity status and returns 503 if database unavailable
   6. Application handles graceful shutdown (in-flight requests complete before process exit)
   7. Connection pooling configured appropriately for worker count (prevents connection exhaustion)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — PostgreSQL database layer with dual-mode SQLite/PostgreSQL and query conversion
+- [ ] 11-02-PLAN.md — Production server infrastructure (gunicorn, scheduler separation, health endpoint)
+- [ ] 11-03-PLAN.md — Data migration tooling and environment documentation
 
 #### Phase 12: Hosting & SSL Deployment
 **Goal**: Application deployed to managed hosting provider with HTTPS, custom domain, and automated backups
@@ -209,11 +211,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Account Lifecycle & Admin Audit UI | v2.1 | 3/3 | Complete | 2026-02-08 |
 | 9. UX Polish & Branding | v2.2 | 3/3 | Complete | 2026-02-10 |
 | 10. Environment & Secrets | v3.0 | 1/1 | Complete | 2026-02-12 |
-| 11. PostgreSQL & Server | v3.0 | 0/0 | Not started | - |
+| 11. PostgreSQL & Server | v3.0 | 0/3 | Not started | - |
 | 12. Hosting & SSL | v3.0 | 0/0 | Not started | - |
 | 13. Scraper Resilience | v3.0 | 0/0 | Not started | - |
 | 14. Observability | v3.0 | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-12*
+*Last updated: 2026-02-13*
