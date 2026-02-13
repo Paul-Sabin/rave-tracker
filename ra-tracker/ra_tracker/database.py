@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
@@ -9,6 +10,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
+
+try:
+    import psycopg2
+    import psycopg2.pool
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -235,6 +243,144 @@ MIGRATIONS = [
     """,
 ]
 
+# PostgreSQL-compatible schema (for fresh databases)
+PG_SCHEMA = """
+-- Tracking rules (artist, venue, or promoter)
+CREATE TABLE IF NOT EXISTS rules (
+    id SERIAL PRIMARY KEY,
+    rule_type TEXT NOT NULL,
+    target_id INTEGER NOT NULL,
+    target_name TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    notify_mode TEXT DEFAULT 'local',
+    dashboard_mode TEXT DEFAULT 'local',
+    user_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Cached events (only events matching rules)
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    venue_id INTEGER,
+    venue_name TEXT,
+    area_id INTEGER,
+    area_name TEXT,
+    content_url TEXT,
+    cost TEXT,
+    is_ticketed BOOLEAN,
+    is_festival BOOLEAN,
+    is_multi_day BOOLEAN,
+    attending INTEGER,
+    interested_count INTEGER,
+    pick_blurb TEXT,
+    set_times_status TEXT,
+    set_times_lineup TEXT,
+    tickets_json TEXT,
+    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Event to rule mapping
+CREATE TABLE IF NOT EXISTS event_rules (
+    event_id INTEGER,
+    rule_id INTEGER,
+    PRIMARY KEY (event_id, rule_id)
+);
+
+-- Event artists
+CREATE TABLE IF NOT EXISTS event_artists (
+    event_id INTEGER,
+    artist_id INTEGER,
+    artist_name TEXT,
+    artist_url TEXT,
+    PRIMARY KEY (event_id, artist_id)
+);
+
+-- Event promoters
+CREATE TABLE IF NOT EXISTS event_promoters (
+    event_id INTEGER,
+    promoter_id INTEGER,
+    promoter_name TEXT,
+    PRIMARY KEY (event_id, promoter_id)
+);
+
+-- Sent notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    event_id INTEGER NOT NULL,
+    rule_id INTEGER NOT NULL,
+    user_id INTEGER,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(event_id, rule_id)
+);
+
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    email_verified BOOLEAN DEFAULT FALSE,
+    telegram_chat_id INTEGER,
+    telegram_enabled BOOLEAN DEFAULT FALSE,
+    email_enabled BOOLEAN DEFAULT TRUE,
+    local_area_id INTEGER,
+    local_area_name TEXT DEFAULT '',
+    deleted_at TIMESTAMP,
+    scheduled_purge_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Telegram link codes
+CREATE TABLE IF NOT EXISTS telegram_link_codes (
+    code TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Sessions
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Audit logs
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    user_id INTEGER,
+    ip_address TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    details TEXT,
+    target_type TEXT,
+    target_id INTEGER
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
+CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
+CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_link_codes_user ON telegram_link_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_link_codes_expires ON telegram_link_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
+"""
+
 
 @dataclass
 class User:
@@ -316,13 +462,48 @@ class Event:
 
 
 class Database:
-    """SQLite database manager."""
+    """Dual-mode database manager (SQLite or PostgreSQL)."""
 
-    def __init__(self, db_path: Optional[str] = None):
-        if db_path is None:
-            db_path = get_config().database.path
-        self.db_path = db_path
-        self._ensure_db_directory()
+    def __init__(self, db_path: Optional[str] = None, db_url: Optional[str] = None):
+        config = get_config()
+
+        # Check if PostgreSQL URL is provided
+        if db_url is None:
+            db_url = config.database.url
+
+        if db_url:
+            # PostgreSQL mode
+            if psycopg2 is None:
+                raise ImportError("psycopg2 is required for PostgreSQL mode. Install with: pip install psycopg2")
+
+            self.db_url = db_url
+            self.db_path = None
+            self._use_postgres = True
+
+            # Create connection pool
+            # Pool size = WEB_CONCURRENCY (workers) + 2 for scheduler/background tasks
+            max_connections = int(os.environ.get("WEB_CONCURRENCY", "4")) + 2
+            self._pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=2,
+                maxconn=max_connections,
+                dsn=db_url
+            )
+        else:
+            # SQLite fallback mode
+            if db_path is None:
+                db_path = config.database.path
+            self.db_path = db_path
+            self.db_url = None
+            self._use_postgres = False
+            self._pool = None
+            self._ensure_db_directory()
+
+    def _row_has_key(self, row, key: str) -> bool:
+        """Check if row has a key (works for both dict and sqlite3.Row)."""
+        if isinstance(row, dict):
+            return key in row
+        else:
+            return key in row.keys()
 
     def _row_to_rule(self, row) -> Rule:
         """Convert a database row to a Rule object."""
@@ -333,10 +514,35 @@ class Database:
             target_name=row["target_name"],
             is_active=bool(row["is_active"]),
             notify_mode=row["notify_mode"] or "local",
-            dashboard_mode=row["dashboard_mode"] if "dashboard_mode" in row.keys() and row["dashboard_mode"] else "local",
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-            user_id=row["user_id"] if "user_id" in row.keys() else None,
+            dashboard_mode=row["dashboard_mode"] if self._row_has_key(row, "dashboard_mode") and row["dashboard_mode"] else "local",
+            created_at=self._parse_datetime(row["created_at"]),
+            user_id=row["user_id"] if self._row_has_key(row, "user_id") else None,
         )
+
+    def _parse_datetime(self, val) -> Optional[datetime]:
+        """Parse datetime value (handles both string and native datetime)."""
+        if val is None:
+            return None
+        if isinstance(val, datetime):
+            return val
+        if isinstance(val, str):
+            return datetime.fromisoformat(val)
+        return None
+
+    @property
+    def ph(self) -> str:
+        """Return the parameter placeholder for the current database backend."""
+        return "%s" if self._use_postgres else "?"
+
+    @property
+    def _true_val(self) -> str:
+        """Return TRUE literal for current database backend."""
+        return "TRUE" if self._use_postgres else "1"
+
+    @property
+    def _false_val(self) -> str:
+        """Return FALSE literal for current database backend."""
+        return "FALSE" if self._use_postgres else "0"
 
     def _ensure_db_directory(self):
         """Ensure the database directory exists."""
@@ -346,29 +552,61 @@ class Database:
     @contextmanager
     def get_connection(self):
         """Get a database connection context manager."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")  # Enable FK enforcement
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        if self._use_postgres:
+            # PostgreSQL mode: get connection from pool
+            conn = self._pool.getconn()
+            try:
+                # Use RealDictCursor for dict-like row access
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                # Yield the connection, but queries will use cursor
+                # Store cursor as an attribute for query methods
+                conn._cursor = cursor
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                if hasattr(conn, '_cursor'):
+                    conn._cursor.close()
+                self._pool.putconn(conn)
+        else:
+            # SQLite mode: traditional connection
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
 
     def init_schema(self):
         """Initialize the database schema and run migrations."""
         with self.get_connection() as conn:
-            conn.executescript(SCHEMA)
-            # Run migrations for existing databases
-            for migration in MIGRATIONS:
-                try:
-                    conn.execute(migration)
-                except sqlite3.OperationalError:
-                    # Column already exists, skip
-                    pass
+            if self._use_postgres:
+                # PostgreSQL mode: execute each statement individually
+                # Split PG_SCHEMA by semicolons and execute
+                cursor = conn.cursor()
+                for statement in PG_SCHEMA.split(';'):
+                    statement = statement.strip()
+                    if statement:
+                        cursor.execute(statement)
+                # Skip migrations - pgloader handles existing data
+                # Fresh PostgreSQL databases use PG_SCHEMA directly
+            else:
+                # SQLite mode: use executescript
+                conn.executescript(SCHEMA)
+                # Run migrations for existing databases
+                for migration in MIGRATIONS:
+                    try:
+                        conn.execute(migration)
+                    except sqlite3.OperationalError:
+                        # Column already exists, skip
+                        pass
 
     # User operations
     def has_users(self) -> bool:

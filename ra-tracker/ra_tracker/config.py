@@ -32,6 +32,7 @@ class WebConfig:
 @dataclass
 class DatabaseConfig:
     path: str = "./data/ra_tracker.db"
+    url: Optional[str] = None
 
 
 @dataclass
@@ -157,6 +158,14 @@ class Config:
             config.app.secret_key = os.environ.get("SECRET_KEY") or os.environ["APP_SECRET_KEY"]
         if os.environ.get("BASE_URL") or os.environ.get("APP_BASE_URL"):
             config.app.base_url = os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]
+
+        # Database URL (PostgreSQL)
+        if os.environ.get("DATABASE_URL"):
+            db_url = os.environ["DATABASE_URL"]
+            # Normalize postgres:// to postgresql:// (hosting provider compatibility)
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql://", 1)
+            config.database.url = db_url
 
         # Validate required secrets
         config._validate_required_secrets()
