@@ -529,6 +529,16 @@ class Database:
             return datetime.fromisoformat(val)
         return None
 
+    def _parse_date(self, val) -> Optional[date]:
+        """Parse date value (handles both string and native date)."""
+        if val is None:
+            return None
+        if isinstance(val, date):
+            return val
+        if isinstance(val, str):
+            return date.fromisoformat(val)
+        return None
+
     @property
     def ph(self) -> str:
         """Return the parameter placeholder for the current database backend."""
@@ -551,24 +561,38 @@ class Database:
 
     @contextmanager
     def get_connection(self):
-        """Get a database connection context manager."""
+        """Get a database connection context manager.
+
+        For PostgreSQL, conn.execute() and conn.executemany() are monkey-patched
+        to use a RealDictCursor, providing dict-like row access.
+        """
         if self._use_postgres:
             # PostgreSQL mode: get connection from pool
             conn = self._pool.getconn()
             try:
-                # Use RealDictCursor for dict-like row access
-                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-                # Yield the connection, but queries will use cursor
-                # Store cursor as an attribute for query methods
-                conn._cursor = cursor
+                # Monkey-patch execute methods to use RealDictCursor
+                def _execute(query, params=None):
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    return cursor
+
+                def _executemany(query, params_list):
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    cursor.executemany(query, params_list)
+                    return cursor
+
+                conn.execute = _execute
+                conn.executemany = _executemany
+
                 yield conn
                 conn.commit()
             except Exception:
                 conn.rollback()
                 raise
             finally:
-                if hasattr(conn, '_cursor'):
-                    conn._cursor.close()
                 self._pool.putconn(conn)
         else:
             # SQLite mode: traditional connection
@@ -633,26 +657,39 @@ class Database:
                 "SELECT EXISTS(SELECT 1 FROM users LIMIT 1)"
             ).fetchone()[0]
 
-            cursor = conn.execute(
-                """
-                INSERT INTO users (email, password_hash, display_name, is_admin)
-                VALUES (?, ?, ?, ?)
-                """,
-                (email, password_hash, display_name, is_first)
-            )
-            user_id = cursor.lastrowid
+            if self._use_postgres:
+                # PostgreSQL: use RETURNING id
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO users (email, password_hash, display_name, is_admin)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    RETURNING id
+                    """,
+                    (email, password_hash, display_name, is_first)
+                )
+                user_id = cursor.fetchone()["id"]
+            else:
+                # SQLite: use lastrowid
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO users (email, password_hash, display_name, is_admin)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    """,
+                    (email, password_hash, display_name, is_first)
+                )
+                user_id = cursor.lastrowid
 
             # If first user, assign all legacy data (rules/notifications with NULL user_id)
             if is_first:
-                conn.execute("UPDATE rules SET user_id = ? WHERE user_id IS NULL", (user_id,))
-                conn.execute("UPDATE notifications SET user_id = ? WHERE user_id IS NULL", (user_id,))
+                conn.execute(f"UPDATE rules SET user_id = {self.ph} WHERE user_id IS NULL", (user_id,))
+                conn.execute(f"UPDATE notifications SET user_id = {self.ph} WHERE user_id IS NULL", (user_id,))
 
             return user_id
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Get a user by email address."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM users WHERE email = ?", (email,))
+            cursor = conn.execute(f"SELECT * FROM users WHERE email = {self.ph}", (email,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -668,15 +705,15 @@ class Database:
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                 local_area_name=row["local_area_name"] or "",
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                created_at=self._parse_datetime(row["created_at"]),
+                deleted_at=self._parse_datetime(row["deleted_at"]),
+                scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
             )
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
         """Get a user by ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            cursor = conn.execute(f"SELECT * FROM users WHERE id = {self.ph}", (user_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -692,9 +729,9 @@ class Database:
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                 local_area_name=row["local_area_name"] or "",
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                created_at=self._parse_datetime(row["created_at"]),
+                deleted_at=self._parse_datetime(row["deleted_at"]),
+                scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
             )
 
     def verify_password(self, stored_hash: str, password: str) -> tuple[bool, Optional[str]]:
@@ -716,7 +753,7 @@ class Database:
         """Update a user's password hash (used for rehashing)."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET password_hash = ? WHERE id = ?",
+                f"UPDATE users SET password_hash = {self.ph} WHERE id = {self.ph}",
                 (new_hash, user_id)
             )
 
@@ -729,7 +766,7 @@ class Database:
         """
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET telegram_chat_id = ? WHERE id = ?",
+                f"UPDATE users SET telegram_chat_id = {self.ph} WHERE id = {self.ph}",
                 (telegram_chat_id, user_id)
             )
 
@@ -742,7 +779,7 @@ class Database:
         """
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET email_verified = ? WHERE id = ?",
+                f"UPDATE users SET email_verified = {self.ph} WHERE id = {self.ph}",
                 (verified, user_id)
             )
 
@@ -759,7 +796,7 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM users WHERE email = ? AND email_verified = 0",
+                f"SELECT * FROM users WHERE email = {self.ph} AND email_verified = {self._false_val}",
                 (email,)
             )
             row = cursor.fetchone()
@@ -777,15 +814,15 @@ class Database:
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                 local_area_name=row["local_area_name"] or "",
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                created_at=self._parse_datetime(row["created_at"]),
+                deleted_at=self._parse_datetime(row["deleted_at"]),
+                scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
             )
 
     def get_user_by_telegram_chat_id(self, chat_id: int) -> Optional[User]:
         """Get a user by their Telegram chat ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM users WHERE telegram_chat_id = ?", (chat_id,))
+            cursor = conn.execute(f"SELECT * FROM users WHERE telegram_chat_id = {self.ph}", (chat_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -801,16 +838,16 @@ class Database:
                 email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                 local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                 local_area_name=row["local_area_name"] or "",
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                created_at=self._parse_datetime(row["created_at"]),
+                deleted_at=self._parse_datetime(row["deleted_at"]),
+                scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
             )
 
     def set_user_telegram_enabled(self, user_id: int, enabled: bool) -> None:
         """Set whether Telegram notifications are enabled for a user."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET telegram_enabled = ? WHERE id = ?",
+                f"UPDATE users SET telegram_enabled = {self.ph} WHERE id = {self.ph}",
                 (enabled, user_id)
             )
 
@@ -818,7 +855,7 @@ class Database:
         """Set whether email notifications are enabled for a user."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET email_enabled = ? WHERE id = ?",
+                f"UPDATE users SET email_enabled = {self.ph} WHERE id = {self.ph}",
                 (enabled, user_id)
             )
 
@@ -826,7 +863,7 @@ class Database:
         """Update a user's local area preference."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE users SET local_area_id = ?, local_area_name = ? WHERE id = ?",
+                f"UPDATE users SET local_area_id = {self.ph}, local_area_name = {self.ph} WHERE id = {self.ph}",
                 (local_area_id, local_area_name, user_id)
             )
 
@@ -835,9 +872,9 @@ class Database:
         """Create a new Telegram link code for a user."""
         with self.get_connection() as conn:
             conn.execute(
-                """
+                f"""
                 INSERT INTO telegram_link_codes (code, user_id, expires_at)
-                VALUES (?, ?, ?)
+                VALUES ({self.ph}, {self.ph}, {self.ph})
                 """,
                 (code, user_id, expires_at.isoformat())
             )
@@ -849,7 +886,7 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM telegram_link_codes WHERE code = ?",
+                f"SELECT * FROM telegram_link_codes WHERE code = {self.ph}",
                 (code,)
             )
             row = cursor.fetchone()
@@ -858,16 +895,16 @@ class Database:
             return {
                 "code": row["code"],
                 "user_id": row["user_id"],
-                "created_at": datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                "expires_at": datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
-                "used_at": datetime.fromisoformat(row["used_at"]) if row["used_at"] else None,
+                "created_at": self._parse_datetime(row["created_at"]),
+                "expires_at": self._parse_datetime(row["expires_at"]),
+                "used_at": self._parse_datetime(row["used_at"]),
             }
 
     def mark_link_code_used(self, code: str) -> None:
         """Mark a link code as used."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE telegram_link_codes SET used_at = ? WHERE code = ?",
+                f"UPDATE telegram_link_codes SET used_at = {self.ph} WHERE code = {self.ph}",
                 (datetime.now().isoformat(), code)
             )
 
@@ -876,7 +913,7 @@ class Database:
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM telegram_link_codes WHERE expires_at <= ?",
+                f"DELETE FROM telegram_link_codes WHERE expires_at <= {self.ph}",
                 (now,)
             )
             return cursor.rowcount
@@ -886,9 +923,9 @@ class Database:
         """Insert a new session."""
         with self.get_connection() as conn:
             conn.execute(
-                """
+                f"""
                 INSERT INTO sessions (id, user_id, expires_at)
-                VALUES (?, ?, ?)
+                VALUES ({self.ph}, {self.ph}, {self.ph})
                 """,
                 (token, user_id, expires_at.isoformat())
             )
@@ -896,15 +933,15 @@ class Database:
     def get_session(self, token: str) -> Optional[Session]:
         """Get session by token (no expiry check)."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM sessions WHERE id = ?", (token,))
+            cursor = conn.execute(f"SELECT * FROM sessions WHERE id = {self.ph}", (token,))
             row = cursor.fetchone()
             if row is None:
                 return None
             return Session(
                 id=row["id"],
                 user_id=row["user_id"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
+                created_at=self._parse_datetime(row["created_at"]),
+                expires_at=self._parse_datetime(row["expires_at"]),
             )
 
     def get_valid_session(self, token: str) -> Optional[Session]:
@@ -916,13 +953,13 @@ class Database:
             for row in cursor.fetchall():
                 # Use constant-time comparison to prevent timing attacks
                 if secrets.compare_digest(row["id"], token):
-                    expires_at = datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None
+                    expires_at = self._parse_datetime(row["expires_at"])
                     # Check expiry using Python datetime for consistent timezone handling
                     if expires_at and expires_at > now:
                         return Session(
                             id=row["id"],
                             user_id=row["user_id"],
-                            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+                            created_at=self._parse_datetime(row["created_at"]),
                             expires_at=expires_at,
                         )
                     return None  # Token found but expired
@@ -931,18 +968,18 @@ class Database:
     def delete_session(self, token: str) -> None:
         """Delete a specific session."""
         with self.get_connection() as conn:
-            conn.execute("DELETE FROM sessions WHERE id = ?", (token,))
+            conn.execute(f"DELETE FROM sessions WHERE id = {self.ph}", (token,))
 
     def delete_user_sessions(self, user_id: int) -> None:
         """Delete all sessions for a user."""
         with self.get_connection() as conn:
-            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.execute(f"DELETE FROM sessions WHERE user_id = {self.ph}", (user_id,))
 
     def update_session_expiry(self, token: str, expires_at: datetime) -> None:
         """Update expiry for sliding sessions."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE sessions SET expires_at = ? WHERE id = ?",
+                f"UPDATE sessions SET expires_at = {self.ph} WHERE id = {self.ph}",
                 (expires_at.isoformat(), token)
             )
 
@@ -951,7 +988,7 @@ class Database:
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM sessions WHERE expires_at <= ?",
+                f"DELETE FROM sessions WHERE expires_at <= {self.ph}",
                 (now,)
             )
             return cursor.rowcount
@@ -972,10 +1009,10 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                """
+                f"""
                 UPDATE users
-                SET deleted_at = ?, scheduled_purge_at = ?
-                WHERE id = ?
+                SET deleted_at = {self.ph}, scheduled_purge_at = {self.ph}
+                WHERE id = {self.ph}
                 """,
                 (datetime.utcnow().isoformat(), scheduled_purge_at.isoformat(), user_id)
             )
@@ -994,10 +1031,10 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                """
+                f"""
                 UPDATE users
                 SET deleted_at = NULL, scheduled_purge_at = NULL
-                WHERE id = ?
+                WHERE id = {self.ph}
                 """,
                 (user_id,)
             )
@@ -1016,10 +1053,10 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                """
+                f"""
                 SELECT * FROM users
                 WHERE deleted_at IS NOT NULL
-                AND scheduled_purge_at <= ?
+                AND scheduled_purge_at <= {self.ph}
                 """,
                 (before.isoformat(),)
             )
@@ -1036,9 +1073,9 @@ class Database:
                     email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                     local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                     local_area_name=row["local_area_name"] or "",
-                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                    deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                    scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                    created_at=self._parse_datetime(row["created_at"]),
+                    deleted_at=self._parse_datetime(row["deleted_at"]),
+                    scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
                 )
                 for row in cursor.fetchall()
             ]
@@ -1059,19 +1096,38 @@ class Database:
         user_id_hash = hashlib.sha256(str(user_id).encode()).hexdigest()[:8]
 
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                UPDATE audit_logs
-                SET user_id = NULL,
-                    details = json_set(
-                        COALESCE(details, '{}'),
-                        '$.anonymized', 1,
-                        '$.original_user_id_hash', ?
-                    )
-                WHERE user_id = ?
-                """,
-                (user_id_hash, user_id)
-            )
+            if self._use_postgres:
+                # PostgreSQL: use jsonb_set
+                cursor = conn.execute(
+                    f"""
+                    UPDATE audit_logs
+                    SET user_id = NULL,
+                        details = jsonb_set(
+                            jsonb_set(
+                                COALESCE(details::jsonb, '{{}}'),
+                                '{{anonymized}}', '1'
+                            ),
+                            '{{original_user_id_hash}}', to_jsonb({self.ph}::text)
+                        )::text
+                    WHERE user_id = {self.ph}
+                    """,
+                    (user_id_hash, user_id)
+                )
+            else:
+                # SQLite: use json_set
+                cursor = conn.execute(
+                    f"""
+                    UPDATE audit_logs
+                    SET user_id = NULL,
+                        details = json_set(
+                            COALESCE(details, '{{}}'),
+                            '$.anonymized', 1,
+                            '$.original_user_id_hash', {self.ph}
+                        )
+                    WHERE user_id = {self.ph}
+                    """,
+                    (user_id_hash, user_id)
+                )
             return cursor.rowcount
 
     def hard_delete_user(self, user_id: int) -> bool:
@@ -1093,33 +1149,33 @@ class Database:
         """
         with self.get_connection() as conn:
             # Check if user exists
-            cursor = conn.execute("SELECT 1 FROM users WHERE id = ?", (user_id,))
+            cursor = conn.execute(f"SELECT 1 FROM users WHERE id = {self.ph}", (user_id,))
             if cursor.fetchone() is None:
                 return False
 
             # Delete event_rules for user's rules
             conn.execute(
-                """
+                f"""
                 DELETE FROM event_rules
-                WHERE rule_id IN (SELECT id FROM rules WHERE user_id = ?)
+                WHERE rule_id IN (SELECT id FROM rules WHERE user_id = {self.ph})
                 """,
                 (user_id,)
             )
 
             # Delete notifications for user
-            conn.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
+            conn.execute(f"DELETE FROM notifications WHERE user_id = {self.ph}", (user_id,))
 
             # Delete rules for user
-            conn.execute("DELETE FROM rules WHERE user_id = ?", (user_id,))
+            conn.execute(f"DELETE FROM rules WHERE user_id = {self.ph}", (user_id,))
 
             # Delete sessions for user
-            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.execute(f"DELETE FROM sessions WHERE user_id = {self.ph}", (user_id,))
 
             # Delete telegram link codes for user
-            conn.execute("DELETE FROM telegram_link_codes WHERE user_id = ?", (user_id,))
+            conn.execute(f"DELETE FROM telegram_link_codes WHERE user_id = {self.ph}", (user_id,))
 
             # Finally delete the user
-            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.execute(f"DELETE FROM users WHERE id = {self.ph}", (user_id,))
 
             return True
 
@@ -1136,34 +1192,47 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                """
+                f"""
                 SELECT scheduled_purge_at FROM users
-                WHERE id = ? AND deleted_at IS NOT NULL
+                WHERE id = {self.ph} AND deleted_at IS NOT NULL
                 """,
                 (user_id,)
             )
             row = cursor.fetchone()
             if row is None:
                 return None
-            return datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None
+            return self._parse_datetime(row["scheduled_purge_at"])
 
     # Rule operations
     def add_rule(self, rule: Rule, user_id: Optional[int] = None) -> int:
         """Add a new rule and return its ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, dashboard_mode, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, rule.dashboard_mode, user_id),
-            )
-            return cursor.lastrowid
+            if self._use_postgres:
+                # PostgreSQL: use RETURNING id
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, dashboard_mode, user_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    RETURNING id
+                    """,
+                    (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, rule.dashboard_mode, user_id),
+                )
+                return cursor.fetchone()["id"]
+            else:
+                # SQLite: use lastrowid
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO rules (rule_type, target_id, target_name, is_active, notify_mode, dashboard_mode, user_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    """,
+                    (rule.rule_type, rule.target_id, rule.target_name, rule.is_active, rule.notify_mode, rule.dashboard_mode, user_id),
+                )
+                return cursor.lastrowid
 
     def get_rule(self, rule_id: int) -> Optional[Rule]:
         """Get a rule by ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM rules WHERE id = ?", (rule_id,))
+            cursor = conn.execute(f"SELECT * FROM rules WHERE id = {self.ph}", (rule_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -1177,7 +1246,7 @@ class Database:
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM rules WHERE id = ? AND user_id = ?",
+                f"SELECT * FROM rules WHERE id = {self.ph} AND user_id = {self.ph}",
                 (rule_id, user_id)
             )
             row = cursor.fetchone()
@@ -1195,12 +1264,12 @@ class Database:
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
-                    "SELECT * FROM rules WHERE is_active = 1 AND user_id = ? ORDER BY rule_type, target_name",
+                    f"SELECT * FROM rules WHERE is_active = {self._true_val} AND user_id = {self.ph} ORDER BY rule_type, target_name",
                     (user_id,)
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT * FROM rules WHERE is_active = 1 ORDER BY rule_type, target_name"
+                    f"SELECT * FROM rules WHERE is_active = {self._true_val} ORDER BY rule_type, target_name"
                 )
             return [self._row_to_rule(row) for row in cursor.fetchall()]
 
@@ -1214,7 +1283,7 @@ class Database:
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
-                    "SELECT * FROM rules WHERE user_id = ? ORDER BY rule_type, target_name",
+                    f"SELECT * FROM rules WHERE user_id = {self.ph} ORDER BY rule_type, target_name",
                     (user_id,)
                 )
             else:
@@ -1224,14 +1293,14 @@ class Database:
     def delete_rule(self, rule_id: int) -> None:
         """Delete a rule."""
         with self.get_connection() as conn:
-            conn.execute("DELETE FROM rules WHERE id = ?", (rule_id,))
-            conn.execute("DELETE FROM notifications WHERE rule_id = ?", (rule_id,))
+            conn.execute(f"DELETE FROM rules WHERE id = {self.ph}", (rule_id,))
+            conn.execute(f"DELETE FROM notifications WHERE rule_id = {self.ph}", (rule_id,))
 
     def set_rule_active(self, rule_id: int, is_active: bool) -> None:
         """Set rule active status."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE rules SET is_active = ? WHERE id = ?",
+                f"UPDATE rules SET is_active = {self.ph} WHERE id = {self.ph}",
                 (is_active, rule_id),
             )
 
@@ -1239,7 +1308,7 @@ class Database:
         """Set rule notification mode ('all', 'local', 'none')."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE rules SET notify_mode = ? WHERE id = ?",
+                f"UPDATE rules SET notify_mode = {self.ph} WHERE id = {self.ph}",
                 (notify_mode, rule_id),
             )
 
@@ -1247,7 +1316,7 @@ class Database:
         """Set rule dashboard mode ('all', 'local', 'none')."""
         with self.get_connection() as conn:
             conn.execute(
-                "UPDATE rules SET dashboard_mode = ? WHERE id = ?",
+                f"UPDATE rules SET dashboard_mode = {self.ph} WHERE id = {self.ph}",
                 (dashboard_mode, rule_id),
             )
 
@@ -1264,12 +1333,12 @@ class Database:
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
-                    "SELECT 1 FROM rules WHERE rule_type = ? AND target_id = ? AND user_id = ?",
+                    f"SELECT 1 FROM rules WHERE rule_type = {self.ph} AND target_id = {self.ph} AND user_id = {self.ph}",
                     (rule_type, target_id, user_id),
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT 1 FROM rules WHERE rule_type = ? AND target_id = ?",
+                    f"SELECT 1 FROM rules WHERE rule_type = {self.ph} AND target_id = {self.ph}",
                     (rule_type, target_id),
                 )
             return cursor.fetchone() is not None
@@ -1279,12 +1348,12 @@ class Database:
         """Insert or update an event, optionally linking it to a rule."""
         with self.get_connection() as conn:
             conn.execute(
-                """
+                f"""
                 INSERT INTO events (id, title, date, start_time, end_time, venue_id, venue_name,
                     area_id, area_name, content_url, cost, is_ticketed, is_festival, is_multi_day,
                     attending, interested_count, pick_blurb, set_times_status, set_times_lineup,
                     tickets_json, fetched_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     date = excluded.date,
@@ -1335,12 +1404,12 @@ class Database:
             # Link event to rule if provided
             if rule_id is not None:
                 conn.execute(
-                    "INSERT OR IGNORE INTO event_rules (event_id, rule_id) VALUES (?, ?)",
+                    f"INSERT OR IGNORE INTO event_rules (event_id, rule_id) VALUES ({self.ph}, {self.ph})",
                     (event.id, rule_id),
                 )
 
             # Update artists (now with artist_url)
-            conn.execute("DELETE FROM event_artists WHERE event_id = ?", (event.id,))
+            conn.execute(f"DELETE FROM event_artists WHERE event_id = {self.ph}", (event.id,))
             for artist_data in event.artists:
                 # Handle both old format (id, name) and new format (id, name, url)
                 if len(artist_data) >= 3:
@@ -1349,22 +1418,22 @@ class Database:
                     artist_id, artist_name = artist_data[0], artist_data[1]
                     artist_url = None
                 conn.execute(
-                    "INSERT OR IGNORE INTO event_artists (event_id, artist_id, artist_name, artist_url) VALUES (?, ?, ?, ?)",
+                    f"INSERT OR IGNORE INTO event_artists (event_id, artist_id, artist_name, artist_url) VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})",
                     (event.id, artist_id, artist_name, artist_url),
                 )
 
             # Update promoters
-            conn.execute("DELETE FROM event_promoters WHERE event_id = ?", (event.id,))
+            conn.execute(f"DELETE FROM event_promoters WHERE event_id = {self.ph}", (event.id,))
             for promoter_id, promoter_name in event.promoters:
                 conn.execute(
-                    "INSERT OR IGNORE INTO event_promoters (event_id, promoter_id, promoter_name) VALUES (?, ?, ?)",
+                    f"INSERT OR IGNORE INTO event_promoters (event_id, promoter_id, promoter_name) VALUES ({self.ph}, {self.ph}, {self.ph})",
                     (event.id, promoter_id, promoter_name),
                 )
 
     def get_event(self, event_id: int) -> Optional[Event]:
         """Get an event by ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+            cursor = conn.execute("SELECT * FROM events WHERE id = {self.ph}", (event_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -1372,9 +1441,9 @@ class Database:
             event = Event(
                 id=row["id"],
                 title=row["title"],
-                date=date.fromisoformat(row["date"]) if row["date"] else None,
-                start_time=datetime.fromisoformat(row["start_time"]) if row["start_time"] else None,
-                end_time=datetime.fromisoformat(row["end_time"]) if row["end_time"] else None,
+                date=date.fromisoformat(row["date"]) if row["date"] and isinstance(row["date"], str) else row["date"],
+                start_time=self._parse_datetime(row["start_time"]),
+                end_time=self._parse_datetime(row["end_time"]),
                 venue_id=row["venue_id"],
                 venue_name=row["venue_name"],
                 area_id=row["area_id"],
@@ -1390,19 +1459,19 @@ class Database:
                 set_times_status=row["set_times_status"],
                 set_times_lineup=row["set_times_lineup"],
                 tickets_json=row["tickets_json"],
-                fetched_at=datetime.fromisoformat(row["fetched_at"]) if row["fetched_at"] else None,
+                fetched_at=self._parse_datetime(row["fetched_at"]),
             )
 
             # Get artists (now with artist_url)
             artist_cursor = conn.execute(
-                "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = ?",
+                "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                 (event_id,),
             )
             event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
             # Get promoters
             promoter_cursor = conn.execute(
-                "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = ?",
+                "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                 (event_id,),
             )
             event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
@@ -1412,7 +1481,7 @@ class Database:
                 """
                 SELECT r.* FROM rules r
                 JOIN event_rules er ON r.id = er.rule_id
-                WHERE er.event_id = ?
+                WHERE er.event_id = {self.ph}
                 """,
                 (event_id,),
             )
@@ -1436,12 +1505,12 @@ class Database:
             today = date.today().isoformat()
             if area_id:
                 cursor = conn.execute(
-                    "SELECT * FROM events WHERE date >= ? AND area_id = ? ORDER BY date, start_time",
+                    "SELECT * FROM events WHERE date >= {self.ph} AND area_id = {self.ph} ORDER BY date, start_time",
                     (today, area_id),
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT * FROM events WHERE date >= ? ORDER BY date, start_time",
+                    "SELECT * FROM events WHERE date >= {self.ph} ORDER BY date, start_time",
                     (today,),
                 )
 
@@ -1451,8 +1520,8 @@ class Database:
                     id=row["id"],
                     title=row["title"],
                     date=date.fromisoformat(row["date"]) if row["date"] else None,
-                    start_time=datetime.fromisoformat(row["start_time"]) if row["start_time"] else None,
-                    end_time=datetime.fromisoformat(row["end_time"]) if row["end_time"] else None,
+                    start_time=self._parse_datetime(row["start_time"]),
+                    end_time=self._parse_datetime(row["end_time"]),
                     venue_id=row["venue_id"],
                     venue_name=row["venue_name"],
                     area_id=row["area_id"],
@@ -1468,19 +1537,19 @@ class Database:
                     set_times_status=row["set_times_status"],
                     set_times_lineup=row["set_times_lineup"],
                     tickets_json=row["tickets_json"],
-                    fetched_at=datetime.fromisoformat(row["fetched_at"]) if row["fetched_at"] else None,
+                    fetched_at=self._parse_datetime(row["fetched_at"]),
                 )
 
                 # Get artists (now with artist_url)
                 artist_cursor = conn.execute(
-                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = ?",
+                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
                 # Get promoters
                 promoter_cursor = conn.execute(
-                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = ?",
+                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
@@ -1490,7 +1559,7 @@ class Database:
                     """
                     SELECT r.* FROM rules r
                     JOIN event_rules er ON r.id = er.rule_id
-                    WHERE er.event_id = ?
+                    WHERE er.event_id = {self.ph}
                     """,
                     (event.id,),
                 )
@@ -1513,14 +1582,14 @@ class Database:
     def event_exists(self, event_id: int) -> bool:
         """Check if an event exists in the database."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT 1 FROM events WHERE id = ?", (event_id,))
+            cursor = conn.execute("SELECT 1 FROM events WHERE id = {self.ph}", (event_id,))
             return cursor.fetchone() is not None
 
     def cleanup_past_events(self) -> int:
         """Remove events that have passed. Returns count of deleted events."""
         with self.get_connection() as conn:
             today = date.today().isoformat()
-            cursor = conn.execute("DELETE FROM events WHERE date < ?", (today,))
+            cursor = conn.execute("DELETE FROM events WHERE date < {self.ph}", (today,))
             deleted = cursor.rowcount
             # Clean up orphaned artists/promoters
             conn.execute(
@@ -1551,7 +1620,7 @@ class Database:
         with self.get_connection() as conn:
             try:
                 conn.execute(
-                    "INSERT INTO notifications (event_id, rule_id, user_id) VALUES (?, ?, ?)",
+                    f"INSERT INTO notifications (event_id, rule_id, user_id) VALUES ({self.ph}, {self.ph}, {self.ph})",
                     (event_id, rule_id, user_id),
                 )
                 return True
@@ -1562,7 +1631,7 @@ class Database:
         """Check if a notification has been sent."""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM notifications WHERE event_id = ? AND rule_id = ?",
+                "SELECT 1 FROM notifications WHERE event_id = {self.ph} AND rule_id = {self.ph}",
                 (event_id, rule_id),
             )
             return cursor.fetchone() is not None
@@ -1571,7 +1640,7 @@ class Database:
         """Check if any notification has been sent for this event (per-event dedup)."""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM notifications WHERE event_id = ?",
+                "SELECT 1 FROM notifications WHERE event_id = {self.ph}",
                 (event_id,),
             )
             return cursor.fetchone() is not None
@@ -1581,7 +1650,7 @@ class Database:
         with self.get_connection() as conn:
             try:
                 conn.execute(
-                    "INSERT INTO notifications (event_id, rule_id) VALUES (?, 0)",
+                    "INSERT INTO notifications (event_id, rule_id) VALUES ({self.ph}, 0)",
                     (event_id,),
                 )
                 return True
@@ -1593,7 +1662,7 @@ class Database:
         with self.get_connection() as conn:
             rules = conn.execute("SELECT COUNT(*) FROM rules WHERE is_active = 1").fetchone()[0]
             events = conn.execute(
-                "SELECT COUNT(*) FROM events WHERE date >= ?",
+                "SELECT COUNT(*) FROM events WHERE date >= {self.ph}",
                 (date.today().isoformat(),)
             ).fetchone()[0]
             notifications = conn.execute("SELECT COUNT(*) FROM notifications").fetchone()[0]
@@ -1633,10 +1702,10 @@ class Database:
                     SELECT DISTINCT e.* FROM events e
                     INNER JOIN event_rules er ON e.id = er.event_id
                     INNER JOIN rules r ON er.rule_id = r.id
-                    WHERE r.user_id = ? AND e.date >= ?
+                    WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
                     AND (
                         r.dashboard_mode = 'all'
-                        OR (r.dashboard_mode = 'local' AND e.area_id = ?)
+                        OR (r.dashboard_mode = 'local' AND e.area_id = {self.ph})
                     )
                     ORDER BY e.date, e.start_time
                     """,
@@ -1649,7 +1718,7 @@ class Database:
                     SELECT DISTINCT e.* FROM events e
                     INNER JOIN event_rules er ON e.id = er.event_id
                     INNER JOIN rules r ON er.rule_id = r.id
-                    WHERE r.user_id = ? AND e.date >= ?
+                    WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
                     AND r.dashboard_mode = 'all'
                     ORDER BY e.date, e.start_time
                     """,
@@ -1662,8 +1731,8 @@ class Database:
                     id=row["id"],
                     title=row["title"],
                     date=date.fromisoformat(row["date"]) if row["date"] else None,
-                    start_time=datetime.fromisoformat(row["start_time"]) if row["start_time"] else None,
-                    end_time=datetime.fromisoformat(row["end_time"]) if row["end_time"] else None,
+                    start_time=self._parse_datetime(row["start_time"]),
+                    end_time=self._parse_datetime(row["end_time"]),
                     venue_id=row["venue_id"],
                     venue_name=row["venue_name"],
                     area_id=row["area_id"],
@@ -1679,19 +1748,19 @@ class Database:
                     set_times_status=row["set_times_status"],
                     set_times_lineup=row["set_times_lineup"],
                     tickets_json=row["tickets_json"],
-                    fetched_at=datetime.fromisoformat(row["fetched_at"]) if row["fetched_at"] else None,
+                    fetched_at=self._parse_datetime(row["fetched_at"]),
                 )
 
                 # Get artists (shared data, not user-scoped)
                 artist_cursor = conn.execute(
-                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = ?",
+                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
                 # Get promoters (shared data, not user-scoped)
                 promoter_cursor = conn.execute(
-                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = ?",
+                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
@@ -1701,7 +1770,7 @@ class Database:
                     """
                     SELECT r.* FROM rules r
                     JOIN event_rules er ON r.id = er.rule_id
-                    WHERE er.event_id = ? AND r.user_id = ?
+                    WHERE er.event_id = {self.ph} AND r.user_id = {self.ph}
                     """,
                     (event.id, user_id),
                 )
@@ -1725,7 +1794,7 @@ class Database:
 
             # Active rules for this user
             rules = conn.execute(
-                "SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = ?",
+                "SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = {self.ph}",
                 (user_id,)
             ).fetchone()[0]
 
@@ -1735,14 +1804,14 @@ class Database:
                 SELECT COUNT(DISTINCT e.id) FROM events e
                 INNER JOIN event_rules er ON e.id = er.event_id
                 INNER JOIN rules r ON er.rule_id = r.id
-                WHERE r.user_id = ? AND e.date >= ?
+                WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
                 """,
                 (user_id, today)
             ).fetchone()[0]
 
             # Notifications for user's rules
             notifications = conn.execute(
-                "SELECT COUNT(*) FROM notifications WHERE user_id = ?",
+                "SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph}",
                 (user_id,)
             ).fetchone()[0]
 
@@ -1766,7 +1835,7 @@ class Database:
         with self.get_connection() as conn:
             # Get user's created_at timestamp
             user_row = conn.execute(
-                "SELECT created_at FROM users WHERE id = ?",
+                "SELECT created_at FROM users WHERE id = {self.ph}",
                 (user_id,)
             ).fetchone()
 
@@ -1777,13 +1846,13 @@ class Database:
 
             # Count rules created before user's account
             legacy_rules = conn.execute(
-                "SELECT COUNT(*) FROM rules WHERE user_id = ? AND created_at < ?",
+                "SELECT COUNT(*) FROM rules WHERE user_id = {self.ph} AND created_at < {self.ph}",
                 (user_id, user_created_at)
             ).fetchone()[0]
 
             # Count notifications created before user's account
             legacy_notifications = conn.execute(
-                "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND sent_at < ?",
+                "SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph} AND sent_at < {self.ph}",
                 (user_id, user_created_at)
             ).fetchone()[0]
 
@@ -1860,14 +1929,27 @@ class Database:
             ID of the created audit log entry
         """
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO audit_logs (event_type, user_id, ip_address, details, target_type, target_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (event_type, user_id, ip_address, details, target_type, target_id),
-            )
-            return cursor.lastrowid
+            if self._use_postgres:
+                # PostgreSQL: use RETURNING id
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO audit_logs (event_type, user_id, ip_address, details, target_type, target_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    RETURNING id
+                    """,
+                    (event_type, user_id, ip_address, details, target_type, target_id),
+                )
+                return cursor.fetchone()["id"]
+            else:
+                # SQLite: use lastrowid
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO audit_logs (event_type, user_id, ip_address, details, target_type, target_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    """,
+                    (event_type, user_id, ip_address, details, target_type, target_id),
+                )
+                return cursor.lastrowid
 
     def get_audit_logs_filtered(
         self,
@@ -1900,23 +1982,23 @@ class Database:
 
             if user_search:
                 # Search by email or display_name (join with users table)
-                where_clauses.append("(u.email LIKE ? OR u.display_name LIKE ?)")
+                where_clauses.append(f"(u.email LIKE {self.ph} OR u.display_name LIKE {self.ph})")
                 params.extend([f"%{user_search}%", f"%{user_search}%"])
 
             if event_type:
-                where_clauses.append("al.event_type LIKE ?")
+                where_clauses.append(f"al.event_type LIKE {self.ph}")
                 params.append(f"{event_type}%")
 
             if ip_address:
-                where_clauses.append("al.ip_address LIKE ?")
+                where_clauses.append(f"al.ip_address LIKE {self.ph}")
                 params.append(f"{ip_address}%")
 
             if start_date:
-                where_clauses.append("DATE(al.timestamp) >= ?")
+                where_clauses.append("DATE(al.timestamp) >= {self.ph}")
                 params.append(start_date)
 
             if end_date:
-                where_clauses.append("DATE(al.timestamp) <= ?")
+                where_clauses.append("DATE(al.timestamp) <= {self.ph}")
                 params.append(end_date)
 
             where_sql = " AND ".join(where_clauses)
@@ -1936,7 +2018,7 @@ class Database:
                 LEFT JOIN users u ON al.user_id = u.id
                 WHERE {where_sql}
                 ORDER BY al.timestamp DESC
-                LIMIT ? OFFSET ?
+                LIMIT {self.ph} OFFSET {self.ph}
             """
             params.extend([limit, offset])
 
@@ -1985,14 +2067,14 @@ class Database:
             params = []
 
             if event_type is not None:
-                query += " AND event_type = ?"
+                query += f" AND event_type = {self.ph}"
                 params.append(event_type)
 
             if user_id is not None:
-                query += " AND user_id = ?"
+                query += f" AND user_id = {self.ph}"
                 params.append(user_id)
 
-            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            query += f" ORDER BY timestamp DESC LIMIT {self.ph} OFFSET {self.ph}"
             params.extend([limit, offset])
 
             cursor = conn.execute(query, params)
