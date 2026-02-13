@@ -105,6 +105,40 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(admin_router)
 
+    # Health check endpoint (for load balancers and monitoring)
+    @app.get("/health")
+    def health_check(response: Response):
+        """Health check endpoint for load balancers and monitoring.
+
+        Returns 200 if healthy, 503 if database unavailable.
+        Not protected by auth or CSRF.
+        """
+        from ..database import get_db
+
+        health_status = {
+            "status": "healthy",
+            "database": "unknown",
+        }
+
+        try:
+            db = get_db()
+            with db.get_connection() as conn:
+                cursor = conn.execute("SELECT 1")
+                result = cursor.fetchone()
+                if result:
+                    health_status["database"] = "connected"
+                else:
+                    health_status["database"] = "error"
+                    health_status["status"] = "unhealthy"
+                    response.status_code = 503
+        except Exception as e:
+            health_status["status"] = "unhealthy"
+            health_status["database"] = "disconnected"
+            health_status["error"] = str(e)
+            response.status_code = 503
+
+        return health_status
+
     # Add webhook endpoint for Telegram (only used if webhook mode enabled)
     @app.post("/telegram/webhook")
     async def telegram_webhook(request: Request):
