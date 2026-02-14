@@ -8,11 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy requirements first for Docker layer caching
-COPY requirements.txt .
+COPY ra-tracker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY ra-tracker/ .
 
 # Default command (overridden by Procfile per service)
 CMD ["gunicorn", "ra_tracker.web.app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--graceful-timeout", "30", "--timeout", "60"]
