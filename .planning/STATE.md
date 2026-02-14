@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 12 of 14 (Hosting & SSL Deployment)
-Plan: 0 of 0 in current phase (TBD)
-Status: Not started
-Last activity: 2026-02-16 - Completed Phase 11 (PostgreSQL Migration & Production Server)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-14 - Completed 12-01 (Hosting Provider Selection & Configuration)
 
-Progress: [███████░░░] 71% (30/42 total plans complete)
+Progress: [████████░░] 74% (31/42 total plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30 (phases 1-11)
-- Average duration (v3.0): 8h 4m (3 plans)
-- Total execution time (v3.0): 24h 12m
+- Total plans completed: 31 (phases 1-12)
+- Average duration (v3.0): 6h 59m (4 plans)
+- Total execution time (v3.0): 28h 15m
 
 **By Phase:**
 
@@ -46,6 +46,7 @@ v3.0 milestone starting - velocity tracking begins with Phase 10
 | Phase 10 P01 | 24h | 3 tasks | 4 files |
 | Phase 11 P01 | 8m | 2 tasks | 3 files |
 | Phase 11 P03 | 4m | 2 tasks | 3 files |
+| Phase 12 P01 | 4h 3m | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - [Phase 11-01]: Use {self.ph} property for dual-mode SQL placeholder resolution
 - [Phase 11-03]: Use Python script instead of pgloader for Windows compatibility and full control over type conversions
 - [Phase 11-03]: Embed PG_SCHEMA in migration script for self-contained execution
+- [Phase 12-01]: Railway selected as hosting provider (usage-based pricing, Railpack builds)
+- [Phase 12-01]: Use Docker builder (not Nixpacks) for explicit psycopg2 control
+- [Phase 12-01]: Force-add railway.json and runtime.txt (gitignored by *.json/*.txt rules)
 
 ### Pending Todos
 
@@ -81,12 +85,13 @@ None yet.
 - RESOLVED: Migration tooling created (Python script, sequence reset SQL)
 
 **Phase 12 (Hosting):**
-- Hosting provider selection needed (Railway vs Render vs Fly.io)
+- RESOLVED: Railway selected as hosting provider
+- Railway requires third-party backup template (no native PostgreSQL backups)
 - Cloud IP blocking severity unknown (ra.co's rate limiting policies for data center IPs)
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Phase 11 complete (verified 19/19 must-haves)
+Last session: 2026-02-14
+Stopped at: Completed 12-01-PLAN.md (Railway deployment configuration)
 Resume file: None
-Next: `/gsd:plan-phase 12` (Hosting & SSL Deployment)
+Next: Plan 12-02 (Railway Deployment & Environment Setup)
