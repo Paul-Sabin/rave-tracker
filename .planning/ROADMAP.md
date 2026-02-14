@@ -159,10 +159,12 @@ Plans:
   3. PostgreSQL database has automated backups configured (daily or provider-managed)
   4. Git push triggers automatic deployment to hosting provider
   5. Application runs stably in production environment (web workers and scheduler process both running)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Hosting provider selection and platform configuration files
+- [ ] 12-02-PLAN.md — Deploy to production with data migration and verification
+- [ ] 12-03-PLAN.md — Custom domain, SSL, and final HOST requirement verification
 
 #### Phase 13: Scraper Resilience
 **Goal**: RA.co scraper handles cloud IP blocking, API failures, and transient errors gracefully
@@ -212,10 +214,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. UX Polish & Branding | v2.2 | 3/3 | Complete | 2026-02-10 |
 | 10. Environment & Secrets | v3.0 | 1/1 | Complete | 2026-02-12 |
 | 11. PostgreSQL & Server | v3.0 | 3/3 | Complete | 2026-02-16 |
-| 12. Hosting & SSL | v3.0 | 0/0 | Not started | - |
+| 12. Hosting & SSL | v3.0 | 0/3 | Planning complete | - |
 | 13. Scraper Resilience | v3.0 | 0/0 | Not started | - |
 | 14. Observability | v3.0 | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-16*
+*Last updated: 2026-02-14*
