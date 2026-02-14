@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 11 - PostgreSQL Migration & Production Server
+**Current focus:** Phase 12 - Hosting & SSL Deployment
 
 ## Current Position
 
-Phase: 11 of 14 (PostgreSQL Migration & Production Server)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-14 - Completed 11-03 Data Migration Tools & Environment Documentation
+Phase: 12 of 14 (Hosting & SSL Deployment)
+Plan: 0 of 0 in current phase (TBD)
+Status: Not started
+Last activity: 2026-02-16 - Completed Phase 11 (PostgreSQL Migration & Production Server)
 
-Progress: [█████░░░░░] 71% (30/42 total plans complete)
+Progress: [███████░░░] 71% (30/42 total plans complete)
 
 ## Performance Metrics
 
@@ -77,8 +77,8 @@ None yet.
 **Phase 11 (PostgreSQL Migration):**
 - RESOLVED: All 93 SQL queries converted to dual-mode syntax (? for SQLite, %s for PostgreSQL)
 - RESOLVED: Connection pooling configured for multi-worker deployment
-- All 15 Python modules using database.py need query verification against PostgreSQL
-- APScheduler must be separated from web workers to prevent 4x duplicate jobs
+- RESOLVED: APScheduler separated from web workers via --scheduler-only mode
+- RESOLVED: Migration tooling created (Python script, sequence reset SQL)
 
 **Phase 12 (Hosting):**
 - Hosting provider selection needed (Railway vs Render vs Fly.io)
@@ -86,7 +86,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14
-Stopped at: Completed 11-03-PLAN.md (Data Migration Tools & Environment Documentation)
+Last session: 2026-02-16
+Stopped at: Phase 11 complete (verified 19/19 must-haves)
 Resume file: None
-Next: Phase 11 complete - proceed to Phase 12 (Hosting & Deployment)
+Next: `/gsd:plan-phase 12` (Hosting & SSL Deployment)
