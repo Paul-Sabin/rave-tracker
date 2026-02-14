@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+data/
+.planning/
+.git/
+.gitignore
+*.md
+!README.md
+scripts/
