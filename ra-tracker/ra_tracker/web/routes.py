@@ -437,8 +437,9 @@ async def test_notifications(request: Request, user: User = Depends(require_veri
 
 @router.post("/actions/fetch-now")
 async def trigger_fetch(user: User = Depends(require_verified_email)):
-    """Manually trigger a fetch."""
-    run_fetch_now()
+    """Manually trigger a fetch in a background thread."""
+    import threading
+    threading.Thread(target=run_fetch_now, daemon=True).start()
     return RedirectResponse(url="/", status_code=303)
 
 
