@@ -482,6 +482,9 @@ class _PgConnectionWrapper:
         cursor.executemany(query, params_list)
         return cursor
 
+    def cursor(self):
+        return self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
 
 class Database:
     """Dual-mode database manager (SQLite or PostgreSQL)."""
