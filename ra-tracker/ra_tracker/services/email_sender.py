@@ -1,9 +1,11 @@
-"""Email notification service using fastapi-mail and itsdangerous."""
+"""Email notification service using fastapi-mail (SMTP) or Brevo HTTP API."""
 
 import logging
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+import requests
+from jinja2 import Environment, FileSystemLoader
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
@@ -14,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Template directory
 TEMPLATE_DIR = Path(__file__).parent.parent / "web" / "templates" / "email"
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def _get_unsubscribe_serializer() -> URLSafeTimedSerializer:
@@ -75,8 +79,58 @@ def _get_email_config() -> Optional[ConnectionConfig]:
     )
 
 
+def _render_template(template_name: str, context: dict) -> str:
+    """Render a Jinja2 email template to HTML string."""
+    env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
+    template = env.get_template(template_name)
+    return template.render(**context)
+
+
+def _send_via_api(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via Brevo HTTP API."""
+    config = get_config()
+    api_key = config.email.password  # Brevo API key = SMTP password
+
+    if not api_key:
+        logger.warning("Brevo API key (EMAIL password) not configured")
+        return False
+
+    from_email = config.email.from_address or config.email.username
+    from_name = config.email.from_name
+
+    payload = {
+        "sender": {"name": from_name, "email": from_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+
+    try:
+        resp = requests.post(
+            BREVO_API_URL,
+            json=payload,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=30,
+        )
+        if resp.status_code in (200, 201):
+            logger.info(f"Sent email via Brevo API to {to_email}")
+            return True
+        else:
+            logger.error(f"Brevo API error {resp.status_code}: {resp.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to send email via Brevo API to {to_email}: {e}")
+        return False
+
+
 def is_email_configured() -> bool:
     """Check if email sending is properly configured."""
+    config = get_config()
+    if config.email.use_api:
+        return bool(config.email.password and (config.email.from_address or config.email.username))
     return _get_email_config() is not None
 
 
@@ -85,21 +139,7 @@ async def send_notification_email(
     user_id: int,
     events: List[Tuple[Event, List[Rule]]],
 ) -> bool:
-    """Send notification email with event details.
-
-    Args:
-        user_email: Recipient email address
-        user_id: User ID for unsubscribe token
-        events: List of (Event, matching_rules) tuples
-
-    Returns:
-        True if sent successfully, False otherwise
-    """
-    conf = _get_email_config()
-    if not conf:
-        logger.warning("Email not configured, skipping send")
-        return False
-
+    """Send notification email with event details."""
     config = get_config()
     unsubscribe_token = generate_unsubscribe_token(user_id)
     unsubscribe_url = f"{config.app.base_url}/unsubscribe?token={unsubscribe_token}"
@@ -107,17 +147,14 @@ async def send_notification_email(
     # Format events for template
     formatted_events = []
     for event, rules in events:
-        # Format date
         date_str = event.date.strftime("%a %d %b %Y") if event.date else "Date TBA"
         time_str = event.start_time.strftime("%H:%M") if event.start_time else ""
 
-        # Format matched rules with icons
         rule_matches = []
         for rule in rules:
             icon = "A" if rule.rule_type == "artist" else "V" if rule.rule_type == "venue" else "P"
             rule_matches.append(f"{icon}: {rule.target_name}")
 
-        # Event URL
         url = event.content_url
         if url and not url.startswith("http"):
             url = f"https://ra.co{url}"
@@ -132,21 +169,32 @@ async def send_notification_email(
             "rules": rule_matches,
         })
 
-    # Build subject
     if len(events) == 1:
         subject = f"Rave Tracker: New event - {events[0][0].title[:40]}"
     else:
         subject = f"Rave Tracker: {len(events)} new event(s) found!"
 
+    template_body = {
+        "events": formatted_events,
+        "event_count": len(events),
+        "unsubscribe_url": unsubscribe_url,
+        "settings_url": f"{config.app.base_url}/settings",
+    }
+
+    if config.email.use_api:
+        html = _render_template("notification.html", template_body)
+        return _send_via_api(user_email, subject, html)
+
+    # SMTP fallback
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping send")
+        return False
+
     message = MessageSchema(
         subject=subject,
         recipients=[user_email],
-        template_body={
-            "events": formatted_events,
-            "event_count": len(events),
-            "unsubscribe_url": unsubscribe_url,
-            "settings_url": f"{config.app.base_url}/settings",
-        },
+        template_body=template_body,
         subtype=MessageType.html,
     )
 
@@ -165,35 +213,33 @@ async def send_verification_email(
     user_id: int,
     display_name: str,
 ) -> bool:
-    """Send verification email with secure token link.
-
-    Args:
-        user_email: Recipient email address
-        user_id: User ID for token generation
-        display_name: User's display name for personalization
-
-    Returns:
-        True if sent successfully, False otherwise
-    """
-    conf = _get_email_config()
-    if not conf:
-        logger.warning("Email not configured, skipping verification send")
-        return False
-
-    # Import here to avoid circular imports
+    """Send verification email with secure token link."""
     from ..web.verification import generate_verification_token
 
     config = get_config()
     token = generate_verification_token(user_id)
     verification_url = f"{config.app.base_url}/verify/{token}"
 
+    subject = "Welcome to Rave Tracker - verify your email"
+    template_body = {
+        "display_name": display_name,
+        "verification_url": verification_url,
+    }
+
+    if config.email.use_api:
+        html = _render_template("verification.html", template_body)
+        return _send_via_api(user_email, subject, html)
+
+    # SMTP fallback
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping verification send")
+        return False
+
     message = MessageSchema(
-        subject="Welcome to Rave Tracker - verify your email",
+        subject=subject,
         recipients=[user_email],
-        template_body={
-            "display_name": display_name,
-            "verification_url": verification_url,
-        },
+        template_body=template_body,
         subtype=MessageType.html,
     )
 
@@ -211,33 +257,30 @@ async def send_password_reset_email(
     user_email: str,
     user_id: int,
 ) -> bool:
-    """Send password reset email with secure token link.
-
-    Args:
-        user_email: Recipient email address
-        user_id: User ID for token generation
-
-    Returns:
-        True if sent successfully, False otherwise
-    """
-    conf = _get_email_config()
-    if not conf:
-        logger.warning("Email not configured, skipping reset email send")
-        return False
-
-    # Import here to avoid circular imports
+    """Send password reset email with secure token link."""
     from ..web.password_reset import generate_reset_token
 
     config = get_config()
     token = generate_reset_token(user_id)
     reset_url = f"{config.app.base_url}/reset-password/{token}"
 
+    subject = "Reset your password"
+    template_body = {"reset_url": reset_url}
+
+    if config.email.use_api:
+        html = _render_template("password_reset.html", template_body)
+        return _send_via_api(user_email, subject, html)
+
+    # SMTP fallback
+    conf = _get_email_config()
+    if not conf:
+        logger.warning("Email not configured, skipping reset email send")
+        return False
+
     message = MessageSchema(
-        subject="Reset your password",
+        subject=subject,
         recipients=[user_email],
-        template_body={
-            "reset_url": reset_url,
-        },
+        template_body=template_body,
         subtype=MessageType.html,
     )
 
@@ -256,28 +299,28 @@ async def send_deletion_confirmation_email(
     display_name: Optional[str],
     scheduled_purge_date: str,
 ) -> bool:
-    """Send account deletion confirmation email.
+    """Send account deletion confirmation email."""
+    subject = "Rave Tracker - Account Deletion Requested"
+    template_body = {
+        "display_name": display_name,
+        "scheduled_purge_date": scheduled_purge_date,
+    }
 
-    Args:
-        email: Recipient email address
-        display_name: User's display name for personalization
-        scheduled_purge_date: Formatted date when account will be purged
+    config = get_config()
+    if config.email.use_api:
+        html = _render_template("account_deleted.html", template_body)
+        return _send_via_api(email, subject, html)
 
-    Returns:
-        True if sent successfully, False otherwise
-    """
+    # SMTP fallback
     conf = _get_email_config()
     if not conf:
         logger.warning("Email not configured, skipping deletion confirmation send")
         return False
 
     message = MessageSchema(
-        subject="Rave Tracker - Account Deletion Requested",
+        subject=subject,
         recipients=[email],
-        template_body={
-            "display_name": display_name,
-            "scheduled_purge_date": scheduled_purge_date,
-        },
+        template_body=template_body,
         subtype=MessageType.html,
     )
 
@@ -295,26 +338,25 @@ async def send_recovery_confirmation_email(
     email: str,
     display_name: Optional[str],
 ) -> bool:
-    """Send account recovery confirmation email.
+    """Send account recovery confirmation email."""
+    subject = "Rave Tracker - Account Recovered"
+    template_body = {"display_name": display_name}
 
-    Args:
-        email: Recipient email address
-        display_name: User's display name for personalization
+    config = get_config()
+    if config.email.use_api:
+        html = _render_template("account_recovered.html", template_body)
+        return _send_via_api(email, subject, html)
 
-    Returns:
-        True if sent successfully, False otherwise
-    """
+    # SMTP fallback
     conf = _get_email_config()
     if not conf:
         logger.warning("Email not configured, skipping recovery confirmation send")
         return False
 
     message = MessageSchema(
-        subject="Rave Tracker - Account Recovered",
+        subject=subject,
         recipients=[email],
-        template_body={
-            "display_name": display_name,
-        },
+        template_body=template_body,
         subtype=MessageType.html,
     )
 

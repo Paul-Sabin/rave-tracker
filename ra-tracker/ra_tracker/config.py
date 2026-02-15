@@ -57,6 +57,7 @@ class EmailConfig:
     from_name: str = "Rave Tracker"
     starttls: bool = True
     ssl_tls: bool = False
+    use_api: bool = False  # True = Brevo HTTP API (bypasses SMTP port blocks)
 
 
 @dataclass
@@ -151,6 +152,8 @@ class Config:
             config.email.from_address = os.environ["EMAIL_FROM_ADDRESS"]
         if os.environ.get("EMAIL_FROM_NAME"):
             config.email.from_name = os.environ["EMAIL_FROM_NAME"]
+        if os.environ.get("EMAIL_USE_API", "").lower() in ("true", "1", "yes"):
+            config.email.use_api = True
 
         # App environment variable overrides
         # Supports both APP_* and shorter naming conventions
