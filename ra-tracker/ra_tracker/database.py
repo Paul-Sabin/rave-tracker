@@ -772,7 +772,7 @@ class Database:
         Args:
             user_id: User ID to update
             telegram_chat_id: Telegram chat ID, or None to unlink
-        """
+        f"""
         with self.get_connection() as conn:
             conn.execute(
                 f"UPDATE users SET telegram_chat_id = {self.ph} WHERE id = {self.ph}",
@@ -785,7 +785,7 @@ class Database:
         Args:
             user_id: User ID to update
             verified: Verification status (default True)
-        """
+        f"""
         with self.get_connection() as conn:
             conn.execute(
                 f"UPDATE users SET email_verified = {self.ph} WHERE id = {self.ph}",
@@ -802,7 +802,7 @@ class Database:
 
         Returns:
             User if found and not verified, None otherwise
-        """
+        f"""
         with self.get_connection() as conn:
             cursor = conn.execute(
                 f"SELECT * FROM users WHERE email = {self.ph} AND email_verified = {self._false_val}",
@@ -892,7 +892,7 @@ class Database:
         """Get a Telegram link code by code string.
 
         Returns dict with user_id, expires_at, used_at, created_at or None if not found.
-        """
+        f"""
         with self.get_connection() as conn:
             cursor = conn.execute(
                 f"SELECT * FROM telegram_link_codes WHERE code = {self.ph}",
@@ -1155,7 +1155,7 @@ class Database:
 
         Returns:
             True if user was deleted, False if user not found
-        """
+        f"""
         with self.get_connection() as conn:
             # Check if user exists
             cursor = conn.execute(f"SELECT 1 FROM users WHERE id = {self.ph}", (user_id,))
@@ -1252,7 +1252,7 @@ class Database:
 
         Used for ownership verification before mutations.
         Returns None if rule doesn't exist or belongs to different user.
-        """
+        f"""
         with self.get_connection() as conn:
             cursor = conn.execute(
                 f"SELECT * FROM rules WHERE id = {self.ph} AND user_id = {self.ph}",
@@ -1269,7 +1269,7 @@ class Database:
         Args:
             user_id: If provided, filter to rules owned by this user.
                     If None, returns all active rules (for scheduler).
-        """
+        f"""
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
@@ -1288,7 +1288,7 @@ class Database:
         Args:
             user_id: If provided, filter to rules owned by this user.
                     If None, returns all rules (for admin/scheduler).
-        """
+        f"""
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
@@ -1338,7 +1338,7 @@ class Database:
             user_id: If provided, check only for this user's rules.
                     This allows different users to track the same artist.
                     If None, checks globally (for backward compatibility).
-        """
+        f"""
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
@@ -1442,7 +1442,7 @@ class Database:
     def get_event(self, event_id: int) -> Optional[Event]:
         """Get an event by ID."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM events WHERE id = {self.ph}", (event_id,))
+            cursor = conn.execute(f"SELECT * FROM events WHERE id = {self.ph}", (event_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -1473,21 +1473,21 @@ class Database:
 
             # Get artists (now with artist_url)
             artist_cursor = conn.execute(
-                "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
+                f"SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                 (event_id,),
             )
             event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
             # Get promoters
             promoter_cursor = conn.execute(
-                "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
+                f"SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                 (event_id,),
             )
             event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
 
             # Get matched rules
             rule_cursor = conn.execute(
-                """
+                f"""
                 SELECT r.* FROM rules r
                 JOIN event_rules er ON r.id = er.rule_id
                 WHERE er.event_id = {self.ph}
@@ -1514,12 +1514,12 @@ class Database:
             today = date.today().isoformat()
             if area_id:
                 cursor = conn.execute(
-                    "SELECT * FROM events WHERE date >= {self.ph} AND area_id = {self.ph} ORDER BY date, start_time",
+                    f"SELECT * FROM events WHERE date >= {self.ph} AND area_id = {self.ph} ORDER BY date, start_time",
                     (today, area_id),
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT * FROM events WHERE date >= {self.ph} ORDER BY date, start_time",
+                    f"SELECT * FROM events WHERE date >= {self.ph} ORDER BY date, start_time",
                     (today,),
                 )
 
@@ -1551,21 +1551,21 @@ class Database:
 
                 # Get artists (now with artist_url)
                 artist_cursor = conn.execute(
-                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
+                    f"SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
                 # Get promoters
                 promoter_cursor = conn.execute(
-                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
+                    f"SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
 
                 # Get matched rules
                 rule_cursor = conn.execute(
-                    """
+                    f"""
                     SELECT r.* FROM rules r
                     JOIN event_rules er ON r.id = er.rule_id
                     WHERE er.event_id = {self.ph}
@@ -1591,14 +1591,14 @@ class Database:
     def event_exists(self, event_id: int) -> bool:
         """Check if an event exists in the database."""
         with self.get_connection() as conn:
-            cursor = conn.execute("SELECT 1 FROM events WHERE id = {self.ph}", (event_id,))
+            cursor = conn.execute(f"SELECT 1 FROM events WHERE id = {self.ph}", (event_id,))
             return cursor.fetchone() is not None
 
     def cleanup_past_events(self) -> int:
         """Remove events that have passed. Returns count of deleted events."""
         with self.get_connection() as conn:
             today = date.today().isoformat()
-            cursor = conn.execute("DELETE FROM events WHERE date < {self.ph}", (today,))
+            cursor = conn.execute(f"DELETE FROM events WHERE date < {self.ph}", (today,))
             deleted = cursor.rowcount
             # Clean up orphaned artists/promoters
             conn.execute(
@@ -1625,7 +1625,7 @@ class Database:
             event_id: ID of the event
             rule_id: ID of the rule that matched
             user_id: Optional user ID for per-user notification filtering
-        """
+        f"""
         with self.get_connection() as conn:
             try:
                 conn.execute(
@@ -1640,7 +1640,7 @@ class Database:
         """Check if a notification has been sent."""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM notifications WHERE event_id = {self.ph} AND rule_id = {self.ph}",
+                f"SELECT 1 FROM notifications WHERE event_id = {self.ph} AND rule_id = {self.ph}",
                 (event_id, rule_id),
             )
             return cursor.fetchone() is not None
@@ -1649,7 +1649,7 @@ class Database:
         """Check if any notification has been sent for this event (per-event dedup)."""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM notifications WHERE event_id = {self.ph}",
+                f"SELECT 1 FROM notifications WHERE event_id = {self.ph}",
                 (event_id,),
             )
             return cursor.fetchone() is not None
@@ -1659,7 +1659,7 @@ class Database:
         with self.get_connection() as conn:
             try:
                 conn.execute(
-                    "INSERT INTO notifications (event_id, rule_id) VALUES ({self.ph}, 0)",
+                    f"INSERT INTO notifications (event_id, rule_id) VALUES ({self.ph}, 0)",
                     (event_id,),
                 )
                 return True
@@ -1671,7 +1671,7 @@ class Database:
         with self.get_connection() as conn:
             rules = conn.execute("SELECT COUNT(*) FROM rules WHERE is_active = 1").fetchone()[0]
             events = conn.execute(
-                "SELECT COUNT(*) FROM events WHERE date >= {self.ph}",
+                f"SELECT COUNT(*) FROM events WHERE date >= {self.ph}",
                 (date.today().isoformat(),)
             ).fetchone()[0]
             notifications = conn.execute("SELECT COUNT(*) FROM notifications").fetchone()[0]
@@ -1707,7 +1707,7 @@ class Database:
             # with dashboard_mode that would show the event
             if local_area_id:
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT DISTINCT e.* FROM events e
                     INNER JOIN event_rules er ON e.id = er.event_id
                     INNER JOIN rules r ON er.rule_id = r.id
@@ -1723,7 +1723,7 @@ class Database:
             else:
                 # No local area configured - 'local' mode shows nothing
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT DISTINCT e.* FROM events e
                     INNER JOIN event_rules er ON e.id = er.event_id
                     INNER JOIN rules r ON er.rule_id = r.id
@@ -1762,21 +1762,21 @@ class Database:
 
                 # Get artists (shared data, not user-scoped)
                 artist_cursor = conn.execute(
-                    "SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
+                    f"SELECT artist_id, artist_name, artist_url FROM event_artists WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.artists = [(r["artist_id"], r["artist_name"], r["artist_url"]) for r in artist_cursor.fetchall()]
 
                 # Get promoters (shared data, not user-scoped)
                 promoter_cursor = conn.execute(
-                    "SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
+                    f"SELECT promoter_id, promoter_name FROM event_promoters WHERE event_id = {self.ph}",
                     (event.id,),
                 )
                 event.promoters = [(r["promoter_id"], r["promoter_name"]) for r in promoter_cursor.fetchall()]
 
                 # Get ONLY this user's matched rules
                 rule_cursor = conn.execute(
-                    """
+                    f"""
                     SELECT r.* FROM rules r
                     JOIN event_rules er ON r.id = er.rule_id
                     WHERE er.event_id = {self.ph} AND r.user_id = {self.ph}
@@ -1797,19 +1797,19 @@ class Database:
                 - active_rules: Count of user's active rules
                 - upcoming_events: Count of events matching user's rules
                 - notifications_sent: Count of notifications for user's rules
-        """
+        f"""
         with self.get_connection() as conn:
             today = date.today().isoformat()
 
             # Active rules for this user
             rules = conn.execute(
-                "SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = {self.ph}",
+                f"SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = {self.ph}",
                 (user_id,)
             ).fetchone()[0]
 
             # Upcoming events matching user's rules
             events = conn.execute(
-                """
+                f"""
                 SELECT COUNT(DISTINCT e.id) FROM events e
                 INNER JOIN event_rules er ON e.id = er.event_id
                 INNER JOIN rules r ON er.rule_id = r.id
@@ -1820,7 +1820,7 @@ class Database:
 
             # Notifications for user's rules
             notifications = conn.execute(
-                "SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph}",
+                f"SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph}",
                 (user_id,)
             ).fetchone()[0]
 
@@ -1840,11 +1840,11 @@ class Database:
             dict with keys:
                 - rules: Count of migrated rules
                 - notifications: Count of migrated notifications
-        """
+        f"""
         with self.get_connection() as conn:
             # Get user's created_at timestamp
             user_row = conn.execute(
-                "SELECT created_at FROM users WHERE id = {self.ph}",
+                f"SELECT created_at FROM users WHERE id = {self.ph}",
                 (user_id,)
             ).fetchone()
 
@@ -1855,13 +1855,13 @@ class Database:
 
             # Count rules created before user's account
             legacy_rules = conn.execute(
-                "SELECT COUNT(*) FROM rules WHERE user_id = {self.ph} AND created_at < {self.ph}",
+                f"SELECT COUNT(*) FROM rules WHERE user_id = {self.ph} AND created_at < {self.ph}",
                 (user_id, user_created_at)
             ).fetchone()[0]
 
             # Count notifications created before user's account
             legacy_notifications = conn.execute(
-                "SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph} AND sent_at < {self.ph}",
+                f"SELECT COUNT(*) FROM notifications WHERE user_id = {self.ph} AND sent_at < {self.ph}",
                 (user_id, user_created_at)
             ).fetchone()[0]
 
@@ -1983,7 +1983,7 @@ class Database:
 
         Returns:
             Tuple of (logs list, total count for pagination)
-        """
+        f"""
         with self.get_connection() as conn:
             # Build query dynamically
             where_clauses = ["1=1"]
@@ -2003,11 +2003,11 @@ class Database:
                 params.append(f"{ip_address}%")
 
             if start_date:
-                where_clauses.append("DATE(al.timestamp) >= {self.ph}")
+                where_clauses.append(f"DATE(al.timestamp) >= {self.ph}")
                 params.append(start_date)
 
             if end_date:
-                where_clauses.append("DATE(al.timestamp) <= {self.ph}")
+                where_clauses.append(f"DATE(al.timestamp) <= {self.ph}")
                 params.append(end_date)
 
             where_sql = " AND ".join(where_clauses)
@@ -2070,7 +2070,7 @@ class Database:
 
         Returns:
             List of audit log entries as dicts, ordered by timestamp DESC
-        """
+        f"""
         with self.get_connection() as conn:
             query = "SELECT * FROM audit_logs WHERE 1=1"
             params = []
