@@ -1669,7 +1669,7 @@ class Database:
     def get_stats(self) -> dict:
         """Get database statistics."""
         with self.get_connection() as conn:
-            rules = conn.execute("SELECT COUNT(*) FROM rules WHERE is_active = 1").fetchone()[0]
+            rules = conn.execute(f"SELECT COUNT(*) FROM rules WHERE is_active = {self._true_val}").fetchone()[0]
             events = conn.execute(
                 f"SELECT COUNT(*) FROM events WHERE date >= {self.ph}",
                 (date.today().isoformat(),)
@@ -1803,7 +1803,7 @@ class Database:
 
             # Active rules for this user
             rules = conn.execute(
-                f"SELECT COUNT(*) FROM rules WHERE is_active = 1 AND user_id = {self.ph}",
+                f"SELECT COUNT(*) FROM rules WHERE is_active = {self._true_val} AND user_id = {self.ph}",
                 (user_id,)
             ).fetchone()[0]
 
