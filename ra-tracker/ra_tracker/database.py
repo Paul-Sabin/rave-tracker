@@ -1450,7 +1450,7 @@ class Database:
             event = Event(
                 id=row["id"],
                 title=row["title"],
-                date=date.fromisoformat(row["date"]) if row["date"] and isinstance(row["date"], str) else row["date"],
+                date=self._parse_date(row["date"]),
                 start_time=self._parse_datetime(row["start_time"]),
                 end_time=self._parse_datetime(row["end_time"]),
                 venue_id=row["venue_id"],
@@ -1528,7 +1528,7 @@ class Database:
                 event = Event(
                     id=row["id"],
                     title=row["title"],
-                    date=date.fromisoformat(row["date"]) if row["date"] else None,
+                    date=self._parse_date(row["date"]),
                     start_time=self._parse_datetime(row["start_time"]),
                     end_time=self._parse_datetime(row["end_time"]),
                     venue_id=row["venue_id"],
@@ -1739,7 +1739,7 @@ class Database:
                 event = Event(
                     id=row["id"],
                     title=row["title"],
-                    date=date.fromisoformat(row["date"]) if row["date"] else None,
+                    date=self._parse_date(row["date"]),
                     start_time=self._parse_datetime(row["start_time"]),
                     end_time=self._parse_datetime(row["end_time"]),
                     venue_id=row["venue_id"],
@@ -1907,9 +1907,9 @@ class Database:
                     email_enabled=bool(row["email_enabled"]) if row["email_enabled"] is not None else True,
                     local_area_id=row["local_area_id"] if row["local_area_id"] is not None else None,
                     local_area_name=row["local_area_name"] or "",
-                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-                    deleted_at=datetime.fromisoformat(row["deleted_at"]) if row["deleted_at"] else None,
-                    scheduled_purge_at=datetime.fromisoformat(row["scheduled_purge_at"]) if row["scheduled_purge_at"] else None,
+                    created_at=self._parse_datetime(row["created_at"]),
+                    deleted_at=self._parse_datetime(row["deleted_at"]),
+                    scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
                 )
                 for row in cursor.fetchall()
             ]
