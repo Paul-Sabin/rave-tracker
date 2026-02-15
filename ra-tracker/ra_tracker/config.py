@@ -58,6 +58,7 @@ class EmailConfig:
     starttls: bool = True
     ssl_tls: bool = False
     use_api: bool = False  # True = Brevo HTTP API (bypasses SMTP port blocks)
+    api_key: str = ""  # Brevo API key (separate from SMTP password)
 
 
 @dataclass
@@ -154,6 +155,8 @@ class Config:
             config.email.from_name = os.environ["EMAIL_FROM_NAME"]
         if os.environ.get("EMAIL_USE_API", "").lower() in ("true", "1", "yes"):
             config.email.use_api = True
+        if os.environ.get("BREVO_API_KEY"):
+            config.email.api_key = os.environ["BREVO_API_KEY"]
 
         # App environment variable overrides
         # Supports both APP_* and shorter naming conventions

@@ -676,7 +676,11 @@ document.getElementById('test-notifications-btn')?.addEventListener('click', asy
     resultSpan.className = 'text-muted';
 
     try {
-        const response = await fetch('/settings/notifications/test', { method: 'POST' });
+        const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        const response = await fetch('/settings/notifications/test', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken }
+        });
         const data = await response.json();
 
         if (data.success) {
@@ -699,7 +703,11 @@ document.getElementById('test-telegram').addEventListener('click', async () => {
     resultSpan.className = 'text-muted';
 
     try {
-        const response = await fetch('/settings/test-telegram', { method: 'POST' });
+        const csrfToken2 = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        const response = await fetch('/settings/test-telegram', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken2 }
+        });
         const data = await response.json();
 
         if (data.status === 'success') {

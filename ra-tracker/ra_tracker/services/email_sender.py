@@ -89,10 +89,10 @@ def _render_template(template_name: str, context: dict) -> str:
 def _send_via_api(to_email: str, subject: str, html_content: str) -> bool:
     """Send email via Brevo HTTP API."""
     config = get_config()
-    api_key = config.email.password  # Brevo API key = SMTP password
+    api_key = config.email.api_key or config.email.password
 
     if not api_key:
-        logger.warning("Brevo API key (EMAIL password) not configured")
+        logger.warning("Brevo API key not configured (set BREVO_API_KEY)")
         return False
 
     from_email = config.email.from_address or config.email.username
@@ -130,7 +130,8 @@ def is_email_configured() -> bool:
     """Check if email sending is properly configured."""
     config = get_config()
     if config.email.use_api:
-        return bool(config.email.password and (config.email.from_address or config.email.username))
+        api_key = config.email.api_key or config.email.password
+        return bool(api_key and (config.email.from_address or config.email.username))
     return _get_email_config() is not None
 
 
