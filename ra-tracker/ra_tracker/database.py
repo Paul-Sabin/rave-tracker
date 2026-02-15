@@ -461,6 +461,28 @@ class Event:
             self.matched_rules = []
 
 
+class _PgConnectionWrapper:
+    """Wrapper around psycopg2 connection providing execute()/executemany()
+    with RealDictCursor. Needed because psycopg2 C extension connections
+    don't allow attribute assignment for monkey-patching."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, query, params=None):
+        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return cursor
+
+    def executemany(self, query, params_list):
+        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.executemany(query, params_list)
+        return cursor
+
+
 class Database:
     """Dual-mode database manager (SQLite or PostgreSQL)."""
 
@@ -563,31 +585,15 @@ class Database:
     def get_connection(self):
         """Get a database connection context manager.
 
-        For PostgreSQL, conn.execute() and conn.executemany() are monkey-patched
-        to use a RealDictCursor, providing dict-like row access.
+        For PostgreSQL, yields a wrapper providing execute()/executemany()
+        with RealDictCursor for dict-like row access.
         """
         if self._use_postgres:
             # PostgreSQL mode: get connection from pool
             conn = self._pool.getconn()
             try:
-                # Monkey-patch execute methods to use RealDictCursor
-                def _execute(query, params=None):
-                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-                    if params:
-                        cursor.execute(query, params)
-                    else:
-                        cursor.execute(query)
-                    return cursor
-
-                def _executemany(query, params_list):
-                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-                    cursor.executemany(query, params_list)
-                    return cursor
-
-                conn.execute = _execute
-                conn.executemany = _executemany
-
-                yield conn
+                wrapper = _PgConnectionWrapper(conn)
+                yield wrapper
                 conn.commit()
             except Exception:
                 conn.rollback()
