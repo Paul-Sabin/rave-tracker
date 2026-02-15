@@ -1412,10 +1412,16 @@ class Database:
 
             # Link event to rule if provided
             if rule_id is not None:
-                conn.execute(
-                    f"INSERT OR IGNORE INTO event_rules (event_id, rule_id) VALUES ({self.ph}, {self.ph})",
-                    (event.id, rule_id),
-                )
+                if self._use_postgres:
+                    conn.execute(
+                        f"INSERT INTO event_rules (event_id, rule_id) VALUES ({self.ph}, {self.ph}) ON CONFLICT DO NOTHING",
+                        (event.id, rule_id),
+                    )
+                else:
+                    conn.execute(
+                        f"INSERT OR IGNORE INTO event_rules (event_id, rule_id) VALUES ({self.ph}, {self.ph})",
+                        (event.id, rule_id),
+                    )
 
             # Update artists (now with artist_url)
             conn.execute(f"DELETE FROM event_artists WHERE event_id = {self.ph}", (event.id,))
@@ -1426,18 +1432,30 @@ class Database:
                 else:
                     artist_id, artist_name = artist_data[0], artist_data[1]
                     artist_url = None
-                conn.execute(
-                    f"INSERT OR IGNORE INTO event_artists (event_id, artist_id, artist_name, artist_url) VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})",
-                    (event.id, artist_id, artist_name, artist_url),
-                )
+                if self._use_postgres:
+                    conn.execute(
+                        f"INSERT INTO event_artists (event_id, artist_id, artist_name, artist_url) VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}) ON CONFLICT DO NOTHING",
+                        (event.id, artist_id, artist_name, artist_url),
+                    )
+                else:
+                    conn.execute(
+                        f"INSERT OR IGNORE INTO event_artists (event_id, artist_id, artist_name, artist_url) VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})",
+                        (event.id, artist_id, artist_name, artist_url),
+                    )
 
             # Update promoters
             conn.execute(f"DELETE FROM event_promoters WHERE event_id = {self.ph}", (event.id,))
             for promoter_id, promoter_name in event.promoters:
-                conn.execute(
-                    f"INSERT OR IGNORE INTO event_promoters (event_id, promoter_id, promoter_name) VALUES ({self.ph}, {self.ph}, {self.ph})",
-                    (event.id, promoter_id, promoter_name),
-                )
+                if self._use_postgres:
+                    conn.execute(
+                        f"INSERT INTO event_promoters (event_id, promoter_id, promoter_name) VALUES ({self.ph}, {self.ph}, {self.ph}) ON CONFLICT DO NOTHING",
+                        (event.id, promoter_id, promoter_name),
+                    )
+                else:
+                    conn.execute(
+                        f"INSERT OR IGNORE INTO event_promoters (event_id, promoter_id, promoter_name) VALUES ({self.ph}, {self.ph}, {self.ph})",
+                        (event.id, promoter_id, promoter_name),
+                    )
 
     def get_event(self, event_id: int) -> Optional[Event]:
         """Get an event by ID."""
