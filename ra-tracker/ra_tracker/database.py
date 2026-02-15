@@ -470,7 +470,7 @@ class _PgConnectionWrapper:
         self._conn = conn
 
     def execute(self, query, params=None):
-        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         if params:
             cursor.execute(query, params)
         else:
@@ -478,12 +478,12 @@ class _PgConnectionWrapper:
         return cursor
 
     def executemany(self, query, params_list):
-        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cursor.executemany(query, params_list)
         return cursor
 
     def cursor(self):
-        return self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        return self._conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 
 class Database:
