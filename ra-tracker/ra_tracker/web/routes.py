@@ -22,7 +22,7 @@ from ..services.email_sender import send_verification_email, send_password_reset
 from ..api.ra_client import RAClient
 from ..config import get_config
 from ..database import get_db, Rule, User, Event
-from ..scheduler.jobs import run_fetch_now, get_scheduler_status
+from ..scheduler.jobs import get_scheduler_status
 from ..services.notifier import Notifier
 from ..services.email_sender import verify_unsubscribe_token, is_email_configured, send_notification_email
 from itsdangerous import SignatureExpired, BadSignature
@@ -62,7 +62,6 @@ async def dashboard(
     rules = db.get_all_rules(user_id=user.id)
     stats = db.get_user_stats(user.id)
     legacy_data = db.count_legacy_data(user.id)
-    status = get_scheduler_status()
 
     # Group events by date
     events_by_date = {}
@@ -88,7 +87,6 @@ async def dashboard(
             "rules": rules,
             "stats": stats,
             "legacy_data": legacy_data,
-            "scheduler_status": status,
             "local_area_id": user.local_area_id,
             "local_area_name": user.local_area_name,
             "has_local_area": bool(user.local_area_id),
@@ -435,12 +433,6 @@ async def test_notifications(request: Request, user: User = Depends(require_veri
     }
 
 
-@router.post("/actions/fetch-now")
-async def trigger_fetch(user: User = Depends(require_verified_email)):
-    """Manually trigger a fetch in a background thread."""
-    import threading
-    threading.Thread(target=run_fetch_now, daemon=True).start()
-    return RedirectResponse(url="/", status_code=303)
 
 
 # Search API endpoints

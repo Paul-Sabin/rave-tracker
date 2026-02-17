@@ -34,27 +34,6 @@
     </div>
 </div>
 
-<!-- Actions -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">Actions</span>
-        <span class="text-muted">
-            {% if scheduler_status.last_fetch %}
-                Last fetch: {{ scheduler_status.last_fetch[:16] }}
-            {% else %}
-                No fetch yet
-            {% endif %}
-        </span>
-    </div>
-    <form action="/actions/fetch-now" method="post" style="display: inline;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="btn btn-primary">Fetch Events Now</button>
-    </form>
-    {% if scheduler_status.next_fetch %}
-    <p class="mt-2 text-muted">Next scheduled: {{ scheduler_status.next_fetch[:16] }}</p>
-    {% endif %}
-</div>
-
 <!-- Upcoming Events -->
 <div class="card">
     <div class="card-header">

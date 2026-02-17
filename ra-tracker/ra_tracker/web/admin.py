@@ -1,12 +1,15 @@
 """Admin routes for RA Tracker - view-only oversight."""
 
 from typing import Optional
+import threading
 
 from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..database import get_db, User
 from .auth import require_admin
+from ..api.circuit_breaker import circuit_breaker
+from ..scheduler.jobs import run_fetch_now, get_last_fetch_time, get_next_fetch_time
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -127,3 +130,54 @@ async def audit_log(
             "csrf_token": getattr(request.state, 'csrf_token', ''),
         },
     )
+
+
+@admin_router.get("/scraper-status", response_class=HTMLResponse)
+async def scraper_status(request: Request, user: User = Depends(require_admin)):
+    """Admin scraper status and monitoring page."""
+    templates = get_templates(request)
+    db = get_db()
+
+    # Get circuit breaker status
+    cb_status = circuit_breaker.get_status()
+
+    # Get recent errors
+    recent_errors = db.get_recent_scraper_errors(limit=10)
+
+    # Get fetch times
+    last_fetch_time = get_last_fetch_time()
+    next_fetch_time = get_next_fetch_time()
+
+    # Map circuit breaker state to display labels
+    state_display = {
+        "CLOSED": "Healthy",
+        "OPEN": "Down",
+        "HALF_OPEN": "Recovering"
+    }
+
+    return templates.TemplateResponse(
+        "admin/scraper_status.html",
+        {
+            "request": request,
+            "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "cb_status": cb_status,
+            "state_display": state_display.get(cb_status['state'], cb_status['state']),
+            "recent_errors": recent_errors,
+            "last_fetch_time": last_fetch_time,
+            "next_fetch_time": next_fetch_time,
+        },
+    )
+
+
+@admin_router.post("/scraper/fetch-now")
+async def force_fetch(request: Request, user: User = Depends(require_admin)):
+    """Force immediate fetch, bypassing circuit breaker."""
+    # Bypass circuit breaker
+    circuit_breaker.force_close()
+
+    # Run fetch in background thread
+    threading.Thread(target=run_fetch_now, daemon=True).start()
+
+    # Redirect back to scraper status page
+    return RedirectResponse(url="/admin/scraper-status", status_code=303)
