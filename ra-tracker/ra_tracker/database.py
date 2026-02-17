@@ -141,6 +141,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     target_id INTEGER                    -- ID of affected resource
 );
 
+-- Scraper health log (for error tracking and circuit breaker diagnostics)
+CREATE TABLE IF NOT EXISTS scraper_health_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status_code INTEGER,
+    error_message TEXT,
+    error_type TEXT,
+    circuit_breaker_state TEXT,
+    rule_target TEXT
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
@@ -156,6 +167,9 @@ CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
+
+-- Scraper health log indexes
+CREATE INDEX IF NOT EXISTS idx_scraper_health_timestamp ON scraper_health_log(timestamp DESC);
 """
 
 # Migration to add new columns to existing database
@@ -366,6 +380,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     target_id INTEGER
 );
 
+-- Scraper health log
+CREATE TABLE IF NOT EXISTS scraper_health_log (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status_code INTEGER,
+    error_message TEXT,
+    error_type TEXT,
+    circuit_breaker_state TEXT,
+    rule_target TEXT
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
@@ -379,6 +404,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_scraper_health_timestamp ON scraper_health_log(timestamp DESC);
 """
 
 
@@ -2106,6 +2132,70 @@ class Database:
 
             cursor = conn.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
+
+    # Scraper health log operations
+    def log_scraper_error(
+        self,
+        status_code: Optional[int],
+        error_message: str,
+        error_type: str,
+        circuit_breaker_state: str,
+        rule_target: Optional[str] = None
+    ) -> None:
+        """Log a scraper error to the health log.
+
+        Args:
+            status_code: HTTP status code (e.g., 403, 429, 500), None for non-HTTP errors
+            error_message: Error description
+            error_type: Error category ('HTTP', 'EXCEPTION', etc.)
+            circuit_breaker_state: Current circuit breaker state ('CLOSED', 'OPEN', 'HALF_OPEN')
+            rule_target: Name of the rule target being fetched (optional)
+        """
+        with self.get_connection() as conn:
+            conn.execute(
+                f"""INSERT INTO scraper_health_log
+                   (status_code, error_message, error_type, circuit_breaker_state, rule_target)
+                   VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})""",
+                (status_code, error_message, error_type, circuit_breaker_state, rule_target)
+            )
+
+    def get_recent_scraper_errors(self, limit: int = 10) -> List[dict]:
+        """Get recent scraper errors from health log.
+
+        Args:
+            limit: Maximum number of errors to return (default 10)
+
+        Returns:
+            List of error records as dicts with keys: id, timestamp, status_code,
+            error_message, error_type, circuit_breaker_state, rule_target
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                f"SELECT * FROM scraper_health_log ORDER BY timestamp DESC LIMIT {self.ph}",
+                (limit,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def cleanup_old_scraper_logs(self, days: int = 30) -> int:
+        """Delete scraper health log entries older than specified days.
+
+        Args:
+            days: Delete logs older than this many days (default 30)
+
+        Returns:
+            Number of rows deleted
+        """
+        from datetime import timedelta
+
+        with self.get_connection() as conn:
+            cutoff = datetime.now() - timedelta(days=days)
+            cursor = conn.execute(
+                f"DELETE FROM scraper_health_log WHERE timestamp < {self.ph}",
+                (cutoff,)
+            )
+            deleted = cursor.rowcount
+            logger.info(f"Cleaned up {deleted} old scraper health log entries (older than {days} days)")
+            return deleted
 
 
 # Global database instance
