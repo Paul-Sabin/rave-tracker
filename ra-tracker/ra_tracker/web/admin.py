@@ -162,7 +162,7 @@ async def scraper_status(request: Request, user: User = Depends(require_admin)):
             "user": user,
             "csrf_token": getattr(request.state, 'csrf_token', ''),
             "cb_status": cb_status,
-            "state_display": state_display.get(cb_status['state'], cb_status['state']),
+            "state_display": state_display.get(cb_status.state, cb_status.state),
             "recent_errors": recent_errors,
             "last_fetch_time": last_fetch_time,
             "next_fetch_time": next_fetch_time,
