@@ -1,17 +1,30 @@
 """GraphQL client for ra.co API - Targeted query approach."""
 
 import logging
+import random
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Optional, List, Dict, Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from fake_useragent import UserAgent
 
 logger = logging.getLogger(__name__)
 
 RA_GRAPHQL_URL = "https://ra.co/graphql"
-MIN_REQUEST_INTERVAL = 1.0
+
+
+class ScraperError(Exception):
+    """Base class for scraper errors."""
+    pass
+
+
+class IPBlockedException(Exception):
+    """Raised when IP is blocked (403)."""
+    pass
 
 
 @dataclass
@@ -80,23 +93,62 @@ class RAClient:
 
     def __init__(self):
         self.session = requests.Session()
+
+        # Initialize User-Agent generator
+        self.ua_generator = UserAgent(
+            browsers=['chrome', 'firefox', 'safari'],
+            os=['windows', 'macos', 'linux'],
+            min_version=100.0
+        )
+
+        # Configure retry strategy with exponential backoff
+        retry_strategy = Retry(
+            total=3,  # 3 retries
+            backoff_factor=1,  # Produces 1s, 2s, 4s delays
+            status_forcelist=[429, 500, 502, 503, 504],  # NOT 403
+            allowed_methods=["POST"],
+            respect_retry_after_header=True,
+            raise_on_status=False  # We handle status codes manually
+        )
+
+        # Mount adapter with retry strategy
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
+        # Set initial headers
         self.session.headers.update({
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://ra.co/",
         })
-        self._last_request_time = 0
 
-    def _rate_limit(self):
-        """Enforce rate limiting between requests."""
-        elapsed = time.time() - self._last_request_time
-        if elapsed < MIN_REQUEST_INTERVAL:
-            time.sleep(MIN_REQUEST_INTERVAL - elapsed)
-        self._last_request_time = time.time()
+        # Set initial User-Agent and track request count for rotation
+        self._rotate_user_agent()
+        self._request_count = 0
+        self._rotation_interval = random.randint(5, 10)
+
+    def _rotate_user_agent(self):
+        """Rotate User-Agent string to appear more human-like."""
+        new_ua = self.ua_generator.random
+        self.session.headers.update({"User-Agent": new_ua})
+        logger.debug(f"Rotated User-Agent: {new_ua[:60]}...")
+
+    def _add_request_delay(self):
+        """Add random delay between requests to appear more human-like."""
+        delay = random.uniform(1.0, 3.0)
+        logger.debug(f"Adding request delay: {delay:.2f}s")
+        time.sleep(delay)
 
     def _execute(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Execute a GraphQL query."""
-        self._rate_limit()
+        """Execute a GraphQL query with resilience features."""
+        # Rotate User-Agent periodically
+        self._request_count += 1
+        if self._request_count % self._rotation_interval == 0:
+            self._rotate_user_agent()
+            self._rotation_interval = random.randint(5, 10)  # Reset interval
+
+        # Add random delay between requests
+        self._add_request_delay()
 
         payload = {"query": query}
         if variables:
@@ -104,14 +156,35 @@ class RAClient:
 
         try:
             response = self.session.post(RA_GRAPHQL_URL, json=payload, timeout=30)
-            response.raise_for_status()
+
+            # Log response status for all requests
+            logger.info(f"RA.co response: HTTP {response.status_code}")
+
+            # Handle different status codes
+            if response.status_code == 403:
+                logger.error("403 Forbidden - IP likely blocked")
+                raise IPBlockedException("IP blocked by RA.co (HTTP 403)")
+
+            if response.status_code == 429:
+                retry_after = response.headers.get("Retry-After", "unknown")
+                logger.warning(f"429 Rate Limited - Retry-After: {retry_after}")
+                response.raise_for_status()  # Trigger urllib3 retry
+
+            # For other non-200 status codes, raise to trigger retry
+            if response.status_code != 200:
+                response.raise_for_status()
+
+            # Parse response
             data = response.json()
 
             if "errors" in data:
                 logger.error(f"GraphQL errors: {data['errors']}")
-                raise Exception(f"GraphQL errors: {data['errors']}")
+                raise ScraperError(f"GraphQL errors: {data['errors']}")
 
             return data.get("data", {})
+        except IPBlockedException:
+            # Re-raise IP blocked exception without wrapping
+            raise
         except requests.RequestException as e:
             logger.error(f"Request failed: {e}")
             raise
