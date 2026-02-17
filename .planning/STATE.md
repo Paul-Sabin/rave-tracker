@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 12 - Hosting & SSL Deployment
+**Current focus:** Phase 12 complete - Hosting & SSL Deployment
 
 ## Current Position
 
-Phase: 12 of 14 (Hosting & SSL Deployment)
-Plan: 1 of 3 in current phase
+Phase: 13 of 14 (Scraper Resilience)
+Plan: 1 of 3 in current phase (complete)
 Status: In progress
-Last activity: 2026-02-14 - Completed 12-01 (Hosting Provider Selection & Configuration)
+Last activity: 2026-02-17 - Completed 13-01 (Enhanced Scraper Resilience)
 
-Progress: [████████░░] 74% (31/42 total plans complete)
+Progress: [████████░░] 81% (34/42 total plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31 (phases 1-12)
-- Average duration (v3.0): 6h 59m (4 plans)
-- Total execution time (v3.0): 28h 15m
+- Total plans completed: 33 (phases 1-12)
+- Average duration (v3.0): 5h 25m (6 plans)
+- Total execution time (v3.0): 32h 45m
 
 **By Phase:**
 
@@ -38,6 +38,8 @@ Progress: [████████░░] 74% (31/42 total plans complete)
 | 9. UX Polish & Branding | 3/3 | v2.2 |
 | 10. Environment & Secrets Cleanup | 1/1 | v3.0 |
 | 11. PostgreSQL Migration & Production Server | 3/3 | v3.0 |
+| 12. Hosting & SSL Deployment | 3/3 | v3.0 |
+| 13. Scraper Resilience | 1/3 | v3.0 |
 
 **Recent Trend:**
 v3.0 milestone starting - velocity tracking begins with Phase 10
@@ -47,6 +49,9 @@ v3.0 milestone starting - velocity tracking begins with Phase 10
 | Phase 11 P01 | 8m | 2 tasks | 3 files |
 | Phase 11 P03 | 4m | 2 tasks | 3 files |
 | Phase 12 P01 | 4h 3m | 2 tasks | 5 files |
+| Phase 12 P02 | ~4h | 3 tasks | 1 file |
+| Phase 12 P03 | ~30m | 2 tasks | 0 files |
+| Phase 13 P01 | 3m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -67,6 +72,14 @@ Recent decisions affecting current work:
 - [Phase 12-01]: Railway selected as hosting provider (usage-based pricing, Railpack builds)
 - [Phase 12-01]: Use Docker builder (not Nixpacks) for explicit psycopg2 control
 - [Phase 12-01]: Force-add railway.json and runtime.txt (gitignored by *.json/*.txt rules)
+- [Phase 12-02]: Use DATABASE_PUBLIC_URL (private networking DNS unreliable on Railway)
+- [Phase 12-02]: _PgConnectionWrapper class for psycopg2 C extension compatibility
+- [Phase 12-02]: DictCursor over RealDictCursor (supports both dict and index access)
+- [Phase 12-03]: Custom domain ravetracker.whotrustswho.com with auto-SSL via Railway
+- [Phase 13-01]: Use fake-useragent library for real browser UA strings (Chrome, Firefox, Safari 100+)
+- [Phase 13-01]: Rotate User-Agent every 5-10 requests (random interval) to appear more human
+- [Phase 13-01]: 403 raises IPBlockedException immediately (no retry) - distinct from rate limiting
+- [Phase 13-01]: Circuit breaker is in-memory singleton (resets on app restart per user decision)
 
 ### Pending Todos
 
@@ -86,12 +99,15 @@ None yet.
 
 **Phase 12 (Hosting):**
 - RESOLVED: Railway selected as hosting provider
+- RESOLVED: Application deployed and verified (dashboard, login, rules, settings all working)
+- RESOLVED: 5,032 rows migrated from SQLite to PostgreSQL (all tables verified)
+- RESOLVED: 6 PostgreSQL compatibility bugs fixed (wrapper, cursor, f-strings, dates, booleans)
 - Railway requires third-party backup template (no native PostgreSQL backups)
 - Cloud IP blocking severity unknown (ra.co's rate limiting policies for data center IPs)
 
 ## Session Continuity
 
-Last session: 2026-02-14
-Stopped at: Completed 12-01-PLAN.md (Railway deployment configuration)
+Last session: 2026-02-17
+Stopped at: Completed Phase 13 Plan 01 (Enhanced Scraper Resilience)
 Resume file: None
-Next: Plan 12-02 (Railway Deployment & Environment Setup)
+Next: Phase 13 Plan 02 (Admin Dashboard Integration)
