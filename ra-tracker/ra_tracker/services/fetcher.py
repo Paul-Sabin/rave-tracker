@@ -3,7 +3,8 @@
 import logging
 from typing import List, Dict, Tuple
 
-from ..api.ra_client import RAClient, RAEvent
+from ..api.ra_client import RAClient, RAEvent, IPBlockedException
+from ..api.circuit_breaker import circuit_breaker
 from ..database import get_db, Event, Rule
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,27 @@ class Fetcher:
             else:
                 logger.warning(f"Unknown rule type: {rule.rule_type}")
                 return []
+        except IPBlockedException as e:
+            # 403 IP blocked - log to DB and re-raise for fetch cycle abortion
+            logger.error(f"IP blocked while fetching {rule.target_name}: {e}")
+            self.db.log_scraper_error(
+                status_code=403,
+                error_message=str(e),
+                error_type='HTTP',
+                circuit_breaker_state=circuit_breaker.state,
+                rule_target=rule.target_name
+            )
+            raise  # Re-raise to abort fetch cycle
         except Exception as e:
+            # Other exceptions - log to DB and return empty list
             logger.error(f"Failed to fetch events for rule {rule.target_name}: {e}")
+            self.db.log_scraper_error(
+                status_code=None,
+                error_message=str(e),
+                error_type='EXCEPTION',
+                circuit_breaker_state=circuit_breaker.state,
+                rule_target=rule.target_name
+            )
             return []
 
         # Convert and store events
@@ -58,6 +78,11 @@ class Fetcher:
         Returns:
             Dict mapping rule_id to list of events
         """
+        # Check circuit breaker before proceeding
+        if not circuit_breaker.should_allow_fetch():
+            logger.warning("Fetch blocked by circuit breaker")
+            return {}
+
         rules = self.db.get_active_rules()
         if not rules:
             logger.warning("No active rules configured")
@@ -65,16 +90,38 @@ class Fetcher:
 
         results = {}
         seen_event_ids = set()
+        fetch_succeeded = True
+        last_error = None
 
-        for rule in rules:
-            events = self.fetch_for_rule(rule)
-            # Track which events are new (not seen in previous rules)
-            new_events = [e for e in events if e.id not in seen_event_ids]
-            results[rule.id] = events
-            seen_event_ids.update(e.id for e in events)
+        try:
+            for rule in rules:
+                try:
+                    events = self.fetch_for_rule(rule)
+                    # Track which events are new (not seen in previous rules)
+                    new_events = [e for e in events if e.id not in seen_event_ids]
+                    results[rule.id] = events
+                    seen_event_ids.update(e.id for e in events)
+                except IPBlockedException as e:
+                    # IP blocked - abort entire fetch cycle
+                    logger.error("IP blocked during fetch cycle, aborting")
+                    fetch_succeeded = False
+                    last_error = {"status_code": 403, "error": str(e)}
+                    break
 
-        total_events = len(seen_event_ids)
-        logger.info(f"Fetched {total_events} unique events across {len(rules)} rules")
+            total_events = len(seen_event_ids)
+            logger.info(f"Fetched {total_events} unique events across {len(rules)} rules")
+
+            # Record success or failure to circuit breaker
+            if fetch_succeeded:
+                circuit_breaker.record_success()
+            else:
+                circuit_breaker.record_failure(last_error)
+
+        except Exception as e:
+            # Unexpected exception during fetch cycle
+            logger.error(f"Unexpected error in fetch_all_rules: {e}", exc_info=True)
+            fetch_succeeded = False
+            circuit_breaker.record_failure({"error": str(e)})
 
         return results
 

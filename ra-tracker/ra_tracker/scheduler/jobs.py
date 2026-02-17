@@ -14,6 +14,7 @@ from ..database import get_db, Event, Rule
 from ..services.fetcher import Fetcher
 from ..services.notifier import Notifier, notify_users_for_events
 from ..web.audit import log_audit_event_direct
+from ..api.circuit_breaker import circuit_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,13 @@ def fetch_and_notify():
     global _last_fetch_time
 
     logger.info("Starting fetch and notify job")
+
+    # Check circuit breaker before proceeding
+    if not circuit_breaker.should_allow_fetch():
+        status = circuit_breaker.get_status()
+        cooldown_remaining = status.cooldown_remaining or 0
+        logger.warning(f"Scheduled fetch skipped: circuit breaker OPEN (cooldown remaining: {cooldown_remaining}s)")
+        return
 
     try:
         db = get_db()
@@ -92,6 +100,14 @@ def fetch_and_notify():
 
             except Exception as e:
                 logger.error(f"Error fetching for rule {rule.target_name}: {e}")
+                # Log error to database
+                db.log_scraper_error(
+                    status_code=None,
+                    error_message=str(e),
+                    error_type='EXCEPTION',
+                    circuit_breaker_state=circuit_breaker.state,
+                    rule_target=rule.target_name
+                )
 
         logger.info(f"Fetch complete. {total_events} events from {len(rules)} rules.")
         _last_fetch_time = datetime.now()
@@ -185,6 +201,12 @@ def purge_expired_accounts():
 
     logger.info(f"Purge complete. {purged_count}/{len(expired_users)} accounts deleted.")
 
+    # Clean up old scraper health logs (30-day retention)
+    try:
+        db.cleanup_old_scraper_logs(days=30)
+    except Exception as e:
+        logger.error(f"Failed to cleanup scraper logs: {e}")
+
 
 def get_scheduler() -> BackgroundScheduler:
     """Get or create the global scheduler instance."""
@@ -258,8 +280,21 @@ def get_scheduler_status() -> dict:
     """Get scheduler status information."""
     scheduler = get_scheduler()
 
+    # Get circuit breaker status
+    cb_status = circuit_breaker.get_status()
+    cb_dict = {
+        "state": cb_status.state,
+        "failure_count": cb_status.failure_count,
+        "last_success": cb_status.last_success.isoformat() if cb_status.last_success else None,
+        "last_failure": cb_status.last_failure.isoformat() if cb_status.last_failure else None,
+        "cooldown_duration": cb_status.cooldown_duration,
+        "cooldown_remaining": cb_status.cooldown_remaining,
+        "error_count_since_success": cb_status.error_count_since_success,
+    }
+
     return {
         "running": scheduler.running,
         "last_fetch": _last_fetch_time.isoformat() if _last_fetch_time else None,
         "next_fetch": get_next_fetch_time().isoformat() if get_next_fetch_time() else None,
+        "circuit_breaker": cb_dict,
     }
