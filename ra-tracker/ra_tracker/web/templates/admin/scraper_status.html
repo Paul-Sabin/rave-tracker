@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Scraper Status{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold">Admin: Scraper Status</h1>
+    <p class="text-muted">Monitor RA.co scraper health and circuit breaker state</p>
+  </div>
+
+  <div class="flex gap-4 mb-6">
+    <a href="/admin/rules" class="btn btn-secondary">Rules</a>
+    <a href="/admin/users" class="btn btn-secondary">Users</a>
+    <a href="/admin/audit-log" class="btn btn-secondary">Audit Log</a>
+    <a href="/admin/scraper-status" class="btn btn-primary">Scraper</a>
+  </div>
+
+  <!-- Status Indicator Card -->
+  <div class="card mb-6">
+    <h2 class="text-xl font-semibold mb-4">Current Status</h2>
+
+    <div class="status-indicator mb-4">
+      {% if cb_status.state == 'CLOSED' %}
+        <div class="status-badge status-healthy">
+          <span class="status-icon">✓</span>
+          <span class="status-label">{{ state_display }}</span>
+        </div>
+      {% elif cb_status.state == 'HALF_OPEN' %}
+        <div class="status-badge status-recovering">
+          <span class="status-icon">⟳</span>
+          <span class="status-label">{{ state_display }}</span>
+        </div>
+      {% else %}
+        <div class="status-badge status-down">
+          <span class="status-icon">✗</span>
+          <span class="status-label">{{ state_display }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <div class="text-sm text-muted mb-1">Last Successful Fetch</div>
+        <div class="text-lg font-medium">
+          {% if last_fetch_time %}
+            {{ last_fetch_time.strftime('%Y-%m-%d %H:%M:%S') }}
+          {% else %}
+            Never
+          {% endif %}
+        </div>
+      </div>
+
+      <div>
+        <div class="text-sm text-muted mb-1">Next Scheduled Fetch</div>
+        <div class="text-lg font-medium">
+          {% if next_fetch_time %}
+            {{ next_fetch_time.strftime('%Y-%m-%d %H:%M:%S') }}
+          {% else %}
+            Not scheduled
+          {% endif %}
+        </div>
+      </div>
+
+      <div>
+        <div class="text-sm text-muted mb-1">Errors Since Last Success</div>
+        <div class="text-lg font-medium {% if cb_status.error_count_since_success > 0 %}text-danger{% endif %}">
+          {{ cb_status.error_count_since_success }}
+        </div>
+      </div>
+
+      {% if cb_status.state == 'OPEN' and cb_status.cooldown_remaining %}
+        <div>
+          <div class="text-sm text-muted mb-1">Cooldown Remaining</div>
+          <div class="text-lg font-medium text-danger">
+            <span id="cooldown-timer" data-remaining="{{ cb_status.cooldown_remaining }}">
+              {{ (cb_status.cooldown_remaining // 3600) }}h {{ ((cb_status.cooldown_remaining % 3600) // 60) }}m
+            </span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Force Fetch Card -->
+  <div class="card mb-6">
+    <h2 class="text-xl font-semibold mb-4">Manual Control</h2>
+    <form action="/admin/scraper/fetch-now" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-primary">
+        Force Fetch Now
+      </button>
+      <p class="text-sm text-muted mt-2">(Bypasses circuit breaker)</p>
+    </form>
+  </div>
+
+  <!-- Recent Errors Table -->
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Recent Errors (Last 10)</h2>
+
+    {% if recent_errors %}
+      <div style="overflow-x: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>HTTP Code</th>
+              <th>Error Type</th>
+              <th>Message</th>
+              <th>CB State</th>
+              <th>Rule Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for error in recent_errors %}
+              <tr>
+                <td>{{ error.timestamp.strftime('%m-%d %H:%M') }}</td>
+                <td>
+                  {% if error.status_code %}
+                    <span class="{% if error.status_code == 403 %}text-danger{% elif error.status_code == 429 %}text-warning{% elif error.status_code >= 500 %}text-warning{% endif %}">
+                      {{ error.status_code }}
+                    </span>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>{{ error.error_type or '-' }}</td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ error.error_message or '-' }}
+                </td>
+                <td>
+                  <span class="badge {% if error.circuit_breaker_state == 'OPEN' %}badge-danger{% elif error.circuit_breaker_state == 'HALF_OPEN' %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ error.circuit_breaker_state or '-' }}
+                  </span>
+                </td>
+                <td>{{ error.rule_target or '-' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">✓</div>
+        <p>No errors recorded</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .status-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .status-icon {
+    font-size: 2rem;
+  }
+
+  .status-healthy {
+    background: rgba(78, 204, 163, 0.2);
+    color: var(--color-success);
+    border: 2px solid var(--color-success);
+  }
+
+  .status-recovering {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 2px solid #ffc107;
+  }
+
+  .status-down {
+    background: rgba(233, 69, 96, 0.2);
+    color: var(--color-accent);
+    border: 2px solid var(--color-accent);
+  }
+
+  .text-warning {
+    color: #ffc107;
+  }
+
+  /* Mobile responsiveness for table */
+  @media (max-width: 768px) {
+    .table {
+      font-size: 0.85rem;
+    }
+
+    .table th,
+    .table td {
+      padding: 0.5rem;
+    }
+  }
+</style>
+
+{% if cb_status.state == 'OPEN' and cb_status.cooldown_remaining %}
+<script>
+  // Countdown timer for cooldown
+  (function() {
+    const timerEl = document.getElementById('cooldown-timer');
+    if (!timerEl) return;
+
+    let remaining = parseInt(timerEl.dataset.remaining, 10);
+
+    function updateTimer() {
+      if (remaining <= 0) {
+        timerEl.textContent = 'Cooldown expired - next fetch will probe';
+        return;
+      }
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+
+      timerEl.textContent = `${hours}h ${minutes}m ${seconds}s`;
+      remaining--;
+
+      setTimeout(updateTimer, 1000);
+    }
+
+    updateTimer();
+  })();
+</script>
+{% endif %}
+{% endblock %}
