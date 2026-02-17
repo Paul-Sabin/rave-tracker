@@ -176,10 +176,12 @@ Plans:
   3. Scraper handles extended API outages without crashing (circuit breaker prevents infinite retries)
   4. Scraper logs all response status codes (enables monitoring of blocking patterns)
   5. Application continues serving existing events even when scraper is blocked or API is down
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — RAClient resilience (retry/backoff/jitter/UA rotation) and circuit breaker
+- [ ] 13-02-PLAN.md — Scraper health logging, fetcher and scheduler circuit breaker integration
+- [ ] 13-03-PLAN.md — Admin scraper status dashboard and fetch access control
 
 #### Phase 14: Observability & Monitoring
 **Goal**: Production issues are detected and debuggable via structured logging, error tracking, and scraper health monitoring
@@ -215,9 +217,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Environment & Secrets | v3.0 | 1/1 | Complete | 2026-02-12 |
 | 11. PostgreSQL & Server | v3.0 | 3/3 | Complete | 2026-02-16 |
 | 12. Hosting & SSL | v3.0 | 0/3 | Planning complete | - |
-| 13. Scraper Resilience | v3.0 | 0/0 | Not started | - |
+| 13. Scraper Resilience | v3.0 | 0/3 | Planning complete | - |
 | 14. Observability | v3.0 | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-14*
+*Last updated: 2026-02-17*
