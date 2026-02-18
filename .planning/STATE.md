@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 12 complete - Hosting & SSL Deployment
+**Current focus:** Phase 13 complete - Scraper Resilience
 
 ## Current Position
 
