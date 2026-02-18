@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 13 of 14 (Scraper Resilience)
-Plan: 2 of 3 in current phase (complete)
-Status: In progress
-Last activity: 2026-02-17 - Completed 13-02 (Fetch Pipeline Circuit Breaker Integration)
+Plan: 3 of 3 in current phase (complete)
+Status: Phase complete
+Last activity: 2026-02-18 - Completed 13-03 (Admin Dashboard & Fetch Control)
 
-Progress: [████████░░] 83% (35/42 total plans complete)
+Progress: [█████████░] 86% (36/42 total plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33 (phases 1-12)
-- Average duration (v3.0): 5h 25m (6 plans)
-- Total execution time (v3.0): 32h 45m
+- Total plans completed: 36 (phases 1-13)
+- Average duration (v3.0): 4h 18m (9 plans)
+- Total execution time (v3.0): 38h 42m
 
 **By Phase:**
 
@@ -39,7 +39,7 @@ Progress: [████████░░] 83% (35/42 total plans complete)
 | 10. Environment & Secrets Cleanup | 1/1 | v3.0 |
 | 11. PostgreSQL Migration & Production Server | 3/3 | v3.0 |
 | 12. Hosting & SSL Deployment | 3/3 | v3.0 |
-| 13. Scraper Resilience | 2/3 | v3.0 |
+| 13. Scraper Resilience | 3/3 | v3.0 |
 
 **Recent Trend:**
 v3.0 milestone starting - velocity tracking begins with Phase 10
@@ -53,6 +53,7 @@ v3.0 milestone starting - velocity tracking begins with Phase 10
 | Phase 12 P03 | ~30m | 2 tasks | 0 files |
 | Phase 13 P01 | 3m | 2 tasks | 3 files |
 | Phase 13 P02 | 3m 42s | 2 tasks | 3 files |
+| Phase 13 P03 | 35m | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,10 @@ Recent decisions affecting current work:
 - [Phase 13-01]: Circuit breaker is in-memory singleton (resets on app restart per user decision)
 - [Phase 13]: Circuit breaker pre-flight checks prevent fetch cycles when OPEN state
 - [Phase 13]: Scraper health logs retained for 30 days with daily cleanup in purge job
+- [Phase 13-03]: Silent degradation UX - users see no indication of scraper issues
+- [Phase 13-03]: Admin-only fetch control via dedicated /admin/scraper-status page
+- [Phase 13-03]: Force fetch bypasses circuit breaker via circuit_breaker.force_close()
+- [Phase 13-03]: Run force fetch in background thread to avoid blocking UI
 
 ### Pending Todos
 
@@ -108,9 +113,14 @@ None yet.
 - Railway requires third-party backup template (no native PostgreSQL backups)
 - Cloud IP blocking severity unknown (ra.co's rate limiting policies for data center IPs)
 
+**Phase 13 (Scraper Resilience):**
+- RESOLVED: Complete - exponential backoff, UA rotation, circuit breaker, health logging, admin monitoring
+- Users experience silent degradation (no fetch errors shown)
+- Admins have full visibility and control via /admin/scraper-status
+
 ## Session Continuity
 
-Last session: 2026-02-17
-Stopped at: Completed Phase 13 Plan 02 (Fetch Pipeline Circuit Breaker Integration)
+Last session: 2026-02-18
+Stopped at: Completed Phase 13 Plan 03 (Admin Dashboard & Fetch Control) - Phase 13 complete
 Resume file: None
-Next: Phase 13 Plan 03 (Admin Dashboard & Fetch Control)
+Next: Phase 14 (next phase)
