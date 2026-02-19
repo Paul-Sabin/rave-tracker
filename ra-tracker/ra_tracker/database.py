@@ -621,11 +621,22 @@ class Database:
             # PostgreSQL mode: get connection from pool
             conn = self._pool.getconn()
             try:
+                # Validate connection is alive (handles stale SSL connections)
+                try:
+                    conn.cursor().execute("SELECT 1")
+                except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                    # Connection is stale — discard and get fresh one
+                    logger.warning("Stale PostgreSQL connection detected, reconnecting")
+                    self._pool.putconn(conn, close=True)
+                    conn = self._pool.getconn()
                 wrapper = _PgConnectionWrapper(conn)
                 yield wrapper
                 conn.commit()
             except Exception:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except (psycopg2.InterfaceError, psycopg2.OperationalError):
+                    pass  # Connection already closed
                 raise
             finally:
                 self._pool.putconn(conn)
