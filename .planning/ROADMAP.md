@@ -193,10 +193,12 @@ Plans:
   3. Scraper health is visible (success/failure rate, last successful fetch time, current status)
   4. Alerts trigger on 3+ consecutive scraper fetch failures (email or Telegram notification to admin)
   5. Admin can diagnose production issues using logs and error tracking without SSH access
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 14-01-PLAN.md — Structured JSON logging with request IDs, Sentry error tracking, Better Stack log shipping
+- [ ] 14-02-PLAN.md — Scraper health persistence to database, enhanced admin dashboard with success rate and fetch history
+- [ ] 14-03-PLAN.md — Telegram admin alerts on scraper failures with silencing and recovery notifications
 
 ## Progress
 
