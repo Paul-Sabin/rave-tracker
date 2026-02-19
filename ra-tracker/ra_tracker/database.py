@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -10,6 +11,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
 
 try:
     import psycopg2
