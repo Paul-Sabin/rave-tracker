@@ -43,7 +43,9 @@
       <div>
         <div class="text-sm text-muted mb-1">Last Successful Fetch</div>
         <div class="text-lg font-medium">
-          {% if last_fetch_time %}
+          {% if health_summary and health_summary.last_successful_fetch %}
+            {{ health_summary.last_successful_fetch.strftime('%Y-%m-%d %H:%M:%S') }}
+          {% elif last_fetch_time %}
             {{ last_fetch_time.strftime('%Y-%m-%d %H:%M:%S') }}
           {% else %}
             Never
@@ -82,6 +84,42 @@
     </div>
   </div>
 
+  <!-- Health Overview Card (Last 7 Days) -->
+  <div class="card mb-6">
+    <h2 class="text-xl font-semibold mb-4">Health Overview (Last 7 Days)</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="text-center">
+        <div class="text-3xl font-bold {{ success_rate_color }}">{{ success_rate }}%</div>
+        <div class="text-sm text-muted">Success Rate</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold">{{ health_summary.total_fetches or 0 }}</div>
+        <div class="text-sm text-muted">Total Fetches</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-success">{{ health_summary.successful or 0 }}</div>
+        <div class="text-sm text-muted">Successful</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-danger">{{ health_summary.failed or 0 }}</div>
+        <div class="text-sm text-muted">Failed</div>
+      </div>
+    </div>
+    <!-- Trend indicator -->
+    <div class="mt-4 text-center text-sm">
+      Trend:
+      {% if trend == 'improving' %}
+        <span class="text-success">&#9650; Improving</span>
+      {% elif trend == 'declining' %}
+        <span class="text-danger">&#9660; Declining</span>
+      {% elif trend == 'stable' %}
+        <span>&#8212; Stable</span>
+      {% else %}
+        <span class="text-muted">Not enough data</span>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- Force Fetch Card -->
   <div class="card mb-6">
     <h2 class="text-xl font-semibold mb-4">Manual Control</h2>
@@ -92,6 +130,50 @@
       </button>
       <p class="text-sm text-muted mt-2">(Bypasses circuit breaker)</p>
     </form>
+  </div>
+
+  <!-- Recent Fetch Cycles Table -->
+  <div class="card mb-6">
+    <h2 class="text-xl font-semibold mb-4">Recent Fetch Cycles (Last 20)</h2>
+    {% if fetch_history %}
+      <div style="overflow-x: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Started</th>
+              <th>Duration</th>
+              <th>Events</th>
+              <th>Rules</th>
+              <th>Status</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fetch in fetch_history %}
+              <tr>
+                <td>{{ fetch.started_at.strftime('%m-%d %H:%M') if fetch.started_at else '-' }}</td>
+                <td>{{ '%.1f' % fetch.duration_seconds if fetch.duration_seconds else '-' }}s</td>
+                <td>{{ fetch.events_found or 0 }}</td>
+                <td>{{ fetch.rules_processed or 0 }}</td>
+                <td>
+                  <span class="badge {% if fetch.status == 'SUCCESS' %}badge-success{% elif fetch.status == 'FAILURE' %}badge-danger{% elif fetch.status == 'SKIPPED' %}badge-warning{% else %}badge-info{% endif %}">
+                    {{ fetch.status }}
+                  </span>
+                </td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ fetch.error_message or '-' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">&#128203;</div>
+        <p>No fetch cycles recorded yet</p>
+      </div>
+    {% endif %}
   </div>
 
   <!-- Recent Errors Table -->
@@ -191,7 +273,17 @@
     color: #ffc107;
   }
 
-  /* Mobile responsiveness for table */
+  .badge-info {
+    background: rgba(0, 123, 255, 0.2);
+    color: #0d6efd;
+  }
+
+  .badge-warning {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+  }
+
+  /* Mobile responsiveness for tables */
   @media (max-width: 768px) {
     .table {
       font-size: 0.85rem;

@@ -144,9 +144,48 @@ async def scraper_status(request: Request, user: User = Depends(require_admin)):
     # Get recent errors
     recent_errors = db.get_recent_scraper_errors(limit=10)
 
-    # Get fetch times
-    last_fetch_time = get_last_fetch_time()
+    # Get fetch times (DB-backed for cross-worker accuracy)
     next_fetch_time = get_next_fetch_time()
+
+    # Get scraper health data from database
+    health_summary = db.get_scraper_health_summary(days=7)
+    fetch_history = db.get_recent_fetch_history(limit=20)
+    trend_data = db.get_fetch_success_rate_trend(days=7)
+
+    # Calculate success rate (handle division by zero)
+    total_fetches = health_summary.get("total_fetches", 0)
+    successful = health_summary.get("successful", 0)
+    if total_fetches > 0:
+        success_rate = round(successful / total_fetches * 100, 1)
+    else:
+        success_rate = 0
+
+    # Color code success rate
+    if success_rate >= 90:
+        success_rate_color = "text-success"
+    elif success_rate >= 50:
+        success_rate_color = "text-warning"
+    else:
+        success_rate_color = "text-danger"
+
+    # Calculate trend direction from daily data
+    if len(trend_data) >= 2:
+        last_rate = trend_data[-1]["success_rate"]
+        prior_rate = trend_data[-2]["success_rate"]
+        if last_rate > prior_rate:
+            trend = "improving"
+        elif last_rate < prior_rate:
+            trend = "declining"
+        else:
+            trend = "stable"
+    else:
+        trend = "unknown"
+
+    # Database-backed last fetch time (works across gunicorn workers)
+    last_fetch_time = health_summary.get("last_successful_fetch")
+    if last_fetch_time is None:
+        # Fall back to in-memory variable
+        last_fetch_time = get_last_fetch_time()
 
     # Map circuit breaker state to display labels
     state_display = {
@@ -166,6 +205,11 @@ async def scraper_status(request: Request, user: User = Depends(require_admin)):
             "recent_errors": recent_errors,
             "last_fetch_time": last_fetch_time,
             "next_fetch_time": next_fetch_time,
+            "health_summary": health_summary,
+            "fetch_history": fetch_history,
+            "trend": trend,
+            "success_rate": success_rate,
+            "success_rate_color": success_rate_color,
         },
     )
 
