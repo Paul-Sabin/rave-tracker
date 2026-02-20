@@ -71,6 +71,13 @@
         </div>
       </div>
 
+      <div>
+        <div class="text-sm text-muted mb-1">Consecutive Failures</div>
+        <div class="text-lg font-medium {% if alert_state and alert_state.consecutive_failures >= 3 %}text-danger{% elif alert_state and alert_state.consecutive_failures > 0 %}text-warning{% endif %}">
+          {{ alert_state.consecutive_failures if alert_state else 0 }}
+        </div>
+      </div>
+
       {% if cb_status.state == 'OPEN' and cb_status.cooldown_remaining %}
         <div>
           <div class="text-sm text-muted mb-1">Cooldown Remaining</div>
@@ -81,6 +88,25 @@
           </div>
         </div>
       {% endif %}
+    </div>
+
+    <!-- Alert Status -->
+    <div class="mt-4 pt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
+      <div class="text-sm text-muted mb-1">Alert Status</div>
+      <div class="text-lg font-medium">
+        {% if alert_state and alert_state.alert_sent %}
+          <span class="text-danger">
+            Alert sent {{ alert_state.alert_sent_at.strftime('%Y-%m-%d %H:%M') if alert_state.alert_sent_at else '' }}
+            ({{ alert_state.consecutive_failures }} consecutive failures)
+          </span>
+        {% elif alert_state and alert_state.consecutive_failures > 0 %}
+          <span class="text-warning">
+            {{ alert_state.consecutive_failures }} consecutive failure(s) — alert at {{ 3 }}
+          </span>
+        {% else %}
+          <span class="text-success">No active alerts</span>
+        {% endif %}
+      </div>
     </div>
   </div>
 

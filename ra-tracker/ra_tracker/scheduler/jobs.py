@@ -13,6 +13,7 @@ from ..config import get_config
 from ..database import get_db, Event, Rule
 from ..services.fetcher import Fetcher
 from ..services.notifier import Notifier, notify_users_for_events
+from ..services.scraper_alerter import scraper_alerter
 from ..web.audit import log_audit_event_direct
 from ..api.circuit_breaker import circuit_breaker
 
@@ -64,10 +65,16 @@ def fetch_and_notify():
                 events_found=0,
                 rules_processed=0,
                 status='SKIPPED',
-                error_message='Circuit breaker OPEN'
+                error_message='Circuit breaker OPEN',
+                circuit_breaker_state=circuit_breaker.state
             )
         except Exception as log_err:
             logger.debug(f"Could not log skipped fetch cycle: {log_err}")
+        # Still track the skip for alerting
+        try:
+            scraper_alerter.check_and_alert('SKIPPED')
+        except Exception as e:
+            logger.error(f"Alert check failed: {e}")
         return
 
     fetch_id = None
@@ -87,7 +94,8 @@ def fetch_and_notify():
                 fetch_id=fetch_id,
                 events_found=0,
                 rules_processed=0,
-                status='SUCCESS'
+                status='SUCCESS',
+                circuit_breaker_state=circuit_breaker.state
             )
             _last_fetch_time = datetime.now()
             return
@@ -138,9 +146,16 @@ def fetch_and_notify():
             fetch_id=fetch_id,
             events_found=total_events,
             rules_processed=len(rules),
-            status='SUCCESS'
+            status='SUCCESS',
+            circuit_breaker_state=circuit_breaker.state
         )
         _last_fetch_time = datetime.now()
+
+        # Check alerts after successful fetch
+        try:
+            scraper_alerter.check_and_alert('SUCCESS')
+        except Exception as e:
+            logger.error(f"Alert check failed: {e}")
 
         # Phase 2: Send per-user notifications
         # Each event only appears once regardless of how many rules matched
@@ -188,10 +203,15 @@ def fetch_and_notify():
                     events_found=0,
                     rules_processed=0,
                     status='FAILURE',
-                    error_message=str(e)
+                    error_message=str(e),
+                    circuit_breaker_state=circuit_breaker.state
                 )
             except Exception as log_err:
                 logger.debug(f"Could not log failed fetch cycle: {log_err}")
+        try:
+            scraper_alerter.check_and_alert('FAILURE')
+        except Exception as alert_e:
+            logger.error(f"Alert check failed: {alert_e}")
 
 
 def purge_expired_accounts():

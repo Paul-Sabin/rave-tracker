@@ -151,6 +151,7 @@ async def scraper_status(request: Request, user: User = Depends(require_admin)):
     health_summary = db.get_scraper_health_summary(days=7)
     fetch_history = db.get_recent_fetch_history(limit=20)
     trend_data = db.get_fetch_success_rate_trend(days=7)
+    alert_state = db.get_scraper_alert_state()
 
     # Calculate success rate (handle division by zero)
     total_fetches = health_summary.get("total_fetches", 0)
@@ -210,6 +211,7 @@ async def scraper_status(request: Request, user: User = Depends(require_admin)):
             "trend": trend,
             "success_rate": success_rate,
             "success_rate_color": success_rate_color,
+            "alert_state": alert_state,
         },
     )
 
