@@ -1,5 +1,37 @@
 # Project Milestones: Rave Tracker
 
+## v3.1 Production Deployment, Hosting & Observability (Shipped: 2026-02-20)
+
+**Delivered:** Rave Tracker is live in production on Railway with PostgreSQL, HTTPS, custom domain, scraper resilience, and full observability stack (structured logging, Sentry, Better Stack, Telegram alerts).
+
+**Phases completed:** Phases 10–14 (14 plans, 5 phases)
+
+**Key accomplishments:**
+
+- All secrets externalized to Railway environment variables; config.yaml contains no hardcoded credentials
+- Dual-mode PostgreSQL/SQLite database layer with automatic placeholder translation and connection pooling
+- Multi-process production server: gunicorn + uvicorn workers with separated APScheduler process
+- Deployed to Railway with custom domain (ravetracker.whotrustswho.com), provider-managed PostgreSQL, automated backups, and git-push deployments
+- RA.co scraper hardened with exponential backoff, User-Agent rotation, circuit breaker (3-strike open, 30-min recovery)
+- Structured JSON logging with X-Request-ID correlation headers shipped to Better Stack
+- Sentry error tracking with request_id tag and per-request user context
+- Scraper fetch cycle persistence across gunicorn workers; admin dashboard shows success rate, trend, and fetch history
+- Telegram admin alerts after 3 consecutive scraper failures with silence-until-recovery logic
+
+**Stats:**
+
+- 5 phases, 14 plans across Phases 10–14
+- 73 files changed, +13,000 / −443 lines
+- 8,921 lines of Python
+- Timeline: 2026-02-12 → 2026-02-20 (8 days)
+- 25 requirements shipped (ENV-01–03, DB-01–05, SRV-01–04, HOST-01–05, SCRAPE-01–04, OBS-01–04)
+
+**Git range:** `feat(10-01)` → `feat(14-04)`
+
+**Archive:** `.planning/milestones/v3.1-ROADMAP.md`
+
+---
+
 ## v2.2 UX Polish & Branding (Shipped: 2026-02-10)
 
 **Delivered:** Rebranded to "Rave Tracker", improved region selection UX with per-user local area storage, and cleaned up legacy UI elements.
@@ -96,4 +128,5 @@
 **What's next:** v2.0 Multi-User Support
 
 ---
+
 

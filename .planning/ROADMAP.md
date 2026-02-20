@@ -113,94 +113,18 @@ Plans:
 
 </details>
 
-### ✅ v3.0/v3.1 Production Deployment, Hosting & Observability (COMPLETE)
+<details>
+<summary>✅ v3.0/v3.1 Production Deployment, Hosting & Observability (Phases 10-14) — SHIPPED 2026-02-20</summary>
 
-**Milestone Goal:** Transition the app from local development to a live, publicly accessible host with PostgreSQL and scraper resilience.
+- [x] Phase 10: Environment & Secrets Cleanup (1/1 plans) — completed 2026-02-12
+- [x] Phase 11: PostgreSQL Migration & Production Server (3/3 plans) — completed 2026-02-16
+- [x] Phase 12: Hosting & SSL Deployment (3/3 plans) — completed 2026-02-15
+- [x] Phase 13: Scraper Resilience (3/3 plans) — completed 2026-02-18
+- [x] Phase 14: Observability & Monitoring (4/4 plans) — completed 2026-02-20
 
-#### Phase 10: Environment & Secrets Cleanup
-**Goal**: All secrets externalized from config files to environment variables before cloud deployment
-**Depends on**: Nothing (first phase of milestone)
-**Requirements**: ENV-01, ENV-02, ENV-03
-**Success Criteria** (what must be TRUE):
-  1. Application starts successfully using only environment variables for all secrets (DATABASE_URL, SMTP credentials, CSRF secret, Telegram bot token, SECRET_KEY)
-  2. config.yaml contains no hardcoded secrets (uses placeholders or omits secret fields entirely)
-  3. .env.example file documents all required environment variables with example values
-  4. All previously exposed secrets have been rotated (new Telegram bot token, new SMTP password, new SECRET_KEY generated)
-**Plans**: 1 plan
+Full details: `.planning/milestones/v3.1-ROADMAP.md`
 
-Plans:
-- [x] 10-01-PLAN.md — Externalize secrets, add startup validation, rotate credentials
-
-#### Phase 11: PostgreSQL Migration & Production Server
-**Goal**: Application runs on PostgreSQL with multi-worker ASGI server and separated scheduler process
-**Depends on**: Phase 10 (requires environment variable configuration)
-**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, SRV-01, SRV-02, SRV-03, SRV-04
-**Success Criteria** (what must be TRUE):
-  1. Application connects to PostgreSQL via DATABASE_URL and handles both postgres:// and postgresql:// prefixes correctly
-  2. All database queries execute successfully against PostgreSQL (parameter placeholders, boolean types, serial IDs work correctly)
-  3. Application runs under gunicorn with uvicorn workers (multi-process web server)
-  4. Scheduler runs as a single separate process (not duplicated across web workers)
-  5. /health endpoint returns 200 with database connectivity status and returns 503 if database unavailable
-  6. Application handles graceful shutdown (in-flight requests complete before process exit)
-  7. Connection pooling configured appropriately for worker count (prevents connection exhaustion)
-**Plans**: 3 plans
-
-Plans:
-- [x] 11-01-PLAN.md — PostgreSQL database layer with dual-mode SQLite/PostgreSQL and query conversion
-- [x] 11-02-PLAN.md — Production server infrastructure (gunicorn, scheduler separation, health endpoint)
-- [x] 11-03-PLAN.md — Data migration tooling and environment documentation
-
-#### Phase 12: Hosting & SSL Deployment
-**Goal**: Application deployed to managed hosting provider with HTTPS, custom domain, and automated backups
-**Depends on**: Phase 11 (requires production-ready infrastructure)
-**Requirements**: HOST-01, HOST-02, HOST-03, HOST-04, HOST-05
-**Success Criteria** (what must be TRUE):
-  1. Application is accessible via HTTPS with valid SSL certificate (no browser warnings)
-  2. Application is accessible via custom domain (DNS configured correctly)
-  3. PostgreSQL database has automated backups configured (daily or provider-managed)
-  4. Git push triggers automatic deployment to hosting provider
-  5. Application runs stably in production environment (web workers and scheduler process both running)
-**Plans**: 3 plans
-
-Plans:
-- [x] 12-01-PLAN.md — Hosting provider selection and platform configuration files
-- [x] 12-02-PLAN.md — Deploy to production with data migration and verification
-- [x] 12-03-PLAN.md — Custom domain, SSL, and final HOST requirement verification
-
-#### Phase 13: Scraper Resilience
-**Goal**: RA.co scraper handles cloud IP blocking, API failures, and transient errors gracefully
-**Depends on**: Phase 12 (requires live deployment to test cloud IP behavior)
-**Requirements**: SCRAPE-01, SCRAPE-02, SCRAPE-03, SCRAPE-04
-**Success Criteria** (what must be TRUE):
-  1. Scraper implements exponential backoff on 403/429/5xx responses (retries with increasing delays: 1s, 2s, 4s)
-  2. Scraper rotates User-Agent strings across requests (reduces fingerprinting risk)
-  3. Scraper handles extended API outages without crashing (circuit breaker prevents infinite retries)
-  4. Scraper logs all response status codes (enables monitoring of blocking patterns)
-  5. Application continues serving existing events even when scraper is blocked or API is down
-**Plans**: 3 plans
-
-Plans:
-- [x] 13-01-PLAN.md — RAClient resilience (retry/backoff/jitter/UA rotation) and circuit breaker
-- [x] 13-02-PLAN.md — Scraper health logging, fetcher and scheduler circuit breaker integration
-- [x] 13-03-PLAN.md — Admin scraper status dashboard and fetch access control
-
-#### Phase 14: Observability & Monitoring
-**Goal**: Production issues are detected and debuggable via structured logging, error tracking, and scraper health monitoring
-**Depends on**: Phase 13 (requires stable scraper to monitor)
-**Requirements**: OBS-01, OBS-02, OBS-03, OBS-04
-**Success Criteria** (what must be TRUE):
-  1. Application emits structured JSON logs with request IDs and HTTP status codes
-  2. Errors are tracked in external system (Sentry or equivalent) with stack traces and context
-  3. Scraper health is visible (success/failure rate, last successful fetch time, current status)
-  4. Alerts trigger on 3+ consecutive scraper fetch failures (email or Telegram notification to admin)
-  5. Admin can diagnose production issues using logs and error tracking without SSH access
-**Plans**: 4 plans
-
-Plans:
-- [x] 14-01-PLAN.md — Structured JSON logging with request IDs, Sentry error tracking, Better Stack log shipping
-- [x] 14-02-PLAN.md — Scraper health persistence to database, enhanced admin dashboard with success rate and fetch history
-- [x] 14-03-PLAN.md — Telegram admin alerts on scraper failures with silencing and recovery notifications
-- [x] 14-04-PLAN.md — HTTP access logging middleware for structured status codes (gap closure)
+</details>
 
 ## Progress
 

@@ -2,27 +2,17 @@
 
 ## What This Is
 
-A multi-user event tracker that monitors ra.co for upcoming events from artists, venues, and promoters you follow. Each user can create tracking rules, configure notification preferences (Telegram and/or Email), and browse events on a mobile-friendly dashboard. Branded as "Rave Tracker" (not affiliated with RA).
+A multi-user event tracker running in production that monitors ra.co for upcoming events from artists, venues, and promoters you follow. Each user can create tracking rules, configure notification preferences (Telegram and/or Email), and browse events on a mobile-friendly dashboard. Deployed on Railway with PostgreSQL, HTTPS, and a custom domain. Branded as "Rave Tracker" (not affiliated with RA).
 
 ## Core Value
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
-## Current Milestone: v3.0 Production Deployment & Hosting
-
-**Goal:** Transition the app from local development to a live, publicly accessible host with PostgreSQL and scraper resilience.
-
-**Target features:**
-- Evaluate and select hosting provider (Railway, Fly.io, or DigitalOcean) for FastAPI + PostgreSQL
-- Migrate from SQLite to PostgreSQL with DATABASE_URL support
-- Transition all secrets to secure host environment variables
-- Configure production web server (gunicorn + uvicorn workers)
-- Harden RA.co scraper against data center IP blocks (User-Agent rotation, 403/429 handling, backoff)
-- Automated HTTPS/SSL and custom domain preparation
-
 ## Current State
 
-**Version:** v2.2 UX Polish & Branding (shipped 2026-02-10)
+**Version:** v3.1 Production Deployment, Hosting & Observability (shipped 2026-02-20)
+
+**Live at:** https://ravetracker.whotrustswho.com
 
 **Capabilities:**
 - User registration with privacy consent and email verification
@@ -34,15 +24,21 @@ Users never miss events from artists, venues, or promoters they care about — a
 - Email notifications with one-click unsubscribe
 - Password reset and change flows
 - Soft-delete account with 30-day recovery period
-- Admin dashboard with audit log viewing
+- Admin dashboard with audit log viewing, scraper status, health metrics, fetch history
 - Mobile-first responsive design (375px+, 44px touch targets)
+- Structured JSON logging with request ID correlation (Better Stack)
+- Sentry error tracking with user context and request_id tag
+- Telegram admin alerts on 3+ consecutive scraper failures
 
 **Tech Stack:**
 - Python 3.11+ / FastAPI / Jinja2
-- SQLite database
+- PostgreSQL (production) / SQLite (local dev)
 - Tailwind CSS v4 (CDN)
-- APScheduler for background jobs
+- gunicorn + uvicorn workers (multi-process)
+- APScheduler (separate process)
 - Argon2id password hashing
+- Sentry, Better Stack (Logtail), asgi-correlation-id
+- Railway (hosting + managed PostgreSQL)
 
 ## Requirements
 
@@ -117,9 +113,36 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [x] UX-02: Dashboard toggle labels "Global events" / "Local only" — v2.2
 - [x] UX-03: Remove legacy admin welcome banner — v2.2
 
+**Milestone 5: Production Deployment, Hosting & Observability**
+- [x] ENV-01: All secrets configured via environment variables — v3.1
+- [x] ENV-02: No hardcoded secrets in config.yaml or committed files — v3.1
+- [x] ENV-03: .env.example documents all required environment variables — v3.1
+- [x] DB-01: Application connects to PostgreSQL via DATABASE_URL — v3.1
+- [x] DB-02: DATABASE_URL parsing handles postgres:// and postgresql:// — v3.1
+- [x] DB-03: All raw SQL queries work against PostgreSQL — v3.1
+- [x] DB-04: Connection pooling configured for production load — v3.1
+- [x] DB-05: Database schema migrations run against PostgreSQL — v3.1
+- [x] SRV-01: Application runs under gunicorn with uvicorn workers — v3.1
+- [x] SRV-02: Scheduler runs as separate process — v3.1
+- [x] SRV-03: Health check endpoint returns database connectivity status — v3.1
+- [x] SRV-04: Graceful shutdown (in-flight requests complete before exit) — v3.1
+- [x] HOST-01: Deployed to Railway hosting provider — v3.1
+- [x] HOST-02: Provider-managed PostgreSQL with automated backups — v3.1
+- [x] HOST-03: Automated HTTPS/SSL (provider-managed) — v3.1
+- [x] HOST-04: Custom domain configured (ravetracker.whotrustswho.com) — v3.1
+- [x] HOST-05: Git-push deployment pipeline configured — v3.1
+- [x] SCRAPE-01: Exponential backoff on 403/429/5xx responses — v3.1
+- [x] SCRAPE-02: User-Agent string rotation — v3.1
+- [x] SCRAPE-03: Circuit breaker for extended API outages — v3.1
+- [x] SCRAPE-04: Scraper logs response status codes — v3.1
+- [x] OBS-01: Structured JSON logs with request IDs and HTTP status codes — v3.1
+- [x] OBS-02: Sentry error tracking with stack traces and user context — v3.1
+- [x] OBS-03: Scraper health visible (success rate, last fetch, circuit breaker) — v3.1
+- [x] OBS-04: Telegram alert on 3+ consecutive scraper failures — v3.1
+
 ### Active
 
-<!-- v3.0 Production Deployment & Hosting -->
+<!-- Next milestone requirements go here -->
 
 ### Out of Scope
 
@@ -128,25 +151,34 @@ Users never miss events from artists, venues, or promoters they care about — a
 - Per-user event caches — events are public data
 - Mobile app — web-first approach
 - Real-time WebSocket updates — polling sufficient
+- Docker/Kubernetes — Railway handles orchestration
+- Auto-scaling — predictable load, fixed deployment sufficient
+- SQLAlchemy ORM — raw SQL works, migration high-effort low-payoff
+- Proxy rotation — start conservative, add only if blocked by ra.co
 
 ## Context
 
 **Codebase:**
-- 6,605 lines of Python across 15 modules
-- Layered architecture: API client → Services → Web/Scheduler → Database
+- 8,921 lines of Python across 20+ modules
+- Layered architecture: API client → Services → Web/Scheduler → Database → Observability
 - Full codebase documentation in `.planning/codebase/`
 
 **Infrastructure:**
-- SQLite database (sufficient for expected scale)
-- Single-process deployment (web + scheduler in one process)
-- Config via YAML file with environment overrides
+- Railway managed PostgreSQL (production)
+- gunicorn + uvicorn workers, APScheduler in separate process
+- Sentry (error tracking), Better Stack (log shipping)
+- Config via YAML + environment variable overrides
+
+**Known issues:**
+- Bot polling error logged on startup: "set_wakeup_fd only works in main thread" — non-fatal, cosmetic log noise from gunicorn worker forking
 
 ## Constraints
 
-- **Database:** PostgreSQL for production (migrating from SQLite)
+- **Database:** PostgreSQL (production), SQLite (local dev)
 - **Stack:** Python/FastAPI — consistency with existing code
 - **Auth:** Built-in (no OAuth) — avoid external dependencies
 - **Email:** Requires SMTP configuration by admin
+- **Hosting:** Railway — committed to platform for predictability
 
 ## Key Decisions
 
@@ -155,15 +187,21 @@ Users never miss events from artists, venues, or promoters they care about — a
 | Email/password auth over OAuth | Simpler implementation, no external dependencies | ✓ Good |
 | Shared event cache, per-user rules | Events are public data, avoid duplication | ✓ Good |
 | Shared Telegram bot, per-user chat ID | Simpler user onboarding, admin manages bot | ✓ Good |
-| SQLite over PostgreSQL | Sufficient scale, simpler deployment | ✓ Good |
 | Argon2id password hashing | OWASP 2025 recommendation | ✓ Good |
 | Tailwind v4 via CDN | No build step, rapid iteration | ✓ Good |
 | 44px touch targets | WCAG AAA accessibility | ✓ Good |
-| Cycling buttons for rule modes | Clear UX, single toggle per setting | ✓ Good |
 | AJAX form submissions | Preserve scroll position | ✓ Good |
 | User-facing rebrand only | Keep ra-tracker/ra_tracker internally, avoid churn | ✓ Good |
 | Per-user local area in DB | User preferences in database, not global config | ✓ Good |
-| Simple region prompt | No auto-detection, Berlin suggestion sufficient | ✓ Good |
+| Dual-mode SQLite/PostgreSQL | Local dev convenience, production correctness | ✓ Good |
+| Railway over Fly.io/DigitalOcean | Managed PostgreSQL + git-push deploys, lowest ops overhead | ✓ Good |
+| gunicorn + uvicorn workers | Multi-process web server, standard for FastAPI in production | ✓ Good |
+| APScheduler in separate process | Prevents scheduler duplication across web workers | ✓ Good |
+| Circuit breaker for scraper | Prevents infinite retries during extended API outages | ✓ Good |
+| Singleton alert_state table | DB-persisted alert state survives worker restarts | ✓ Good |
+| SKIPPED status counts as failure | Circuit-open = no data delivered, admin should be alerted | ✓ Good |
+| AccessLogMiddleware over uvicorn.access | Structured JSON with request_id, cleaner than plain-text uvicorn logs | ✓ Good |
+| Better Stack for logs, not Sentry | Avoid log duplication; Sentry for errors, Better Stack for all logs | ✓ Good |
 
 ---
-*Last updated: 2026-02-10 after v3.0 milestone initialization*
+*Last updated: 2026-02-20 after v3.1 milestone*
