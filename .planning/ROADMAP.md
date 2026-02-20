@@ -6,7 +6,8 @@
 - ✅ **v2.0 Multi-User Support** - Phases 1-4 (shipped 2026-02-01)
 - ✅ **v2.1 Security Hardening** - Phases 5-8 (shipped 2026-02-08)
 - ✅ **v2.2 UX Polish & Branding** - Phase 9 (shipped 2026-02-10)
-- 🚧 **v3.0 Production Deployment & Hosting** - Phases 10-14 (in progress)
+- ✅ **v3.0 Production Deployment & Hosting** - Phases 10-13 (shipped 2026-02-18)
+- ✅ **v3.1 Observability & Monitoring** - Phase 14 (shipped 2026-02-20)
 
 ## Phases
 
@@ -112,7 +113,7 @@ Plans:
 
 </details>
 
-### 🚧 v3.0 Production Deployment & Hosting (In Progress)
+### ✅ v3.0/v3.1 Production Deployment, Hosting & Observability (COMPLETE)
 
 **Milestone Goal:** Transition the app from local development to a live, publicly accessible host with PostgreSQL and scraper resilience.
 
@@ -199,7 +200,7 @@ Plans:
 - [x] 14-01-PLAN.md — Structured JSON logging with request IDs, Sentry error tracking, Better Stack log shipping
 - [x] 14-02-PLAN.md — Scraper health persistence to database, enhanced admin dashboard with success rate and fetch history
 - [x] 14-03-PLAN.md — Telegram admin alerts on scraper failures with silencing and recovery notifications
-- [ ] 14-04-PLAN.md — HTTP access logging middleware for structured status codes (gap closure)
+- [x] 14-04-PLAN.md — HTTP access logging middleware for structured status codes (gap closure)
 
 ## Progress
 
@@ -221,7 +222,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. PostgreSQL & Server | v3.0 | 3/3 | Complete | 2026-02-16 |
 | 12. Hosting & SSL | v3.0 | 3/3 | Complete | 2026-02-15 |
 | 13. Scraper Resilience | v3.0 | 3/3 | Complete | 2026-02-18 |
-| 14. Observability | v3.0 | 3/4 | Gap closure | - |
+| 14. Observability | v3.1 | 4/4 | Complete | 2026-02-20 |
 
 ---
 *Roadmap created: 2026-02-11*

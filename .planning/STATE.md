@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 14 - Observability & Monitoring (ALL PLANS COMPLETE - v3.1 milestone)
+**Current focus:** Phase 14 - Observability & Monitoring (ALL PLANS COMPLETE including gap-closure 14-04 - v3.1 milestone)
 
 ## Current Position
 
 Phase: 14 of 14 (Observability & Monitoring)
-Plan: 3 of 3 in current phase (complete)
-Status: Phase 14 complete - All observability & monitoring plans done
-Last activity: 2026-02-20 - Completed 14-03 (Scraper Failure Alerts via Telegram)
+Plan: 4 of 4 in current phase (complete)
+Status: Phase 14 complete - All observability & monitoring plans done (incl. gap-closure 14-04)
+Last activity: 2026-02-20 - Completed 14-04 (HTTP Access Log Middleware, OBS-01 gap closed)
 
-Progress: [██████████] 100% (39/42 total plans complete)
+Progress: [██████████] 100% (40/43 total plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39 (phases 1-13 + 14-01 + 14-02 + 14-03)
+- Total plans completed: 40 (phases 1-13 + 14-01 + 14-02 + 14-03 + 14-04)
 - Average duration (v3.0): 4h 18m (9 plans)
 - Total execution time (v3.0): 38h 42m
 
@@ -40,7 +40,7 @@ Progress: [██████████] 100% (39/42 total plans complete)
 | 11. PostgreSQL Migration & Production Server | 3/3 | v3.0 |
 | 12. Hosting & SSL Deployment | 3/3 | v3.0 |
 | 13. Scraper Resilience | 3/3 | v3.0 |
-| 14. Observability & Monitoring | 3/3 | v3.1 |
+| 14. Observability & Monitoring | 4/4 | v3.1 |
 
 **Recent Trend:**
 v3.0 milestone starting - velocity tracking begins with Phase 10
@@ -58,6 +58,7 @@ v3.0 milestone starting - velocity tracking begins with Phase 10
 | Phase 14 P01 | 4m | 2 tasks | 8 files |
 | Phase 14 P02 | 5m | 2 tasks | 4 files |
 | Phase 14 P03 | 3m | 2 tasks | 5 files |
+| Phase 14 P04 | 3m | 1 task | 2 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,9 @@ Recent decisions affecting current work:
 - [Phase 14]: Singleton scraper_alert_state table (id=1 CHECK constraint) ensures exactly one alert state row survives restarts
 - [Phase 14]: SKIPPED fetch status (circuit breaker open) counts toward failure threshold for alerting
 - [Phase 14]: ScraperAlerter reads all state from DB on every call — no in-memory state, consistent across gunicorn workers
+- [Phase 14-04]: AccessLogMiddleware added first (innermost) so CorrelationId is set before logging and final status_code is captured
+- [Phase 14-04]: uvicorn.access remains at WARNING — AccessLogMiddleware replaces it with cleaner structured output
+- [Phase 14-04]: /health and /static/* skipped in access logging to suppress load balancer and asset noise
 
 ### Pending Todos
 
@@ -138,11 +142,12 @@ None yet.
 **Phase 14 (Observability):**
 - RESOLVED: scraper_fetch_log persists fetch cycles to DB (fixes "Last Successful Fetch: Never" across workers)
 - RESOLVED: Telegram admin alerts fire after 3 consecutive failures with silence and recovery notification
+- RESOLVED: OBS-01 gap closed — HTTP status codes now appear as structured fields via AccessLogMiddleware
 - NOTE: scraper_alert_state and scraper_fetch_log tables added to schema; Railway DB will auto-create via init_schema() on next restart
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed Phase 14 Plan 03 (Scraper Failure Alerts via Telegram) — Phase 14 and v3.1 milestone complete
+Stopped at: Completed Phase 14 Plan 04 (HTTP Access Log Middleware, OBS-01 gap closed) — Phase 14 and v3.1 milestone fully complete
 Resume file: None
 Next: All phases complete
