@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 14 - Observability & Monitoring (Plan 02 complete)
+**Current focus:** Phase 14 - Observability & Monitoring (ALL PLANS COMPLETE - v3.1 milestone)
 
 ## Current Position
 
 Phase: 14 of 14 (Observability & Monitoring)
-Plan: 2 of 3 in current phase (in progress)
-Status: Plan 02 complete - Scraper fetch persistence and enhanced admin dashboard
-Last activity: 2026-02-20 - Completed 14-02 (Scraper Fetch Log + Admin Dashboard Enhancement)
+Plan: 3 of 3 in current phase (complete)
+Status: Phase 14 complete - All observability & monitoring plans done
+Last activity: 2026-02-20 - Completed 14-03 (Scraper Failure Alerts via Telegram)
 
-Progress: [█████████░] 90% (38/42 total plans complete)
+Progress: [██████████] 100% (39/42 total plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37 (phases 1-13 + 14-01 + 14-02)
+- Total plans completed: 39 (phases 1-13 + 14-01 + 14-02 + 14-03)
 - Average duration (v3.0): 4h 18m (9 plans)
 - Total execution time (v3.0): 38h 42m
 
@@ -40,7 +40,7 @@ Progress: [█████████░] 90% (38/42 total plans complete)
 | 11. PostgreSQL Migration & Production Server | 3/3 | v3.0 |
 | 12. Hosting & SSL Deployment | 3/3 | v3.0 |
 | 13. Scraper Resilience | 3/3 | v3.0 |
-| 14. Observability & Monitoring | 2/3 | v3.1 |
+| 14. Observability & Monitoring | 3/3 | v3.1 |
 
 **Recent Trend:**
 v3.0 milestone starting - velocity tracking begins with Phase 10
@@ -57,6 +57,7 @@ v3.0 milestone starting - velocity tracking begins with Phase 10
 | Phase 13 P03 | 35m | 3 tasks | 7 files |
 | Phase 14 P01 | 4m | 2 tasks | 8 files |
 | Phase 14 P02 | 5m | 2 tasks | 4 files |
+| Phase 14 P03 | 3m | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,9 @@ Recent decisions affecting current work:
 - [Phase 14-02]: Pass circuit_breaker_state as parameter to complete_scraper_fetch() to avoid circular import (database.py importing from api.circuit_breaker)
 - [Phase 14-02]: get_last_fetch_time() queries DB as primary source (365-day window), falls back to in-memory for DB outage resilience
 - [Phase 14-02]: complete_scraper_fetch() called at ALL exit paths in fetch_and_notify (success, failure, no-rules, circuit-breaker-skipped)
+- [Phase 14]: Singleton scraper_alert_state table (id=1 CHECK constraint) ensures exactly one alert state row survives restarts
+- [Phase 14]: SKIPPED fetch status (circuit breaker open) counts toward failure threshold for alerting
+- [Phase 14]: ScraperAlerter reads all state from DB on every call — no in-memory state, consistent across gunicorn workers
 
 ### Pending Todos
 
@@ -133,11 +137,12 @@ None yet.
 
 **Phase 14 (Observability):**
 - RESOLVED: scraper_fetch_log persists fetch cycles to DB (fixes "Last Successful Fetch: Never" across workers)
-- NOTE: scraper_fetch_log table added to schema but existing production Railway DB will need init_schema() to create it (runs automatically on next restart)
+- RESOLVED: Telegram admin alerts fire after 3 consecutive failures with silence and recovery notification
+- NOTE: scraper_alert_state and scraper_fetch_log tables added to schema; Railway DB will auto-create via init_schema() on next restart
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed Phase 14 Plan 02 (Scraper Fetch Persistence + Admin Dashboard Enhancement)
+Stopped at: Completed Phase 14 Plan 03 (Scraper Failure Alerts via Telegram) — Phase 14 and v3.1 milestone complete
 Resume file: None
-Next: Phase 14 Plan 03 (Health Check Endpoint & Uptime Monitoring)
+Next: All phases complete
