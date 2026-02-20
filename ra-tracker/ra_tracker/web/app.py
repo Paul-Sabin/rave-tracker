@@ -157,6 +157,11 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(admin_router)
 
+    # Temporary Sentry test route — REMOVE after confirming Sentry integration
+    @app.get("/test-sentry")
+    async def test_sentry():
+        raise ValueError("Sentry test exception")
+
     # Health check endpoint (for load balancers and monitoring)
     @app.get("/health")
     def health_check(response: Response):
