@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
@@ -20,6 +21,8 @@ from .admin import admin_router
 from .csrf import CSRFMiddleware
 from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_application
 from ..config import get_config
+from ..observability.sentry_config import init_sentry, clear_sentry_user
+from ..observability.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,14 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 async def lifespan(app: FastAPI):
     """Manage application lifecycle - start/stop bot."""
     config = get_config()
+
+    # Set up structured logging first so all startup messages are captured
+    log_listener = setup_logging(
+        environment=config.observability.environment,
+        log_level=config.observability.log_level,
+        logtail_token=config.observability.logtail_token,
+    )
+    app.state.log_listener = log_listener
 
     # Start bot polling if not using webhooks
     if config.telegram.bot_token and not config.telegram.use_webhook:
@@ -54,11 +65,23 @@ async def lifespan(app: FastAPI):
     # Cleanup
     stop_bot()
 
+    # Stop log shipping queue listener if it was started
+    if hasattr(app.state, 'log_listener') and app.state.log_listener:
+        app.state.log_listener.stop()
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     # Ensure environment variables are loaded (for gunicorn mode which bypasses main.py)
     load_dotenv()
+
+    # Initialize Sentry BEFORE creating the FastAPI app so that Sentry's
+    # auto-integration can instrument the ASGI middleware properly
+    config = get_config()
+    init_sentry(
+        dsn=config.observability.sentry_dsn,
+        environment=config.observability.environment,
+    )
 
     app = FastAPI(
         title="Rave Tracker",
@@ -69,6 +92,17 @@ def create_app() -> FastAPI:
 
     # Add CSRF protection middleware
     app.add_middleware(CSRFMiddleware)
+
+    # Add CorrelationIdMiddleware AFTER CSRFMiddleware in code — FastAPI processes
+    # middleware in reverse order of addition, so this becomes the outermost layer,
+    # generating X-Request-ID headers before any other middleware runs.
+    from asgi_correlation_id import CorrelationIdMiddleware
+    app.add_middleware(
+        CorrelationIdMiddleware,
+        header_name='X-Request-ID',
+        update_request_header=True,
+        generator=lambda: uuid4().hex,
+    )
 
     # Set up Jinja2 templates
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -100,6 +134,15 @@ def create_app() -> FastAPI:
             content={"detail": "Too many requests. Please try again later."},
             headers={"Retry-After": "900"}  # 15 minutes
         )
+
+    # Middleware to clear Sentry user context after each request to prevent
+    # user context from bleeding into the next request on the same worker thread.
+    @app.middleware("http")
+    async def bind_user_context(request: Request, call_next):
+        """Clear Sentry user context after each request completes."""
+        response = await call_next(request)
+        clear_sentry_user()
+        return response
 
     # Include routes
     app.include_router(router)

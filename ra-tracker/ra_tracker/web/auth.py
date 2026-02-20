@@ -8,6 +8,7 @@ from fastapi import Depends, Request, HTTPException, status
 
 from ..database import get_db, User, Session
 from ..config import get_config
+from ..observability.sentry_config import set_sentry_user
 
 
 def create_session_token() -> str:
@@ -40,7 +41,13 @@ async def get_current_user(
     session = db.get_valid_session(token)
     if not session:
         return None
-    return db.get_user_by_id(session.user_id)
+    user = db.get_user_by_id(session.user_id)
+    if user:
+        try:
+            set_sentry_user(user.id, user.email)
+        except Exception:
+            pass  # Don't break auth if Sentry is unavailable
+    return user
 
 
 async def require_auth(

@@ -17,19 +17,32 @@ logger = logging.getLogger(__name__)
 
 
 def setup_logging(verbose: bool = False):
-    """Set up logging configuration."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-        ],
+    """Set up logging configuration using the observability module.
+
+    Called early in main() before config is fully loaded, so it uses
+    environment variables or safe defaults. The lifespan context in app.py
+    will reconfigure logging with the full config when gunicorn starts.
+    """
+    from .observability.logging_config import setup_logging as obs_setup_logging
+
+    try:
+        from .config import get_config
+        config = get_config()
+        environment = config.observability.environment
+        log_level = "DEBUG" if verbose else config.observability.log_level
+        logtail_token = config.observability.logtail_token
+    except Exception:
+        # Config not loaded yet — use environment variables or safe defaults
+        import os
+        environment = os.environ.get("ENVIRONMENT", "development")
+        log_level = "DEBUG" if verbose else os.environ.get("LOG_LEVEL", "INFO")
+        logtail_token = ""
+
+    obs_setup_logging(
+        environment=environment,
+        log_level=log_level,
+        logtail_token=logtail_token,
     )
-    # Reduce noise from some libraries
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
 def signal_handler(signum, frame):
