@@ -187,6 +187,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id
 
 -- Scraper health log indexes
 CREATE INDEX IF NOT EXISTS idx_scraper_health_timestamp ON scraper_health_log(timestamp DESC);
+
+-- Scraper alert state (singleton row — persists alert state across worker restarts)
+CREATE TABLE IF NOT EXISTS scraper_alert_state (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    alert_sent INTEGER DEFAULT 0,
+    alert_sent_at DATETIME,
+    consecutive_failures INTEGER DEFAULT 0,
+    last_alert_message TEXT
+);
+INSERT OR IGNORE INTO scraper_alert_state (id) VALUES (1);
 """
 
 # Migration to add new columns to existing database
@@ -436,6 +446,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_scraper_health_timestamp ON scraper_health_log(timestamp DESC);
+
+-- Scraper alert state (singleton row — persists alert state across worker restarts)
+CREATE TABLE IF NOT EXISTS scraper_alert_state (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    alert_sent BOOLEAN DEFAULT FALSE,
+    alert_sent_at TIMESTAMP,
+    consecutive_failures INTEGER DEFAULT 0,
+    last_alert_message TEXT
+);
+INSERT INTO scraper_alert_state (id) VALUES (1) ON CONFLICT DO NOTHING;
 """
 
 
@@ -2270,7 +2290,8 @@ class Database:
         events_found: int,
         rules_processed: int,
         status: str,
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
+        circuit_breaker_state: Optional[str] = None
     ) -> None:
         """Record the completion of a scraper fetch cycle.
 
@@ -2280,11 +2301,10 @@ class Database:
             rules_processed: Number of rules processed
             status: 'SUCCESS', 'FAILURE', or 'SKIPPED'
             error_message: Error description if status is FAILURE (optional)
+            circuit_breaker_state: Circuit breaker state string (optional, from caller)
         """
-        from ..api.circuit_breaker import circuit_breaker
-
         completed_at = datetime.utcnow()
-        cb_state = circuit_breaker.state
+        cb_state = circuit_breaker_state
 
         # Calculate duration from stored started_at
         duration_seconds = None
@@ -2422,6 +2442,77 @@ class Database:
                     "success_rate": success_rate,
                 })
             return result
+
+    def get_scraper_alert_state(self) -> dict:
+        """Get the singleton scraper alert state row.
+
+        Returns:
+            Dict with keys: alert_sent (bool), alert_sent_at (datetime|None),
+            consecutive_failures (int), last_alert_message (str|None)
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM scraper_alert_state WHERE id = 1")
+            row = cursor.fetchone()
+            if row is None:
+                return {
+                    "alert_sent": False,
+                    "alert_sent_at": None,
+                    "consecutive_failures": 0,
+                    "last_alert_message": None,
+                }
+            return {
+                "alert_sent": bool(row["alert_sent"]),
+                "alert_sent_at": self._parse_datetime(row["alert_sent_at"]),
+                "consecutive_failures": row["consecutive_failures"] or 0,
+                "last_alert_message": row["last_alert_message"],
+            }
+
+    def set_scraper_alert_sent(self, sent: bool, message: str = None) -> None:
+        """Update alert_sent flag and related fields.
+
+        Args:
+            sent: True when alert was just sent, False on recovery
+            message: Optional message describing the alert
+        """
+        with self.get_connection() as conn:
+            if sent:
+                conn.execute(
+                    f"""UPDATE scraper_alert_state
+                        SET alert_sent = {self.ph},
+                            alert_sent_at = CURRENT_TIMESTAMP,
+                            last_alert_message = {self.ph}
+                        WHERE id = 1""",
+                    (True if self._use_postgres else 1, message)
+                )
+            else:
+                # Recovery: clear alert_sent_at
+                conn.execute(
+                    f"""UPDATE scraper_alert_state
+                        SET alert_sent = {self.ph},
+                            alert_sent_at = NULL,
+                            last_alert_message = {self.ph}
+                        WHERE id = 1""",
+                    (False if self._use_postgres else 0, message)
+                )
+
+    def update_consecutive_failures(self, count: int) -> None:
+        """Set the consecutive failure count.
+
+        Args:
+            count: New consecutive failure count
+        """
+        with self.get_connection() as conn:
+            conn.execute(
+                f"UPDATE scraper_alert_state SET consecutive_failures = {self.ph} WHERE id = 1",
+                (count,)
+            )
+
+    def reset_consecutive_failures(self) -> None:
+        """Reset consecutive failure count to 0."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE scraper_alert_state SET consecutive_failures = 0 WHERE id = 1"
+            )
 
     def cleanup_old_fetch_logs(self, days: int = 30) -> int:
         """Delete scraper_fetch_log entries older than specified days.
