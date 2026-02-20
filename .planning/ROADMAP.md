@@ -222,7 +222,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. PostgreSQL & Server | v3.0 | 3/3 | Complete | 2026-02-16 |
 | 12. Hosting & SSL | v3.0 | 3/3 | Complete | 2026-02-15 |
 | 13. Scraper Resilience | v3.0 | 3/3 | Complete | 2026-02-18 |
-| 14. Observability | v3.1 | 4/4 | Complete | 2026-02-20 |
+| 14. Observability | v3.1 | Complete    | 2026-02-20 | 2026-02-20 |
 
 ---
 *Roadmap created: 2026-02-11*
