@@ -55,10 +55,26 @@ def fetch_and_notify():
         status = circuit_breaker.get_status()
         cooldown_remaining = status.cooldown_remaining or 0
         logger.warning(f"Scheduled fetch skipped: circuit breaker OPEN (cooldown remaining: {cooldown_remaining}s)")
+        # Log the skipped cycle to the fetch log
+        try:
+            db = get_db()
+            fetch_id = db.start_scraper_fetch()
+            db.complete_scraper_fetch(
+                fetch_id=fetch_id,
+                events_found=0,
+                rules_processed=0,
+                status='SKIPPED',
+                error_message='Circuit breaker OPEN'
+            )
+        except Exception as log_err:
+            logger.debug(f"Could not log skipped fetch cycle: {log_err}")
         return
 
+    fetch_id = None
     try:
         db = get_db()
+        fetch_id = db.start_scraper_fetch()
+
         config = get_config()
         fetcher = Fetcher()
         local_area_id = config.user.local_area_id
@@ -67,6 +83,12 @@ def fetch_and_notify():
         if not rules:
             logger.info("No active rules configured")
             db.clear_all_events()
+            db.complete_scraper_fetch(
+                fetch_id=fetch_id,
+                events_found=0,
+                rules_processed=0,
+                status='SUCCESS'
+            )
             _last_fetch_time = datetime.now()
             return
 
@@ -110,6 +132,14 @@ def fetch_and_notify():
                 )
 
         logger.info(f"Fetch complete. {total_events} events from {len(rules)} rules.")
+
+        # Record successful fetch cycle
+        db.complete_scraper_fetch(
+            fetch_id=fetch_id,
+            events_found=total_events,
+            rules_processed=len(rules),
+            status='SUCCESS'
+        )
         _last_fetch_time = datetime.now()
 
         # Phase 2: Send per-user notifications
@@ -149,6 +179,19 @@ def fetch_and_notify():
 
     except Exception as e:
         logger.error(f"Error in fetch_and_notify: {e}", exc_info=True)
+        # Record failed fetch cycle if we have a fetch_id
+        if fetch_id is not None:
+            try:
+                db = get_db()
+                db.complete_scraper_fetch(
+                    fetch_id=fetch_id,
+                    events_found=0,
+                    rules_processed=0,
+                    status='FAILURE',
+                    error_message=str(e)
+                )
+            except Exception as log_err:
+                logger.debug(f"Could not log failed fetch cycle: {log_err}")
 
 
 def purge_expired_accounts():
@@ -207,6 +250,12 @@ def purge_expired_accounts():
     except Exception as e:
         logger.error(f"Failed to cleanup scraper logs: {e}")
 
+    # Clean up old scraper fetch logs (30-day retention)
+    try:
+        db.cleanup_old_fetch_logs(days=30)
+    except Exception as e:
+        logger.error(f"Failed to cleanup fetch logs: {e}")
+
 
 def get_scheduler() -> BackgroundScheduler:
     """Get or create the global scheduler instance."""
@@ -263,7 +312,20 @@ def run_fetch_now():
 
 
 def get_last_fetch_time() -> Optional[datetime]:
-    """Get the timestamp of the last fetch."""
+    """Get the timestamp of the last successful fetch.
+
+    Primary source is the database (works across gunicorn workers).
+    Falls back to in-memory _last_fetch_time if DB is unavailable.
+    """
+    try:
+        db = get_db()
+        summary = db.get_scraper_health_summary(days=365)
+        db_time = summary.get("last_successful_fetch")
+        if db_time is not None:
+            return db_time
+    except Exception as e:
+        logger.debug(f"Could not query last fetch time from DB: {e}")
+    # Fallback to in-memory variable (resets on worker restart)
     return _last_fetch_time
 
 

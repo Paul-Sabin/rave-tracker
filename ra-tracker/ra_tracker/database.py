@@ -155,6 +155,20 @@ CREATE TABLE IF NOT EXISTS scraper_health_log (
     rule_target TEXT
 );
 
+-- Scraper fetch log (persist fetch cycle state across worker restarts)
+CREATE TABLE IF NOT EXISTS scraper_fetch_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at DATETIME NOT NULL,
+    completed_at DATETIME,
+    duration_seconds REAL,
+    events_found INTEGER DEFAULT 0,
+    rules_processed INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'RUNNING',
+    error_message TEXT,
+    circuit_breaker_state TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
@@ -393,6 +407,20 @@ CREATE TABLE IF NOT EXISTS scraper_health_log (
     circuit_breaker_state TEXT,
     rule_target TEXT
 );
+
+-- Scraper fetch log (persist fetch cycle state across worker restarts)
+CREATE TABLE IF NOT EXISTS scraper_fetch_log (
+    id SERIAL PRIMARY KEY,
+    started_at TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP,
+    duration_seconds REAL,
+    events_found INTEGER DEFAULT 0,
+    rules_processed INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'RUNNING',
+    error_message TEXT,
+    circuit_breaker_state TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
@@ -2209,6 +2237,211 @@ class Database:
             )
             deleted = cursor.rowcount
             logger.info(f"Cleaned up {deleted} old scraper health log entries (older than {days} days)")
+            return deleted
+
+    # Scraper fetch log operations
+    def start_scraper_fetch(self) -> int:
+        """Record the start of a scraper fetch cycle.
+
+        Returns:
+            The inserted row ID (fetch_id), used to update the row on completion.
+        """
+        started_at = datetime.utcnow()
+        with self.get_connection() as conn:
+            if self._use_postgres:
+                cursor = conn.execute(
+                    f"""INSERT INTO scraper_fetch_log (started_at, status)
+                        VALUES ({self.ph}, {self.ph})
+                        RETURNING id""",
+                    (started_at, 'RUNNING')
+                )
+                return cursor.fetchone()["id"]
+            else:
+                cursor = conn.execute(
+                    f"""INSERT INTO scraper_fetch_log (started_at, status)
+                        VALUES ({self.ph}, {self.ph})""",
+                    (started_at, 'RUNNING')
+                )
+                return cursor.lastrowid
+
+    def complete_scraper_fetch(
+        self,
+        fetch_id: int,
+        events_found: int,
+        rules_processed: int,
+        status: str,
+        error_message: Optional[str] = None
+    ) -> None:
+        """Record the completion of a scraper fetch cycle.
+
+        Args:
+            fetch_id: Row ID returned by start_scraper_fetch()
+            events_found: Number of events fetched
+            rules_processed: Number of rules processed
+            status: 'SUCCESS', 'FAILURE', or 'SKIPPED'
+            error_message: Error description if status is FAILURE (optional)
+        """
+        from ..api.circuit_breaker import circuit_breaker
+
+        completed_at = datetime.utcnow()
+        cb_state = circuit_breaker.state
+
+        # Calculate duration from stored started_at
+        duration_seconds = None
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                f"SELECT started_at FROM scraper_fetch_log WHERE id = {self.ph}",
+                (fetch_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                started_at = self._parse_datetime(row["started_at"])
+                if started_at:
+                    duration_seconds = (completed_at - started_at).total_seconds()
+
+            conn.execute(
+                f"""UPDATE scraper_fetch_log
+                    SET completed_at = {self.ph},
+                        duration_seconds = {self.ph},
+                        events_found = {self.ph},
+                        rules_processed = {self.ph},
+                        status = {self.ph},
+                        error_message = {self.ph},
+                        circuit_breaker_state = {self.ph}
+                    WHERE id = {self.ph}""",
+                (completed_at, duration_seconds, events_found, rules_processed,
+                 status, error_message, cb_state, fetch_id)
+            )
+
+    def get_scraper_health_summary(self, days: int = 7) -> dict:
+        """Get aggregate scraper health stats over the last N days.
+
+        Args:
+            days: Number of days to look back (default 7)
+
+        Returns:
+            Dict with keys: total_fetches, successful, failed, avg_duration_seconds,
+            total_events_found, last_successful_fetch (datetime or None)
+        """
+        with self.get_connection() as conn:
+            if self._use_postgres:
+                date_filter = f"started_at > NOW() - INTERVAL '{days} days'"
+            else:
+                date_filter = f"started_at > datetime('now', '-{days} days')"
+
+            cursor = conn.execute(
+                f"""SELECT
+                        COUNT(*) as total_fetches,
+                        SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) as successful,
+                        SUM(CASE WHEN status = 'FAILURE' THEN 1 ELSE 0 END) as failed,
+                        AVG(duration_seconds) as avg_duration_seconds,
+                        SUM(events_found) as total_events_found,
+                        MAX(CASE WHEN status = 'SUCCESS' THEN started_at ELSE NULL END) as last_successful_fetch
+                    FROM scraper_fetch_log
+                    WHERE {date_filter}"""
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return {
+                    "total_fetches": 0,
+                    "successful": 0,
+                    "failed": 0,
+                    "avg_duration_seconds": None,
+                    "total_events_found": 0,
+                    "last_successful_fetch": None,
+                }
+
+            return {
+                "total_fetches": row["total_fetches"] or 0,
+                "successful": row["successful"] or 0,
+                "failed": row["failed"] or 0,
+                "avg_duration_seconds": row["avg_duration_seconds"],
+                "total_events_found": row["total_events_found"] or 0,
+                "last_successful_fetch": self._parse_datetime(row["last_successful_fetch"]),
+            }
+
+    def get_recent_fetch_history(self, limit: int = 20) -> list:
+        """Get recent fetch cycles ordered by most recent first.
+
+        Args:
+            limit: Maximum number of records to return (default 20)
+
+        Returns:
+            List of dicts with keys: id, started_at, completed_at, duration_seconds,
+            events_found, rules_processed, status, error_message, circuit_breaker_state
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                f"SELECT * FROM scraper_fetch_log ORDER BY started_at DESC LIMIT {self.ph}",
+                (limit,)
+            )
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                r = dict(row)
+                r["started_at"] = self._parse_datetime(r["started_at"])
+                r["completed_at"] = self._parse_datetime(r["completed_at"])
+                result.append(r)
+            return result
+
+    def get_fetch_success_rate_trend(self, days: int = 7) -> list:
+        """Get daily success rate over last N days.
+
+        Args:
+            days: Number of days to look back (default 7)
+
+        Returns:
+            List of dicts: [{date, total, successful, success_rate}], ordered by date ASC
+        """
+        with self.get_connection() as conn:
+            if self._use_postgres:
+                date_filter = f"started_at > NOW() - INTERVAL '{days} days'"
+            else:
+                date_filter = f"started_at > datetime('now', '-{days} days')"
+
+            cursor = conn.execute(
+                f"""SELECT
+                        DATE(started_at) as date,
+                        COUNT(*) as total,
+                        SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) as successful
+                    FROM scraper_fetch_log
+                    WHERE {date_filter}
+                    GROUP BY DATE(started_at)
+                    ORDER BY DATE(started_at) ASC"""
+            )
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                total = row["total"] or 0
+                successful = row["successful"] or 0
+                success_rate = (successful / total * 100) if total > 0 else 0
+                result.append({
+                    "date": row["date"],
+                    "total": total,
+                    "successful": successful,
+                    "success_rate": success_rate,
+                })
+            return result
+
+    def cleanup_old_fetch_logs(self, days: int = 30) -> int:
+        """Delete scraper_fetch_log entries older than specified days.
+
+        Args:
+            days: Delete logs older than this many days (default 30)
+
+        Returns:
+            Number of rows deleted
+        """
+        from datetime import timedelta
+
+        with self.get_connection() as conn:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            cursor = conn.execute(
+                f"DELETE FROM scraper_fetch_log WHERE started_at < {self.ph}",
+                (cutoff,)
+            )
+            deleted = cursor.rowcount
+            logger.info(f"Cleaned up {deleted} old scraper fetch log entries (older than {days} days)")
             return deleted
 
 
