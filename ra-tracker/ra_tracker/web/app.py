@@ -162,6 +162,20 @@ def create_app() -> FastAPI:
     async def test_sentry():
         raise ValueError("Sentry test exception")
 
+    # Temporary scraper alert test routes — REMOVE after confirming Telegram alerts
+    @app.get("/test-scraper-alert")
+    async def test_scraper_alert():
+        from ..services.scraper_alerter import scraper_alerter
+        for _ in range(3):
+            scraper_alerter.check_and_alert("FAILURE")
+        return {"detail": "Simulated 3 consecutive failures — check Telegram"}
+
+    @app.get("/test-scraper-recovery")
+    async def test_scraper_recovery():
+        from ..services.scraper_alerter import scraper_alerter
+        scraper_alerter.check_and_alert("SUCCESS")
+        return {"detail": "Simulated recovery — check Telegram for recovery message"}
+
     # Health check endpoint (for load balancers and monitoring)
     @app.get("/health")
     def health_check(response: Response):
