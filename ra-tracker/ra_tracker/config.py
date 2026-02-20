@@ -68,6 +68,14 @@ class AppConfig:
 
 
 @dataclass
+class ObservabilityConfig:
+    sentry_dsn: str = ""          # SENTRY_DSN env var
+    logtail_token: str = ""       # LOGTAIL_SOURCE_TOKEN env var
+    environment: str = "production"  # ENVIRONMENT env var
+    log_level: str = "INFO"       # LOG_LEVEL env var
+
+
+@dataclass
 class Config:
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
@@ -77,6 +85,7 @@ class Config:
     session: SessionConfig = field(default_factory=SessionConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
     app: AppConfig = field(default_factory=AppConfig)
+    observability: ObservabilityConfig = field(default_factory=ObservabilityConfig)
 
     def _validate_required_secrets(self) -> None:
         """Validate that required secrets are set.
@@ -172,6 +181,16 @@ class Config:
             if db_url.startswith("postgres://"):
                 db_url = db_url.replace("postgres://", "postgresql://", 1)
             config.database.url = db_url
+
+        # Observability environment variable overrides
+        if os.environ.get("SENTRY_DSN"):
+            config.observability.sentry_dsn = os.environ["SENTRY_DSN"]
+        if os.environ.get("LOGTAIL_SOURCE_TOKEN"):
+            config.observability.logtail_token = os.environ["LOGTAIL_SOURCE_TOKEN"]
+        if os.environ.get("ENVIRONMENT"):
+            config.observability.environment = os.environ["ENVIRONMENT"]
+        if os.environ.get("LOG_LEVEL"):
+            config.observability.log_level = os.environ["LOG_LEVEL"]
 
         # Validate required secrets
         config._validate_required_secrets()
