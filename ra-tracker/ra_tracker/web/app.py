@@ -23,6 +23,7 @@ from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_applica
 from ..config import get_config
 from ..observability.sentry_config import init_sentry, clear_sentry_user
 from ..observability.logging_config import setup_logging
+from ..observability.access_log_middleware import AccessLogMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,14 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Add HTTP access logging middleware FIRST (runs innermost = last to execute).
+    # FastAPI/Starlette process middleware in reverse order of addition:
+    #   CorrelationIdMiddleware (added last)  -> outermost, runs first  -> assigns request_id
+    #   CSRFMiddleware                        -> middle
+    #   AccessLogMiddleware (added first)     -> innermost, runs last   -> logs final status_code
+    # This ordering ensures request_id is always populated when AccessLogMiddleware logs.
+    app.add_middleware(AccessLogMiddleware)
 
     # Add CSRF protection middleware
     app.add_middleware(CSRFMiddleware)
