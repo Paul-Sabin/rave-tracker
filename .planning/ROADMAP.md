@@ -193,12 +193,13 @@ Plans:
   3. Scraper health is visible (success/failure rate, last successful fetch time, current status)
   4. Alerts trigger on 3+ consecutive scraper fetch failures (email or Telegram notification to admin)
   5. Admin can diagnose production issues using logs and error tracking without SSH access
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Structured JSON logging with request IDs, Sentry error tracking, Better Stack log shipping
-- [ ] 14-02-PLAN.md — Scraper health persistence to database, enhanced admin dashboard with success rate and fetch history
-- [ ] 14-03-PLAN.md — Telegram admin alerts on scraper failures with silencing and recovery notifications
+- [x] 14-01-PLAN.md — Structured JSON logging with request IDs, Sentry error tracking, Better Stack log shipping
+- [x] 14-02-PLAN.md — Scraper health persistence to database, enhanced admin dashboard with success rate and fetch history
+- [x] 14-03-PLAN.md — Telegram admin alerts on scraper failures with silencing and recovery notifications
+- [ ] 14-04-PLAN.md — HTTP access logging middleware for structured status codes (gap closure)
 
 ## Progress
 
@@ -220,8 +221,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. PostgreSQL & Server | v3.0 | 3/3 | Complete | 2026-02-16 |
 | 12. Hosting & SSL | v3.0 | 3/3 | Complete | 2026-02-15 |
 | 13. Scraper Resilience | v3.0 | 3/3 | Complete | 2026-02-18 |
-| 14. Observability | v3.0 | 0/0 | Not started | - |
+| 14. Observability | v3.0 | 3/4 | Gap closure | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-18*
+*Last updated: 2026-02-20*
