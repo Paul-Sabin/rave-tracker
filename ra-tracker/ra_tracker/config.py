@@ -19,8 +19,15 @@ class TelegramConfig:
 
 @dataclass
 class SchedulerConfig:
-    fetch_interval_hours: int = 6
+    fetch_interval_hours: int = 6          # kept for backward compat; UI removed in Phase 16
     event_horizon_days: int = 30
+    fetch_times: list = None               # list of "HH:MM" strings, e.g. ["08:00", "20:00"]
+    notification_mode: str = "upon_fetch"  # "upon_fetch" or "daily_digest"
+    digest_time: str = "08:00"             # "HH:MM" - when to send daily digest
+
+    def __post_init__(self):
+        if self.fetch_times is None:
+            self.fetch_times = []
 
 
 @dataclass
@@ -126,7 +133,12 @@ class Config:
             if "telegram" in data:
                 config.telegram = TelegramConfig(**data["telegram"])
             if "scheduler" in data:
-                config.scheduler = SchedulerConfig(**data["scheduler"])
+                sched_data = data["scheduler"]
+                config.scheduler.fetch_interval_hours = sched_data.get("fetch_interval_hours", 6)
+                config.scheduler.event_horizon_days = sched_data.get("event_horizon_days", 30)
+                config.scheduler.fetch_times = sched_data.get("fetch_times", [])
+                config.scheduler.notification_mode = sched_data.get("notification_mode", "upon_fetch")
+                config.scheduler.digest_time = sched_data.get("digest_time", "08:00")
             if "web" in data:
                 config.web = WebConfig(**data["web"])
             if "database" in data:
@@ -210,6 +222,9 @@ class Config:
             "scheduler": {
                 "fetch_interval_hours": self.scheduler.fetch_interval_hours,
                 "event_horizon_days": self.scheduler.event_horizon_days,
+                "fetch_times": self.scheduler.fetch_times,
+                "notification_mode": self.scheduler.notification_mode,
+                "digest_time": self.scheduler.digest_time,
             },
             "web": {
                 "host": self.web.host,
