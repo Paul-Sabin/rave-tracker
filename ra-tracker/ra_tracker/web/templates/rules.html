@@ -1,27 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Rules - Rave Tracker{% endblock %}
+{% block title %}Tracking - Rave Tracker{% endblock %}
 
 {% block content %}
-<h1>Tracking Rules</h1>
+<h1>Tracking</h1>
 
-{% if not has_local_area %}
-<div class="card" style="border-color: #ffc107; background: rgba(255, 193, 7, 0.1);">
-    <div style="display: flex; align-items: flex-start; gap: 1rem;">
-        <div style="font-size: 1.5rem; flex-shrink: 0;">📍</div>
-        <div style="flex: 1;">
-            <p class="font-bold mb-1" style="color: #ffc107;">Set your local region first</p>
-            <p class="text-muted">
-                Choose your city so you can filter events to your area.
-                We suggest starting with <strong>Berlin</strong> if you're unsure.
-            </p>
-            <a href="/settings" class="btn btn-primary mt-2" style="min-height: 44px;">
-                Go to Settings
-            </a>
-        </div>
+<!-- Local area widget -->
+<div class="area-widget" id="area-widget">
+    <div class="area-widget-row" id="area-display-row">
+        <span class="area-widget-label">📍</span>
+        <span class="area-widget-name" id="area-display-name">{{ local_area_name if local_area_name else "No area set" }}</span>
+        <button type="button" class="area-widget-change-btn" id="area-change-btn" onclick="toggleAreaSearch()">Change</button>
+    </div>
+    <div class="area-widget-search" id="area-search-panel" style="display:none;">
+        <input type="text" id="area-search-input" class="form-control" placeholder="Search for city..." autocomplete="off">
+        <div id="area-search-results"></div>
     </div>
 </div>
-{% endif %}
 
 <!-- Search and Add -->
 <div class="card">
@@ -42,7 +37,7 @@
     <div id="search-results"></div>
 
     <!-- Hidden form for adding rules -->
-    <form id="add-rule-form" action="/rules/add" method="post" style="display: none;">
+    <form id="add-rule-form" action="/tracking/add" method="post" style="display: none;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="rule_type" id="form-rule-type">
         <input type="hidden" name="target_id" id="form-target-id">
@@ -74,7 +69,7 @@
                 </div>
                 <div class="rule-controls">
                     <!-- Dashboard mode (artists: all/local/none) -->
-                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.dashboard_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show all events">Off</button>
@@ -86,7 +81,7 @@
                     </form>
 
                     <!-- Notify mode (artists: all/local/none) -->
-                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.notify_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to notify all events">Off</button>
@@ -97,7 +92,7 @@
                         {% endif %}
                     </form>
 
-                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                    <form action="/tracking/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
@@ -119,7 +114,7 @@
                 </div>
                 <div class="rule-controls">
                     <!-- Dashboard mode (venues: all/none) -->
-                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.dashboard_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show events">Off</button>
@@ -129,7 +124,7 @@
                     </form>
 
                     <!-- Notify mode (venues: all/none) -->
-                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.notify_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to enable notifications">Off</button>
@@ -138,7 +133,7 @@
                         {% endif %}
                     </form>
 
-                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                    <form action="/tracking/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
@@ -160,7 +155,7 @@
                 </div>
                 <div class="rule-controls">
                     <!-- Dashboard mode (promoters: all/none) -->
-                    <form action="/rules/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/dashboard-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.dashboard_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to show events">Off</button>
@@ -170,7 +165,7 @@
                     </form>
 
                     <!-- Notify mode (promoters: all/none) -->
-                    <form action="/rules/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
+                    <form action="/tracking/{{ rule.id }}/notify-mode" method="post" class="cycle-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         {% if rule.notify_mode == 'none' %}
                         <button type="submit" name="mode" value="all" class="cycle-btn off" title="Click to enable notifications">Off</button>
@@ -179,7 +174,7 @@
                         {% endif %}
                     </form>
 
-                    <form action="/rules/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
+                    <form action="/tracking/{{ rule.id }}/delete" method="post" class="delete-form" onsubmit="return confirm('Delete this rule?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
@@ -206,6 +201,48 @@
 
 {% block scripts %}
 <style>
+/* Local area widget */
+.area-widget {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+.area-widget-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.area-widget-label {
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+}
+.area-widget-name {
+    color: var(--color-text);
+    font-weight: 500;
+    flex: 1;
+}
+.area-widget-change-btn {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    min-height: 32px;
+}
+.area-widget-change-btn:hover {
+    text-decoration: underline;
+}
+.area-widget-search {
+    margin-top: 0.75rem;
+}
+.area-widget-search .form-control {
+    margin-bottom: 0.5rem;
+}
+
 /* Inline add-rule feedback (replaces search results after click) */
 .result-feedback {
     padding: 0.875rem 1rem;
@@ -620,6 +657,61 @@ async function addRule(type, id, name) {
         showResultFeedback('error', 'Request failed', '');
     }
 }
+
+// Area widget
+function toggleAreaSearch() {
+    const panel = document.getElementById('area-search-panel');
+    const btn = document.getElementById('area-change-btn');
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    btn.textContent = isVisible ? 'Change' : 'Cancel';
+    if (!isVisible) {
+        document.getElementById('area-search-input').focus();
+        document.getElementById('area-search-results').innerHTML = '';
+    }
+}
+
+async function searchAreas(query) {
+    const resultsDiv = document.getElementById('area-search-results');
+    if (query.length < 2) { resultsDiv.innerHTML = ''; return; }
+    resultsDiv.innerHTML = '<span class="text-muted">Searching...</span>';
+    try {
+        const resp = await fetch(`/api/search/areas?q=${encodeURIComponent(query)}`);
+        const data = await resp.json();
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<span class="text-muted">No results found</span>';
+        } else {
+            resultsDiv.innerHTML = data.results.map(a =>
+                `<div class="search-result" onclick="selectArea(${a.id}, '${a.name.replace(/'/g, "\\'")}')">
+                    <span>${a.name}</span>
+                </div>`
+            ).join('');
+        }
+    } catch (e) {
+        resultsDiv.innerHTML = '<span class="text-danger">Search failed</span>';
+    }
+}
+
+async function selectArea(id, name) {
+    const csrfToken = document.querySelector('#add-rule-form [name="csrf_token"]').value;
+    try {
+        const resp = await fetch('/api/user/local-area', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ area_id: id, area_name: name }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            document.getElementById('area-display-name').textContent = name;
+            document.getElementById('area-search-panel').style.display = 'none';
+            document.getElementById('area-change-btn').textContent = 'Change';
+        }
+    } catch (e) {
+        console.error('Failed to save area', e);
+    }
+}
+
+document.getElementById('area-search-input').addEventListener('input', debounce(e => searchAreas(e.target.value), 300));
 
 // Search input handler
 document.getElementById('search-input').addEventListener('input', debounce(e => search(e.target.value), 300));

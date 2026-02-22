@@ -758,21 +758,21 @@ class Database:
                 # PostgreSQL: use RETURNING id
                 cursor = conn.execute(
                     f"""
-                    INSERT INTO users (email, password_hash, display_name, is_admin)
-                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    INSERT INTO users (email, password_hash, display_name, is_admin, local_area_id, local_area_name)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
                     RETURNING id
                     """,
-                    (email, password_hash, display_name, is_first)
+                    (email, password_hash, display_name, is_first, 34, "Berlin")
                 )
                 user_id = cursor.fetchone()["id"]
             else:
                 # SQLite: use lastrowid
                 cursor = conn.execute(
                     f"""
-                    INSERT INTO users (email, password_hash, display_name, is_admin)
-                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph})
+                    INSERT INTO users (email, password_hash, display_name, is_admin, local_area_id, local_area_name)
+                    VALUES ({self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph}, {self.ph})
                     """,
-                    (email, password_hash, display_name, is_first)
+                    (email, password_hash, display_name, is_first, 34, "Berlin")
                 )
                 user_id = cursor.lastrowid
 

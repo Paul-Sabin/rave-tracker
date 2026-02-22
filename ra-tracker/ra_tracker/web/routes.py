@@ -95,7 +95,12 @@ async def dashboard(
     )
 
 
-@router.get("/rules", response_class=HTMLResponse)
+@router.get("/rules")
+async def rules_redirect():
+    return RedirectResponse(url="/tracking", status_code=301)
+
+
+@router.get("/tracking", response_class=HTMLResponse)
 async def rules_page(request: Request, user: User = Depends(require_verified_email)):
     """Rules management page - shows only current user's rules."""
     templates = get_templates(request)
@@ -124,7 +129,7 @@ async def rules_page(request: Request, user: User = Depends(require_verified_ema
     )
 
 
-@router.post("/rules/add")
+@router.post("/tracking/add")
 async def add_rule(
     request: Request,
     user: User = Depends(require_verified_email),
@@ -138,7 +143,7 @@ async def add_rule(
     # Check for duplicate FOR THIS USER
     if db.rule_exists(rule_type, target_id, user_id=user.id):
         # Just redirect back, don't add duplicate
-        return RedirectResponse(url="/rules", status_code=303)
+        return RedirectResponse(url="/tracking", status_code=303)
 
     rule = Rule(
         id=None,
@@ -151,10 +156,10 @@ async def add_rule(
     db.add_rule(rule, user_id=user.id)
     logger.info(f"Added {rule_type} rule for user {user.id}: {target_name} (ID: {target_id})")
 
-    return RedirectResponse(url="/rules", status_code=303)
+    return RedirectResponse(url="/tracking", status_code=303)
 
 
-@router.post("/rules/{rule_id}/toggle")
+@router.post("/tracking/{rule_id}/toggle")
 async def toggle_rule(rule_id: int, user: User = Depends(require_verified_email)):
     """Toggle a rule's active status. Verifies ownership first."""
     db = get_db()
@@ -164,10 +169,10 @@ async def toggle_rule(rule_id: int, user: User = Depends(require_verified_email)
         raise HTTPException(status_code=404, detail="Rule not found")
 
     db.set_rule_active(rule_id, not rule.is_active)
-    return RedirectResponse(url="/rules", status_code=303)
+    return RedirectResponse(url="/tracking", status_code=303)
 
 
-@router.post("/rules/{rule_id}/notify-mode")
+@router.post("/tracking/{rule_id}/notify-mode")
 async def set_notify_mode(rule_id: int, user: User = Depends(require_verified_email), mode: str = Form(...)):
     """Set a rule's notification mode. Verifies ownership first."""
     db = get_db()
@@ -182,10 +187,10 @@ async def set_notify_mode(rule_id: int, user: User = Depends(require_verified_em
         raise HTTPException(status_code=400, detail=f"Invalid mode. Must be one of: {valid_modes}")
 
     db.set_rule_notify_mode(rule_id, mode)
-    return RedirectResponse(url="/rules", status_code=303)
+    return RedirectResponse(url="/tracking", status_code=303)
 
 
-@router.post("/rules/{rule_id}/dashboard-mode")
+@router.post("/tracking/{rule_id}/dashboard-mode")
 async def set_dashboard_mode(rule_id: int, user: User = Depends(require_verified_email), mode: str = Form(...)):
     """Set a rule's dashboard mode. Verifies ownership first."""
     db = get_db()
@@ -200,10 +205,10 @@ async def set_dashboard_mode(rule_id: int, user: User = Depends(require_verified
         raise HTTPException(status_code=400, detail=f"Invalid mode. Must be one of: {valid_modes}")
 
     db.set_rule_dashboard_mode(rule_id, mode)
-    return RedirectResponse(url="/rules", status_code=303)
+    return RedirectResponse(url="/tracking", status_code=303)
 
 
-@router.post("/rules/{rule_id}/delete")
+@router.post("/tracking/{rule_id}/delete")
 async def delete_rule(rule_id: int, user: User = Depends(require_verified_email)):
     """Delete a rule. Verifies ownership first."""
     db = get_db()
@@ -213,7 +218,7 @@ async def delete_rule(rule_id: int, user: User = Depends(require_verified_email)
         raise HTTPException(status_code=404, detail="Rule not found")
 
     db.delete_rule(rule_id)
-    return RedirectResponse(url="/rules", status_code=303)
+    return RedirectResponse(url="/tracking", status_code=303)
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -494,6 +499,19 @@ async def search_areas(q: str, user: User = Depends(require_verified_email)):
     except Exception as e:
         logger.error(f"Area search failed: {e}")
         return {"results": [], "error": str(e)}
+
+
+@router.post("/api/user/local-area")
+async def set_local_area(request: Request, user: User = Depends(require_verified_email)):
+    """Update the authenticated user's local area."""
+    db = get_db()
+    data = await request.json()
+    area_id = data.get("area_id")
+    area_name = data.get("area_name", "")
+    if not area_id or not area_name:
+        raise HTTPException(status_code=400, detail="area_id and area_name are required")
+    db.update_user_local_area(user.id, int(area_id), area_name)
+    return {"success": True}
 
 
 @router.get("/api/status")
