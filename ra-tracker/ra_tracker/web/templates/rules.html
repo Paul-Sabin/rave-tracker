@@ -202,66 +202,61 @@
 </div>
 {% endif %}
 
-<div id="toast-container"></div>
 {% endblock %}
 
 {% block scripts %}
 <style>
-/* Rule-added toast */
-#toast-container {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    pointer-events: none;
-    max-width: min(340px, calc(100vw - 2rem));
-}
-.rule-toast {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-left: 4px solid var(--color-success);
-    border-radius: 8px;
+/* Inline add-rule feedback (replaces search results after click) */
+.result-feedback {
     padding: 0.875rem 1rem;
-    color: var(--color-text);
-    pointer-events: auto;
-    animation: toast-in 0.25s ease-out forwards;
     display: flex;
-    gap: 0.75rem;
     align-items: flex-start;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-.rule-toast.toast-out {
-    animation: toast-out 0.3s ease-in forwards;
-}
-.rule-toast-icon {
-    color: var(--color-success);
-    font-size: 1.1rem;
-    flex-shrink: 0;
-    line-height: 1.4;
-}
-.rule-toast-body {
-    flex: 1;
+    gap: 0.75rem;
+    border-radius: 4px;
     font-size: 0.875rem;
     line-height: 1.45;
+    animation: feedback-in 0.2s ease-out;
 }
-.rule-toast-name {
+.result-feedback-success {
+    border-left: 4px solid var(--color-success);
+    background: rgba(78, 204, 163, 0.08);
+}
+.result-feedback-error {
+    border-left: 4px solid var(--color-accent);
+    background: rgba(233, 69, 96, 0.08);
+}
+.result-feedback-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    line-height: 1.45;
+}
+.result-feedback-success .result-feedback-icon { color: var(--color-success); }
+.result-feedback-error .result-feedback-icon   { color: var(--color-accent); }
+.result-feedback-title {
     font-weight: 600;
     color: var(--color-text);
 }
-.rule-toast-detail {
+.result-feedback-detail {
     color: var(--color-text-muted);
     margin-top: 0.2rem;
 }
-@keyframes toast-in {
-    from { opacity: 0; transform: translateY(12px); }
+@keyframes feedback-in {
+    from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes toast-out {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(8px); }
+
+/* Already-tracked badge in search results */
+.search-result-tracked {
+    cursor: default;
+    opacity: 0.6;
+}
+.search-result-tracked:hover {
+    background: transparent;
+}
+.tracked-badge {
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    white-space: nowrap;
 }
 
 .search-tabs {
@@ -512,6 +507,13 @@
 <script>
 let currentType = 'artist';
 
+// Currently tracked IDs per type (rendered server-side)
+const trackedIds = {
+    artist:   new Set([{% for r in artists %}{{ r.target_id }}{% if not loop.last %},{% endif %}{% endfor %}]),
+    venue:    new Set([{% for r in venues %}{{ r.target_id }}{% if not loop.last %},{% endif %}{% endfor %}]),
+    promoter: new Set([{% for r in promoters %}{{ r.target_id }}{% if not loop.last %},{% endif %}{% endfor %}]),
+};
+
 // Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -549,49 +551,38 @@ async function search(query) {
         if (data.results.length === 0) {
             resultsDiv.innerHTML = '<span class="text-muted">No results found</span>';
         } else {
-            resultsDiv.innerHTML = data.results.map(r => `
-                <div class="search-result" onclick="addRule('${currentType}', ${r.id}, '${r.name.replace(/'/g, "\\'")}')">
-                    <span>${r.name}</span>
-                    <span class="text-muted">ID: ${r.id}</span>
-                </div>
-            `).join('');
+            resultsDiv.innerHTML = data.results.map(r => {
+                const tracked = trackedIds[currentType].has(r.id);
+                if (tracked) {
+                    return `
+                        <div class="search-result search-result-tracked">
+                            <span>${r.name}</span>
+                            <span class="tracked-badge">✕ already tracked!</span>
+                        </div>`;
+                }
+                return `
+                    <div class="search-result" onclick="addRule('${currentType}', ${r.id}, '${r.name.replace(/'/g, "\\'")}')">
+                        <span>${r.name}</span>
+                        <span class="text-muted">ID: ${r.id}</span>
+                    </div>`;
+            }).join('');
         }
     } catch (e) {
         resultsDiv.innerHTML = '<span class="text-danger">Search failed</span>';
     }
 }
 
-// Toast notification
-function showRuleToast(name, ruleType, dashMode, notifyMode) {
-    const container = document.getElementById('toast-container');
-
-    function modeLabel(m) {
-        return m === 'all' ? 'global' : m === 'local' ? 'local' : null;
-    }
-
-    const typeLabel = ruleType + 's'; // artists, venues, promoters
-    const parts = [];
-    const dash = modeLabel(dashMode);
-    const notif = modeLabel(notifyMode);
-    if (dash) parts.push(`dashboard (${dash})`);
-    if (notif) parts.push(`notifications (${notif})`);
-    const detail = parts.length
-        ? `Appearing in ${parts.join(' and ')}`
-        : 'Rule added';
-
-    const toast = document.createElement('div');
-    toast.className = 'rule-toast';
-    toast.innerHTML = `
-        <div class="rule-toast-icon">✓</div>
-        <div class="rule-toast-body">
-            <div class="rule-toast-name">${name} added to your ${typeLabel}</div>
-            <div class="rule-toast-detail">${detail}</div>
+// Inline feedback in the search results area
+function showResultFeedback(type, title, detail) {
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = `
+        <div class="result-feedback result-feedback-${type}">
+            <div class="result-feedback-icon">${type === 'success' ? '✓' : '✕'}</div>
+            <div>
+                <div class="result-feedback-title">${title}</div>
+                ${detail ? `<div class="result-feedback-detail">${detail}</div>` : ''}
+            </div>
         </div>`;
-    container.appendChild(toast);
-
-    // Fade out after 3.5s, remove after animation
-    setTimeout(() => toast.classList.add('toast-out'), 3500);
-    setTimeout(() => toast.remove(), 3800);
 }
 
 // Add rule
@@ -607,25 +598,26 @@ async function addRule(type, id, name) {
         const data = await response.json();
 
         if (data.success) {
-            showRuleToast(name, type, data.dashboard_mode, data.notify_mode);
+            function modeLabel(m) {
+                return m === 'all' ? 'global' : m === 'local' ? 'local' : null;
+            }
+            const typeLabel = type + 's';
+            const parts = [];
+            const dash = modeLabel(data.dashboard_mode);
+            const notif = modeLabel(data.notify_mode);
+            if (dash) parts.push(`dashboard (${dash})`);
+            if (notif) parts.push(`notifications (${notif})`);
+            const detail = parts.length ? `Appearing in ${parts.join(' and ')}` : '';
+
+            showResultFeedback('success', `${name} added to your ${typeLabel}`, detail);
+            trackedIds[type].add(id);
             setTimeout(() => location.reload(), 2000);
         } else {
-            // Already tracking or other error — show brief error toast
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'rule-toast';
-            toast.style.borderLeftColor = 'var(--color-accent)';
-            toast.innerHTML = `
-                <div class="rule-toast-icon" style="color:var(--color-accent)">✕</div>
-                <div class="rule-toast-body">
-                    <div class="rule-toast-name">${data.error || 'Could not add rule'}</div>
-                </div>`;
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.add('toast-out'), 3500);
-            setTimeout(() => toast.remove(), 3800);
+            showResultFeedback('error', data.error || 'Could not add rule', '');
         }
     } catch (e) {
         console.error('Failed to add rule', e);
+        showResultFeedback('error', 'Request failed', '');
     }
 }
 
