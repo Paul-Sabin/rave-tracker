@@ -154,11 +154,11 @@ Plans:
   3. A non-admin visiting /admin/settings receives a 403 response
   4. An admin on /admin/settings can view and save Telegram bot token, admin chat ID, fetch schedule times, event horizon, and notification mode
   5. An admin on /admin/settings sees database info (read-only) and can trigger a test Telegram message
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: Strip /settings to personal-only; add admin link for admin users
-- [ ] 16-02: Create /admin/settings page with system config fields
+- [ ] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
+- [ ] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
 
 #### Phase 17: Notification Dispatch Modes
 **Goal**: Admins can choose between immediate notifications on fetch and a daily digest that batches all events
@@ -198,11 +198,11 @@ Plans:
   3. A non-admin visiting /admin/settings receives a 403 response
   4. An admin on /admin/settings can view and save Telegram bot token, admin chat ID, fetch schedule times, event horizon, and notification mode
   5. An admin on /admin/settings sees database info (read-only) and can trigger a test Telegram message
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: Strip /settings to personal-only; add admin link for admin users
-- [ ] 16-02: Create /admin/settings page with system config fields
+- [ ] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
+- [ ] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
 
 ### Phase 17: Notification Dispatch Modes
 **Goal**: Admins can choose between immediate notifications on fetch and a daily digest that batches all events
