@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 09-ux-polish-branding
 source: 09-01-SUMMARY.md, 09-02-SUMMARY.md
 started: 2026-02-10T12:00:00Z
@@ -53,7 +53,16 @@ skipped: 0
   reason: "User reported: No prompt card appears when I register as a new user and go to the rule page and set my first new rule."
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "has_local_area reads from global config.yaml (which has Berlin hardcoded) instead of per-user database field. All users see has_local_area=True regardless of their own settings."
+  artifacts:
+    - path: "ra-tracker/ra_tracker/web/routes.py"
+      issue: "Lines 126-127 read local_area from global config, not user object"
+    - path: "ra-tracker/config.yaml"
+      issue: "Lines 27-29 hardcode Berlin for all users"
+    - path: "ra-tracker/ra_tracker/database.py"
+      issue: "User table/model lacks local_area_id and local_area_name fields"
+  missing:
+    - "Per-user local_area_id and local_area_name columns in users table"
+    - "Routes should read local_area from user object, not global config"
+    - "Settings save should write to user record, not config.yaml"
+  debug_session: ".planning/debug/region-prompt-missing.md"

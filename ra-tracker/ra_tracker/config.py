@@ -172,7 +172,7 @@ class Config:
         if os.environ.get("SECRET_KEY") or os.environ.get("APP_SECRET_KEY"):
             config.app.secret_key = os.environ.get("SECRET_KEY") or os.environ["APP_SECRET_KEY"]
         if os.environ.get("BASE_URL") or os.environ.get("APP_BASE_URL"):
-            config.app.base_url = os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]
+            config.app.base_url = (os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]).rstrip("/")
 
         # Database URL (PostgreSQL)
         if os.environ.get("DATABASE_URL"):

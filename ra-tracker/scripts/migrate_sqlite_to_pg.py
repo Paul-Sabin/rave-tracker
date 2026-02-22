@@ -307,7 +307,7 @@ Examples:
     # Connect to SQLite
     try:
         sqlite_conn = sqlite3.connect(args.sqlite)
-        print("✓ Connected to SQLite")
+        print("[OK] Connected to SQLite")
     except Exception as e:
         print(f"ERROR: Failed to connect to SQLite: {e}")
         sys.exit(1)
@@ -315,7 +315,7 @@ Examples:
     # Connect to PostgreSQL
     try:
         pg_conn = psycopg2.connect(args.pg_url)
-        print("✓ Connected to PostgreSQL")
+        print("[OK] Connected to PostgreSQL")
     except Exception as e:
         print(f"ERROR: Failed to connect to PostgreSQL: {e}")
         print("  Make sure the database exists and credentials are correct")
@@ -335,7 +335,7 @@ Examples:
                 except Exception as e:
                     print(f"  Warning: Could not drop {table}: {e}")
             pg_conn.commit()
-            print("✓ Dropped existing tables")
+            print("[OK] Dropped existing tables")
 
         # Create PostgreSQL schema
         if not args.dry_run:
@@ -345,7 +345,7 @@ Examples:
                 if statement:
                     pg_cursor.execute(statement)
             pg_conn.commit()
-            print("✓ Schema created")
+            print("[OK] Schema created")
         else:
             print("\n[DRY RUN] Would create PostgreSQL schema")
 
@@ -380,7 +380,7 @@ Examples:
         if not args.dry_run:
             pg_conn.commit()
 
-        print(f"\n✓ Migrated {total_rows} total rows across {len(TABLE_ORDER)} tables")
+        print(f"\n[OK] Migrated {total_rows} total rows across {len(TABLE_ORDER)} tables")
 
         # Reset sequences
         if not args.dry_run:
@@ -393,7 +393,7 @@ Examples:
                     if args.verbose and result:
                         print(f"  {result[0]}")
             pg_conn.commit()
-            print("✓ Sequences reset")
+            print("[OK] Sequences reset")
         else:
             print("\n[DRY RUN] Would reset SERIAL sequences")
 
@@ -411,10 +411,10 @@ Examples:
                 except sqlite3.OperationalError:
                     sqlite_count = 0  # Table doesn't exist in SQLite
 
-                status = "✓" if pg_count == sqlite_count else "✗"
+                status = "[OK]" if pg_count == sqlite_count else "[FAIL]"
                 print(f"  {status} {table}: SQLite={sqlite_count}, PostgreSQL={pg_count}")
 
-        print("\n✓ Migration complete!")
+        print("\n[OK] Migration complete!")
 
         if args.dry_run:
             print("\nThis was a dry run. No data was written to PostgreSQL.")
