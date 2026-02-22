@@ -1,5 +1,31 @@
 # Project Milestones: Rave Tracker
 
+## v3.2 Tracking Page UX (Shipped: 2026-02-22)
+
+**Delivered:** Tracking page overhaul — Berlin default for new signups, persistent area widget replacing the warning card, and /rules renamed to /tracking.
+
+**Phases completed:** Phase 15 (1 plan)
+
+**Key accomplishments:**
+
+- New users get Berlin (area ID 34) as their default local area at registration — dashboard is populated from first login
+- Persistent area widget at top of /tracking page: shows current area, "Change" reveals inline search, selecting auto-saves via new `POST /api/user/local-area` endpoint
+- Yellow "Set your local region" warning card removed
+- /rules → /tracking rename across all routes, nav, form actions, and dashboard link; 301 redirect preserves old bookmarks
+
+**Stats:**
+
+- 1 phase, 1 plan
+- 5 files modified
+- 1 commit: `ae4d07f`
+- Timeline: 2026-02-22 (1 day)
+
+**Git range:** `ae4d07f`
+
+**Archive:** `.planning/milestones/v3.2-ROADMAP.md`
+
+---
+
 ## v3.1 Production Deployment, Hosting & Observability (Shipped: 2026-02-20)
 
 **Delivered:** Rave Tracker is live in production on Railway with PostgreSQL, HTTPS, custom domain, scraper resilience, and full observability stack (structured logging, Sentry, Better Stack, Telegram alerts).
