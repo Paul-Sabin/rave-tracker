@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-10)
+See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Phase 14 - Observability & Monitoring (ALL PLANS COMPLETE including gap-closure 14-04 - v3.1 milestone)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 14 of 14 (Observability & Monitoring)
-Plan: 4 of 4 in current phase (complete)
-Status: Phase 14 complete - All observability & monitoring plans done (incl. gap-closure 14-04)
-Last activity: 2026-02-20 - Completed 14-04 (HTTP Access Log Middleware, OBS-01 gap closed)
+Phase: 15 of 15 (Tracking Page Overhaul)
+Plan: 1 of 1 in current phase (complete)
+Status: ✅ v3.2 milestone complete — all phases shipped, ROADMAP.md archived
+Last activity: 2026-02-22 — Completed Phase 15 (Berlin default, area widget, /rules → /tracking rename)
 
-Progress: [██████████] 100% (40/43 total plans complete)
+Progress: [██████████] 100% (41/41 total plans complete)
 
 ## Performance Metrics
 

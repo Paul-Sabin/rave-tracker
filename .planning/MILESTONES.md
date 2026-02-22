@@ -153,6 +153,4 @@
 
 **What's next:** v2.0 Multi-User Support
 
----
-
 

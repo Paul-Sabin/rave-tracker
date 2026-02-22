@@ -10,7 +10,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ## Current State
 
-**Version:** v3.1 Production Deployment, Hosting & Observability (shipped 2026-02-20)
+**Version:** v3.2 Tracking Page UX (shipped 2026-02-22)
 
 **Live at:** https://ravetracker.whotrustswho.com
 
@@ -113,6 +113,11 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [x] UX-02: Dashboard toggle labels "Global events" / "Local only" — v2.2
 - [x] UX-03: Remove legacy admin welcome banner — v2.2
 
+**Milestone 6: Tracking Page UX**
+- [x] UX-04: Berlin (area ID 34) set as default local area for new user signups — v3.2
+- [x] UX-05: Persistent area widget on /tracking page; inline search auto-saves without page reload — v3.2
+- [x] UX-06: /rules page renamed to /tracking with 301 redirect for old bookmarks — v3.2
+
 **Milestone 5: Production Deployment, Hosting & Observability**
 - [x] ENV-01: All secrets configured via environment variables — v3.1
 - [x] ENV-02: No hardcoded secrets in config.yaml or committed files — v3.1
@@ -202,6 +207,10 @@ Users never miss events from artists, venues, or promoters they care about — a
 | SKIPPED status counts as failure | Circuit-open = no data delivered, admin should be alerted | ✓ Good |
 | AccessLogMiddleware over uvicorn.access | Structured JSON with request_id, cleaner than plain-text uvicorn logs | ✓ Good |
 | Better Stack for logs, not Sentry | Avoid log duplication; Sentry for errors, Better Stack for all logs | ✓ Good |
+| Berlin as default local area (ID 34) | Removes silent 90-event exclusion for new users; confirmed via RAClient at implementation | ✓ Good |
+| Area widget replaces warning card | Persistent and discoverable without being alarming; inline save avoids settings page detour | ✓ Good |
+| /api/rules/add JSON endpoint kept as-is | Only form-based routes renamed; JS fetch calls unchanged | ✓ Good |
+| 301 redirect /rules → /tracking | Permanent redirect preserves bookmarks and SEO | ✓ Good |
 
 ---
-*Last updated: 2026-02-20 after v3.1 milestone*
+*Last updated: 2026-02-22 after v3.2 milestone*
