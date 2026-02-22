@@ -60,7 +60,7 @@ async def dashboard(
     local_area_id = user.local_area_id
     events = db.get_upcoming_events_for_user(user.id, local_area_id=local_area_id)
     rules = db.get_all_rules(user_id=user.id)
-    stats = db.get_user_stats(user.id)
+    stats = db.get_user_stats(user.id, local_area_id=local_area_id)
     legacy_data = db.count_legacy_data(user.id)
 
     # Group events by date
@@ -502,7 +502,7 @@ async def get_status(user: User = Depends(require_verified_email)):
     db = get_db()
     return {
         "scheduler": get_scheduler_status(),
-        **db.get_user_stats(user.id),
+        **db.get_user_stats(user.id, local_area_id=user.local_area_id),
     }
 
 

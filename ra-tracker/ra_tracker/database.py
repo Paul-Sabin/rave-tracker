@@ -1895,15 +1895,15 @@ class Database:
 
             return events
 
-    def get_user_stats(self, user_id: int) -> dict:
+    def get_user_stats(self, user_id: int, local_area_id: int | None = None) -> dict:
         """Get user-scoped statistics.
 
         Returns:
             dict with keys:
                 - active_rules: Count of user's active rules
-                - upcoming_events: Count of events matching user's rules
+                - upcoming_events: Count of events matching user's rules (respects dashboard_mode)
                 - notifications_sent: Count of notifications for user's rules
-        f"""
+        """
         with self.get_connection() as conn:
             today = date.today().isoformat()
 
@@ -1913,16 +1913,32 @@ class Database:
                 (user_id,)
             ).fetchone()[0]
 
-            # Upcoming events matching user's rules
-            events = conn.execute(
-                f"""
-                SELECT COUNT(DISTINCT e.id) FROM events e
-                INNER JOIN event_rules er ON e.id = er.event_id
-                INNER JOIN rules r ON er.rule_id = r.id
-                WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
-                """,
-                (user_id, today)
-            ).fetchone()[0]
+            # Upcoming events — same dashboard_mode filter as the events list
+            if local_area_id:
+                events = conn.execute(
+                    f"""
+                    SELECT COUNT(DISTINCT e.id) FROM events e
+                    INNER JOIN event_rules er ON e.id = er.event_id
+                    INNER JOIN rules r ON er.rule_id = r.id
+                    WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
+                    AND (
+                        r.dashboard_mode = 'all'
+                        OR (r.dashboard_mode = 'local' AND e.area_id = {self.ph})
+                    )
+                    """,
+                    (user_id, today, local_area_id)
+                ).fetchone()[0]
+            else:
+                events = conn.execute(
+                    f"""
+                    SELECT COUNT(DISTINCT e.id) FROM events e
+                    INNER JOIN event_rules er ON e.id = er.event_id
+                    INNER JOIN rules r ON er.rule_id = r.id
+                    WHERE r.user_id = {self.ph} AND e.date >= {self.ph}
+                    AND r.dashboard_mode = 'all'
+                    """,
+                    (user_id, today)
+                ).fetchone()[0]
 
             # Notifications for user's rules
             notifications = conn.execute(
