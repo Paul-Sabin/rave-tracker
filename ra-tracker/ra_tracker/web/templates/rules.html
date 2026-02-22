@@ -201,10 +201,69 @@
     </div>
 </div>
 {% endif %}
+
+<div id="toast-container"></div>
 {% endblock %}
 
 {% block scripts %}
 <style>
+/* Rule-added toast */
+#toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+    max-width: min(340px, calc(100vw - 2rem));
+}
+.rule-toast {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-success);
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    color: var(--color-text);
+    pointer-events: auto;
+    animation: toast-in 0.25s ease-out forwards;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.rule-toast.toast-out {
+    animation: toast-out 0.3s ease-in forwards;
+}
+.rule-toast-icon {
+    color: var(--color-success);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+.rule-toast-body {
+    flex: 1;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+.rule-toast-name {
+    font-weight: 600;
+    color: var(--color-text);
+}
+.rule-toast-detail {
+    color: var(--color-text-muted);
+    margin-top: 0.2rem;
+}
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(8px); }
+}
+
 .search-tabs {
     display: flex;
     gap: 0.5rem;
@@ -502,12 +561,72 @@ async function search(query) {
     }
 }
 
+// Toast notification
+function showRuleToast(name, ruleType, dashMode, notifyMode) {
+    const container = document.getElementById('toast-container');
+
+    function modeLabel(m) {
+        return m === 'all' ? 'global' : m === 'local' ? 'local' : null;
+    }
+
+    const typeLabel = ruleType + 's'; // artists, venues, promoters
+    const parts = [];
+    const dash = modeLabel(dashMode);
+    const notif = modeLabel(notifyMode);
+    if (dash) parts.push(`dashboard (${dash})`);
+    if (notif) parts.push(`notifications (${notif})`);
+    const detail = parts.length
+        ? `Appearing in ${parts.join(' and ')}`
+        : 'Rule added';
+
+    const toast = document.createElement('div');
+    toast.className = 'rule-toast';
+    toast.innerHTML = `
+        <div class="rule-toast-icon">✓</div>
+        <div class="rule-toast-body">
+            <div class="rule-toast-name">${name} added to your ${typeLabel}</div>
+            <div class="rule-toast-detail">${detail}</div>
+        </div>`;
+    container.appendChild(toast);
+
+    // Fade out after 3.5s, remove after animation
+    setTimeout(() => toast.classList.add('toast-out'), 3500);
+    setTimeout(() => toast.remove(), 3800);
+}
+
 // Add rule
-function addRule(type, id, name) {
-    document.getElementById('form-rule-type').value = type;
-    document.getElementById('form-target-id').value = id;
-    document.getElementById('form-target-name').value = name;
-    document.getElementById('add-rule-form').submit();
+async function addRule(type, id, name) {
+    const csrfToken = document.querySelector('#add-rule-form [name="csrf_token"]').value;
+
+    try {
+        const response = await fetch('/api/rules/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ rule_type: type, target_id: id, target_name: name }),
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showRuleToast(name, type, data.dashboard_mode, data.notify_mode);
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            // Already tracking or other error — show brief error toast
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'rule-toast';
+            toast.style.borderLeftColor = 'var(--color-accent)';
+            toast.innerHTML = `
+                <div class="rule-toast-icon" style="color:var(--color-accent)">✕</div>
+                <div class="rule-toast-body">
+                    <div class="rule-toast-name">${data.error || 'Could not add rule'}</div>
+                </div>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('toast-out'), 3500);
+            setTimeout(() => toast.remove(), 3800);
+        }
+    } catch (e) {
+        console.error('Failed to add rule', e);
+    }
 }
 
 // Search input handler

@@ -534,7 +534,14 @@ async def api_add_rule(request: Request, user: User = Depends(require_verified_e
     rule_id = db.add_rule(rule, user_id=user.id)
     logger.info(f"Added {rule_type} rule via API for user {user.id}: {target_name} (ID: {target_id})")
 
-    return {"success": True, "rule_id": rule_id, "message": f"Now tracking {target_name}"}
+    return {
+        "success": True,
+        "rule_id": rule_id,
+        "rule_type": rule_type,
+        "target_name": target_name,
+        "dashboard_mode": rule.dashboard_mode,
+        "notify_mode": rule.notify_mode,
+    }
 
 
 @router.get("/api/rules/check")
