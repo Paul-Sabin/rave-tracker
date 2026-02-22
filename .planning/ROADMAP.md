@@ -252,7 +252,7 @@ Phases execute in numeric order: 16 → 17 → 18
 | 13. Scraper Resilience | v3.0 | 3/3 | Complete | 2026-02-18 |
 | 14. Observability | v3.1 | 4/4 | Complete | 2026-02-20 |
 | 15. Tracking Page UX | v3.2 | 1/1 | Complete | 2026-02-22 |
-| 16. Settings Page Split | v3.3 | 0/2 | Not started | - |
+| 16. Settings Page Split | 1/2 | In Progress|  | - |
 | 17. Notification Dispatch Modes | v3.3 | 0/2 | Not started | - |
 | 18. Endpoint Hardening | v3.3 | 0/1 | Not started | - |
 

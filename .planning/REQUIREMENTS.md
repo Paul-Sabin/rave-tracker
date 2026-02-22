@@ -7,9 +7,9 @@
 
 ### Settings Page — Personal (All Users)
 
-- [ ] **SETT-01**: `/settings` shows only Notification Preferences, Account Security, and Delete Account for all users
-- [ ] **SETT-02**: Local Area section removed from `/settings` entirely (moved to /tracking)
-- [ ] **SETT-03**: Admin users see a link to `/admin/settings` on `/settings`
+- [x] **SETT-01**: `/settings` shows only Notification Preferences, Account Security, and Delete Account for all users
+- [x] **SETT-02**: Local Area section removed from `/settings` entirely (moved to /tracking)
+- [x] **SETT-03**: Admin users see a link to `/admin/settings` on `/settings`
 
 ### Admin Settings Page
 
@@ -51,9 +51,9 @@ None identified.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETT-01 | Phase 16 | Pending |
-| SETT-02 | Phase 16 | Pending |
-| SETT-03 | Phase 16 | Pending |
+| SETT-01 | Phase 16 | Complete |
+| SETT-02 | Phase 16 | Complete |
+| SETT-03 | Phase 16 | Complete |
 | SETT-04 | Phase 16 | Pending |
 | SETT-05 | Phase 16 | Pending |
 | SETT-06 | Phase 16 | Pending |

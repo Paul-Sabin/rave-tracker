@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 16 of 18 (Settings Page Split)
-Plan: 0/2 — ready to plan
-Status: Ready to plan
-Last activity: 2026-02-22 — v3.3 roadmap created (Phases 16-18)
+Plan: 1/2 — 16-01 complete
+Status: In progress
+Last activity: 2026-02-22 — 16-01 complete (settings page stripped to personal-only)
 
-Progress: [██████████] 41/41 prior plans complete; v3.3 starting
+Progress: [██████████] 42/43 total plans (v3.3: 1/5 done)
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [██████████] 41/41 prior plans complete; v3.3 star
 |-------|-------|-----------|
 | 1-14 | 34/34 | v2.0-v3.1 |
 | 15. Tracking Page UX | 1/1 | v3.2 |
-| 16. Settings Page Split | 0/2 | v3.3 |
+| 16. Settings Page Split | 1/2 | v3.3 |
 | 17. Notification Dispatch Modes | 0/2 | v3.3 |
 | 18. Endpoint Hardening | 0/1 | v3.3 |
 
@@ -48,6 +48,8 @@ Recent decisions affecting current work:
 - v3.3: Notification mode is system-wide admin policy, not per-user preference
 - v3.3: No scheduler status on /admin/settings — already covered by /admin/scraper-status
 - v3.3: Daily digest queues events at fetch time, sends at configured daily time per user
+- 16-01: save_settings POST now redirects immediately — system config moves to /admin/settings in 16-02
+- 16-01: mask_token() removed; get_scheduler_status retained (used by /api/status)
 
 ### Pending Todos
 
@@ -61,6 +63,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Roadmap created for v3.3 (Phases 16-18) — ready to plan Phase 16
+Stopped at: Completed 16-01-PLAN.md — /settings page split to personal-only content
 Resume file: None
-Next: /gsd:plan-phase 16
+Next: Execute 16-02 (create /admin/settings with system config sections)
