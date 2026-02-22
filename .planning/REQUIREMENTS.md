@@ -13,14 +13,14 @@
 
 ### Admin Settings Page
 
-- [ ] **SETT-04**: `/admin/settings` page created, accessible to admins only (non-admins get 403)
-- [ ] **SETT-05**: Telegram bot token and admin chat ID editable on `/admin/settings`
-- [ ] **SETT-06**: Fetch schedule configurable as specific times of day (e.g. 08:00, 20:00), replacing current interval field
-- [ ] **SETT-07**: Event horizon (days) editable on `/admin/settings`
-- [ ] **SETT-08**: Database info displayed (read-only) on `/admin/settings`
-- [ ] **SETT-09**: Test Admin Telegram button on `/admin/settings`
-- [ ] **SETT-10**: Notification mode toggle: "Upon fetch completion" (default) vs "Daily digest"
-- [ ] **SETT-11**: Daily digest time field shown and required when digest mode is selected
+- [x] **SETT-04**: `/admin/settings` page created, accessible to admins only (non-admins get 403)
+- [x] **SETT-05**: Telegram bot token and admin chat ID editable on `/admin/settings`
+- [x] **SETT-06**: Fetch schedule configurable as specific times of day (e.g. 08:00, 20:00), replacing current interval field
+- [x] **SETT-07**: Event horizon (days) editable on `/admin/settings`
+- [x] **SETT-08**: Database info displayed (read-only) on `/admin/settings`
+- [x] **SETT-09**: Test Admin Telegram button on `/admin/settings`
+- [x] **SETT-10**: Notification mode toggle: "Upon fetch completion" (default) vs "Daily digest"
+- [x] **SETT-11**: Daily digest time field shown and required when digest mode is selected
 
 ### Notification Dispatch
 
@@ -54,14 +54,14 @@ None identified.
 | SETT-01 | Phase 16 | Complete |
 | SETT-02 | Phase 16 | Complete |
 | SETT-03 | Phase 16 | Complete |
-| SETT-04 | Phase 16 | Pending |
-| SETT-05 | Phase 16 | Pending |
-| SETT-06 | Phase 16 | Pending |
-| SETT-07 | Phase 16 | Pending |
-| SETT-08 | Phase 16 | Pending |
-| SETT-09 | Phase 16 | Pending |
-| SETT-10 | Phase 16 | Pending |
-| SETT-11 | Phase 16 | Pending |
+| SETT-04 | Phase 16 | Complete |
+| SETT-05 | Phase 16 | Complete |
+| SETT-06 | Phase 16 | Complete |
+| SETT-07 | Phase 16 | Complete |
+| SETT-08 | Phase 16 | Complete |
+| SETT-09 | Phase 16 | Complete |
+| SETT-10 | Phase 16 | Complete |
+| SETT-11 | Phase 16 | Complete |
 | SETT-12 | Phase 17 | Pending |
 | SETT-13 | Phase 17 | Pending |
 | SETT-14 | Phase 17 | Pending |

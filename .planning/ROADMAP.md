@@ -157,8 +157,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
-- [ ] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
+- [x] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
+- [x] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
 
 #### Phase 17: Notification Dispatch Modes
 **Goal**: Admins can choose between immediate notifications on fetch and a daily digest that batches all events
@@ -201,8 +201,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
-- [ ] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
+- [x] 16-01-PLAN.md — Strip /settings to personal-only; add admin link for admin users
+- [x] 16-02-PLAN.md — Create /admin/settings page with system config fields (+ config.py extension)
 
 ### Phase 17: Notification Dispatch Modes
 **Goal**: Admins can choose between immediate notifications on fetch and a daily digest that batches all events
@@ -252,10 +252,10 @@ Phases execute in numeric order: 16 → 17 → 18
 | 13. Scraper Resilience | v3.0 | 3/3 | Complete | 2026-02-18 |
 | 14. Observability | v3.1 | 4/4 | Complete | 2026-02-20 |
 | 15. Tracking Page UX | v3.2 | 1/1 | Complete | 2026-02-22 |
-| 16. Settings Page Split | 1/2 | In Progress|  | - |
+| 16. Settings Page Split | v3.3 | 2/2 | Complete | 2026-02-22 |
 | 17. Notification Dispatch Modes | v3.3 | 0/2 | Not started | - |
 | 18. Endpoint Hardening | v3.3 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-22 — v3.3 Settings Split phases added*
+*Last updated: 2026-02-22 — Phase 16 complete; /admin/settings page delivered*
