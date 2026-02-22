@@ -5,6 +5,17 @@
 {% block content %}
 <h1>Settings</h1>
 
+{% if user.is_admin %}
+<!-- System Administration link (admin users only) -->
+<div class="card" style="border-color: var(--color-accent);">
+    <div class="card-header">
+        <span class="card-title">System Administration</span>
+    </div>
+    <p class="text-muted mb-2">Configure system-wide settings: Telegram bot, fetch schedule, notification mode.</p>
+    <a href="/admin/settings" class="btn btn-primary">Go to Admin Settings</a>
+</div>
+{% endif %}
+
 <!-- Notification Preferences (TOP SECTION per CONTEXT.md) -->
 <div class="card">
     <div class="card-header">
@@ -135,102 +146,6 @@
             <a href="/settings/change-password" class="btn btn-secondary">Change Password</a>
         </div>
     </div>
-</div>
-
-<!-- Telegram Settings (Admin) -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">Telegram Configuration</span>
-    </div>
-    <form action="/settings/save" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="form-group">
-            <label for="bot_token">Bot Token</label>
-            <input type="text" id="bot_token" name="bot_token" class="form-control"
-                   value="{{ masked_token }}" placeholder="Enter your Telegram bot token">
-            <small class="text-muted">Create a bot via @BotFather on Telegram to get a token</small>
-        </div>
-        <div class="form-group">
-            <label for="chat_id">Admin Chat ID (for system alerts)</label>
-            <input type="text" id="chat_id" name="chat_id" class="form-control"
-                   value="{{ config.telegram.chat_id }}" placeholder="Your chat or group ID">
-            <small class="text-muted">Use @userinfobot to find your chat ID</small>
-        </div>
-
-        <h3 class="mt-2 mb-1">Scheduler Settings</h3>
-        <div class="form-group">
-            <label for="fetch_interval_hours">Fetch Interval (hours)</label>
-            <input type="number" id="fetch_interval_hours" name="fetch_interval_hours" class="form-control"
-                   value="{{ config.scheduler.fetch_interval_hours }}" min="1" max="24">
-            <small class="text-muted">How often to check for new events</small>
-        </div>
-
-        <h3 class="mt-2 mb-1">Local Area</h3>
-        <div class="form-group">
-            <label for="local_area_search">Your City</label>
-            <input type="text" id="local_area_search" class="form-control"
-                   placeholder="Search for your city..." autocomplete="off">
-            <div id="area-results"></div>
-            <input type="hidden" id="local_area_id" name="local_area_id" value="{{ user.local_area_id or '' }}">
-            <input type="hidden" id="local_area_name" name="local_area_name" value="{{ user.local_area_name }}">
-            {% if user.local_area_name %}
-            <div id="selected-area" class="mt-1">
-                <span class="badge badge-success">{{ user.local_area_name }}</span>
-                <button type="button" class="btn btn-sm btn-secondary" onclick="clearArea()">Clear</button>
-            </div>
-            {% else %}
-            <div id="selected-area" class="mt-1" style="display: none;"></div>
-            {% endif %}
-            <small class="text-muted">Set your local city to filter events on the dashboard</small>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Save Settings</button>
-    </form>
-</div>
-
-<!-- Test Telegram (Admin) -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">Test Admin Telegram</span>
-    </div>
-    <p class="text-muted mb-2">Send a test message to the admin chat ID.</p>
-    <button id="test-telegram" class="btn btn-secondary">Send Test Message</button>
-    <span id="test-result" class="ml-2"></span>
-</div>
-
-<!-- Scheduler Status -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">Scheduler Status</span>
-    </div>
-    <table class="table">
-        <tr>
-            <td>Status</td>
-            <td>
-                {% if scheduler_status.running %}
-                    <span class="badge badge-success">Running</span>
-                {% else %}
-                    <span class="badge badge-warning">Stopped</span>
-                {% endif %}
-            </td>
-        </tr>
-        <tr>
-            <td>Last Fetch</td>
-            <td>{{ scheduler_status.last_fetch or 'Never' }}</td>
-        </tr>
-        <tr>
-            <td>Next Fetch</td>
-            <td>{{ scheduler_status.next_fetch or 'Not scheduled' }}</td>
-        </tr>
-    </table>
-</div>
-
-<!-- Database Info -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">Database</span>
-    </div>
-    <p class="text-muted">Database path: <code>{{ config.database.path }}</code></p>
 </div>
 
 <!-- Danger Zone -->
@@ -494,23 +409,6 @@ input:checked + .toggle-slider:before {
     font-size: 0.85rem;
 }
 
-/* Area search */
-#area-results {
-    max-height: 200px;
-    overflow-y: auto;
-}
-.area-result {
-    padding: 0.75rem 1rem;
-    min-height: 44px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-}
-.area-result:hover {
-    background: var(--border);
-}
-
 /* Danger Zone styles */
 .danger-zone {
     border-color: #dc3545;
@@ -604,7 +502,6 @@ input:checked + .toggle-slider:before {
         justify-content: flex-end;
     }
 
-    #test-telegram,
     #test-notifications-btn {
         width: 100%;
     }
@@ -695,91 +592,6 @@ document.getElementById('test-notifications-btn')?.addEventListener('click', asy
         resultSpan.className = 'text-danger';
     }
 });
-
-// Test Admin Telegram
-document.getElementById('test-telegram').addEventListener('click', async () => {
-    const resultSpan = document.getElementById('test-result');
-    resultSpan.textContent = 'Sending...';
-    resultSpan.className = 'text-muted';
-
-    try {
-        const csrfToken2 = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-        const response = await fetch('/settings/test-telegram', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken2 }
-        });
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            resultSpan.textContent = 'Test message sent!';
-            resultSpan.className = 'text-success';
-        } else {
-            resultSpan.textContent = 'Failed: ' + data.message;
-            resultSpan.className = 'text-danger';
-        }
-    } catch (e) {
-        resultSpan.textContent = 'Error: ' + e.message;
-        resultSpan.className = 'text-danger';
-    }
-});
-
-// Area search
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
-}
-
-async function searchAreas(query) {
-    const resultsDiv = document.getElementById('area-results');
-    if (query.length < 2) {
-        resultsDiv.innerHTML = '';
-        return;
-    }
-
-    resultsDiv.innerHTML = '<span class="text-muted">Searching...</span>';
-
-    try {
-        const response = await fetch(`/api/search/areas?q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-
-        if (data.results.length === 0) {
-            resultsDiv.innerHTML = '<span class="text-muted">No results</span>';
-        } else {
-            resultsDiv.innerHTML = data.results.map(r => `
-                <div class="area-result" onclick="selectArea(${r.id}, '${r.name.replace(/'/g, "\\'")}')">
-                    ${r.name}
-                </div>
-            `).join('');
-        }
-    } catch (e) {
-        resultsDiv.innerHTML = '<span class="text-danger">Search failed</span>';
-    }
-}
-
-function selectArea(id, name) {
-    document.getElementById('local_area_id').value = id;
-    document.getElementById('local_area_name').value = name;
-    document.getElementById('area-results').innerHTML = '';
-    document.getElementById('local_area_search').value = '';
-
-    const selectedDiv = document.getElementById('selected-area');
-    selectedDiv.innerHTML = `
-        <span class="badge badge-success">${name}</span>
-        <button type="button" class="btn btn-sm btn-secondary" onclick="clearArea()">Clear</button>
-    `;
-    selectedDiv.style.display = 'block';
-}
-
-function clearArea() {
-    document.getElementById('local_area_id').value = '';
-    document.getElementById('local_area_name').value = '';
-    document.getElementById('selected-area').style.display = 'none';
-}
-
-document.getElementById('local_area_search').addEventListener('input', debounce(e => searchAreas(e.target.value), 300));
 
 // Close modal on background click
 document.getElementById('link-telegram-modal')?.addEventListener('click', (e) => {
