@@ -231,24 +231,12 @@ async def settings_page(request: Request, user: User = Depends(require_verified_
     # Refresh user data (might have been updated)
     user = db.get_user_by_id(user.id)
 
-    # Mask the bot token
-    bot_token = config.telegram.bot_token
-    masked_token = ""
-    if bot_token:
-        if len(bot_token) > 10:
-            masked_token = bot_token[:5] + "*" * (len(bot_token) - 10) + bot_token[-5:]
-        else:
-            masked_token = "*" * len(bot_token)
-
     return templates.TemplateResponse(
         "settings.html",
         {
             "request": request,
             "user": user,
             "csrf_token": getattr(request.state, 'csrf_token', ''),
-            "config": config,
-            "masked_token": masked_token,
-            "scheduler_status": get_scheduler_status(),
             "telegram_configured": bool(config.telegram.bot_token),
             "email_configured": is_email_configured(),
         },
@@ -259,33 +247,8 @@ async def settings_page(request: Request, user: User = Depends(require_verified_
 async def save_settings(
     request: Request,
     user: User = Depends(require_verified_email),
-    bot_token: str = Form(""),
-    chat_id: str = Form(""),
-    fetch_interval_hours: int = Form(6),
-    local_area_id: Optional[int] = Form(None),
-    local_area_name: str = Form(""),
 ):
-    """Save settings."""
-    config = get_config()
-
-    if bot_token and "*" not in bot_token:
-        config.telegram.bot_token = bot_token
-
-    if chat_id:
-        config.telegram.chat_id = chat_id
-
-    config.scheduler.fetch_interval_hours = fetch_interval_hours
-
-    # Update local area settings (per-user, stored in database)
-    db = get_db()
-    db.update_user_local_area(
-        user.id,
-        local_area_id if local_area_id else None,
-        local_area_name
-    )
-
-    config.save()
-
+    """Save personal settings. (System config moved to /admin/settings)"""
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -1205,11 +1168,8 @@ async def delete_account(
                 "request": request,
                 "user": user,
                 "error": "Password incorrect",
-                "config": config,
-                "scheduler_status": get_scheduler_status(),
                 "telegram_configured": bool(config.telegram.bot_token),
                 "email_configured": is_email_configured(),
-                "masked_token": mask_token(config.telegram.bot_token),
                 "csrf_token": getattr(request.state, 'csrf_token', ''),
             },
             status_code=400,
@@ -1242,15 +1202,6 @@ async def delete_account(
     response = RedirectResponse(url="/login?deleted=1", status_code=303)
     clear_session_cookie(response)
     return response
-
-
-def mask_token(token: str) -> str:
-    """Mask a token for display, showing only first and last 5 characters."""
-    if not token:
-        return ""
-    if len(token) > 10:
-        return token[:5] + "*" * (len(token) - 10) + token[-5:]
-    return "*" * len(token)
 
 
 @router.get("/recover-account", response_class=HTMLResponse)
