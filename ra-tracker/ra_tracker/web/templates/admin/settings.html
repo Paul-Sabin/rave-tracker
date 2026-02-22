@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - System Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold">Admin: System Settings</h1>
+    <p class="text-muted">Configure system-wide Telegram, scheduler, and notification settings.</p>
+  </div>
+
+  <!-- Admin nav links (consistent with other admin pages) -->
+  <div class="flex gap-4 mb-6 flex-wrap">
+    <a href="/admin/rules" class="btn btn-secondary">Rules</a>
+    <a href="/admin/users" class="btn btn-secondary">Users</a>
+    <a href="/admin/audit-log" class="btn btn-secondary">Audit Log</a>
+    <a href="/admin/scraper-status" class="btn btn-secondary">Scraper</a>
+    <a href="/admin/settings" class="btn btn-primary">Settings</a>
+  </div>
+
+  <form action="/admin/settings/save" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <!-- Telegram Configuration -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Telegram Configuration</span>
+      </div>
+      <div class="form-group">
+        <label for="bot_token">Bot Token</label>
+        <input type="text" id="bot_token" name="bot_token" class="form-control"
+               value="{{ masked_token }}" placeholder="Enter Telegram bot token (leave blank to keep current)">
+        <small class="text-muted">Create a bot via @BotFather on Telegram. Stored in config.yaml.</small>
+      </div>
+      <div class="form-group">
+        <label for="chat_id">Admin Chat ID</label>
+        <input type="text" id="chat_id" name="chat_id" class="form-control"
+               value="{{ config.telegram.chat_id }}" placeholder="Admin chat or group ID">
+        <small class="text-muted">Used for admin system alert messages. Use @userinfobot to find your ID.</small>
+      </div>
+    </div>
+
+    <!-- Scheduler Settings -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Fetch Schedule</span>
+      </div>
+      <div class="form-group">
+        <label for="fetch_times_str">Fetch Times</label>
+        <input type="text" id="fetch_times_str" name="fetch_times_str" class="form-control"
+               value="{{ fetch_times_str }}" placeholder="e.g. 08:00, 20:00">
+        <small class="text-muted">Comma-separated times of day to run fetch (HH:MM, 24h). Example: 08:00, 14:00, 20:00</small>
+      </div>
+      <div class="form-group">
+        <label for="event_horizon_days">Event Horizon (days)</label>
+        <input type="number" id="event_horizon_days" name="event_horizon_days" class="form-control"
+               value="{{ config.scheduler.event_horizon_days }}" min="1" max="365">
+        <small class="text-muted">How many days ahead to fetch events.</small>
+      </div>
+    </div>
+
+    <!-- Notification Mode -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Notification Mode</span>
+      </div>
+      <div class="form-group">
+        <label>Dispatch Mode</label>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+          <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+            <input type="radio" name="notification_mode" value="upon_fetch"
+                   {% if config.scheduler.notification_mode == 'upon_fetch' %}checked{% endif %}
+                   onchange="toggleDigestTime(this.value)">
+            <div>
+              <span style="font-weight: 600;">Upon fetch completion</span>
+              <span class="text-muted" style="display: block; font-size: 0.85rem;">Notifications sent immediately when a fetch finds new events (default)</span>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+            <input type="radio" name="notification_mode" value="daily_digest"
+                   {% if config.scheduler.notification_mode == 'daily_digest' %}checked{% endif %}
+                   onchange="toggleDigestTime(this.value)">
+            <div>
+              <span style="font-weight: 600;">Daily digest</span>
+              <span class="text-muted" style="display: block; font-size: 0.85rem;">Events are queued and sent in a single batched notification each day</span>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group" id="digest-time-group"
+           style="{% if config.scheduler.notification_mode != 'daily_digest' %}display: none;{% endif %}">
+        <label for="digest_time">Daily Digest Time</label>
+        <input type="text" id="digest_time" name="digest_time" class="form-control"
+               value="{{ config.scheduler.digest_time }}" placeholder="HH:MM" style="max-width: 120px;">
+        <small class="text-muted">Time of day to send the daily digest (24h format, e.g. 08:00).</small>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save System Settings</button>
+  </form>
+
+  <!-- Database Info (read-only) -->
+  <div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+      <span class="card-title">Database</span>
+    </div>
+    <p class="text-muted">Connection: <code>{{ db_display }}</code></p>
+  </div>
+
+  <!-- Test Admin Telegram -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Test Admin Telegram</span>
+    </div>
+    <p class="text-muted mb-2">Send a test message to the configured admin chat ID.</p>
+    <button id="test-telegram" class="btn btn-secondary">Send Test Message</button>
+    <span id="test-result" class="ml-2"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDigestTime(mode) {
+    const group = document.getElementById('digest-time-group');
+    group.style.display = mode === 'daily_digest' ? 'block' : 'none';
+}
+
+document.getElementById('test-telegram').addEventListener('click', async () => {
+    const resultSpan = document.getElementById('test-result');
+    resultSpan.textContent = 'Sending...';
+    resultSpan.className = 'text-muted';
+
+    try {
+        const response = await fetch('/admin/settings/test-telegram', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            resultSpan.textContent = 'Test message sent!';
+            resultSpan.className = 'text-success';
+        } else {
+            resultSpan.textContent = 'Failed: ' + data.message;
+            resultSpan.className = 'text-danger';
+        }
+    } catch (e) {
+        resultSpan.textContent = 'Error: ' + e.message;
+        resultSpan.className = 'text-danger';
+    }
+});
+</script>
+{% endblock %}

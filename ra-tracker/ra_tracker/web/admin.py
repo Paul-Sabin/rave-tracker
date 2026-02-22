@@ -1,15 +1,18 @@
 """Admin routes for RA Tracker - view-only oversight."""
 
+import re
 from typing import Optional
 import threading
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 
 from ..database import get_db, User
 from .auth import require_admin
 from ..api.circuit_breaker import circuit_breaker
 from ..scheduler.jobs import run_fetch_now, get_last_fetch_time, get_next_fetch_time
+from ..config import get_config
+from ..services.notifier import Notifier
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -227,3 +230,102 @@ async def force_fetch(request: Request, user: User = Depends(require_admin)):
 
     # Redirect back to scraper status page
     return RedirectResponse(url="/admin/scraper-status", status_code=303)
+
+
+@admin_router.get("/settings", response_class=HTMLResponse)
+async def admin_settings(request: Request, user: User = Depends(require_admin)):
+    """Admin system configuration page."""
+    templates = get_templates(request)
+    config = get_config()
+
+    # Mask bot token for display
+    bot_token = config.telegram.bot_token
+    if bot_token and len(bot_token) > 10:
+        masked_token = bot_token[:5] + "*" * (len(bot_token) - 10) + bot_token[-5:]
+    elif bot_token:
+        masked_token = "*" * len(bot_token)
+    else:
+        masked_token = ""
+
+    # Database display value: URL (masked) or path
+    db_display = config.database.path
+    if config.database.url:
+        # Show only up to the @ sign to hide credentials
+        url = config.database.url
+        at_idx = url.find("@")
+        if at_idx != -1:
+            db_display = "postgresql://****@" + url[at_idx + 1:]
+        else:
+            db_display = url
+
+    return templates.TemplateResponse(
+        "admin/settings.html",
+        {
+            "request": request,
+            "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "config": config,
+            "masked_token": masked_token,
+            "db_display": db_display,
+            "fetch_times_str": ", ".join(config.scheduler.fetch_times),
+        },
+    )
+
+
+@admin_router.post("/settings/save")
+async def save_admin_settings(
+    request: Request,
+    user: User = Depends(require_admin),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
+    fetch_times_str: str = Form(""),
+    event_horizon_days: int = Form(30),
+    notification_mode: str = Form("upon_fetch"),
+    digest_time: str = Form("08:00"),
+):
+    """Save system configuration. Admin only."""
+    config = get_config()
+
+    # Update bot token (only if not masked — i.e., user entered a new value)
+    if bot_token and "*" not in bot_token:
+        config.telegram.bot_token = bot_token
+
+    if chat_id:
+        config.telegram.chat_id = chat_id
+
+    # Parse fetch times: comma-separated "HH:MM" strings, strip whitespace
+    # Validate basic HH:MM format; silently discard malformed entries
+    times = []
+    for t in fetch_times_str.split(","):
+        t = t.strip()
+        if re.match(r"^\d{2}:\d{2}$", t):
+            times.append(t)
+    config.scheduler.fetch_times = times
+
+    config.scheduler.event_horizon_days = event_horizon_days
+
+    # Validate notification_mode value
+    if notification_mode in ("upon_fetch", "daily_digest"):
+        config.scheduler.notification_mode = notification_mode
+
+    # digest_time: validate HH:MM format
+    if re.match(r"^\d{2}:\d{2}$", digest_time):
+        config.scheduler.digest_time = digest_time
+
+    config.save()
+
+    return RedirectResponse(url="/admin/settings", status_code=303)
+
+
+@admin_router.post("/settings/test-telegram")
+async def test_admin_telegram(request: Request, user: User = Depends(require_admin)):
+    """Send a test Telegram message to admin chat ID. Admin only."""
+    config = get_config()
+    notifier = Notifier()
+    try:
+        success = notifier.send_test()
+        if success:
+            return JSONResponse({"status": "success", "message": "Test message sent!"})
+        return JSONResponse({"status": "error", "message": "Failed to send"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
