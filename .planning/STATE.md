@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** v3.3 Settings Split — Phase 16: Settings Page Split
+**Current focus:** v3.3 — Phase 17: Notification Dispatch Modes
 
 ## Current Position
 
-Phase: 16 of 18 (Settings Page Split)
-Plan: 2/2 — 16-02 tasks complete; awaiting human-verify checkpoint (Task 3)
-Status: In progress — checkpoint pending
-Last activity: 2026-02-22 — 16-02 auto tasks complete (/admin/settings created)
+Phase: 16 of 18 (Settings Page Split) — COMPLETE
+Plan: 2/2 — 16-02 fully verified and complete
+Status: Phase 16 complete; ready for Phase 17
+Last activity: 2026-02-22 — 16-02 human-verify checkpoint approved; /admin/settings verified end-to-end
 
 Progress: [██████████] 43/43 total plans (v3.3: 2/5 done)
 
@@ -63,11 +63,11 @@ None.
 
 - Phase 17 (Notification Dispatch Modes) requires DB schema changes (queued vs sent state on notifications); verify column additions work on Railway PostgreSQL via init_schema()
 - Phase 17: APScheduler CronTrigger replaces interval-based scheduling — fetch_times config key (added in 16-02) is ready for CronTrigger use
-- 16-02 checkpoint (Task 3): human verification still pending — admin must test /admin/settings end-to-end
+- 16-02 checkpoint (Task 3): human verification APPROVED — all 6 tests passed, /admin/settings fully verified
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: 16-02 checkpoint:human-verify — Tasks 1+2 committed; awaiting manual verification of /admin/settings
+Stopped at: Phase 16 complete — 16-02 verified and summarised
 Resume file: None
-Next: Verify 16-02 checkpoint, then execute Phase 17
+Next: Execute Phase 17 (Notification Dispatch Modes)
