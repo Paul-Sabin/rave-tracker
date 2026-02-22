@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Planning next milestone
+**Current focus:** v3.3 Settings Split
 
 ## Current Position
 
-Phase: 15 of 15 (Tracking Page Overhaul)
-Plan: 1 of 1 in current phase (complete)
-Status: ✅ v3.2 milestone complete — all phases shipped, ROADMAP.md archived
-Last activity: 2026-02-22 — Completed Phase 15 (Berlin default, area widget, /rules → /tracking rename)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-22 — Milestone v3.3 started
 
 Progress: [██████████] 100% (41/41 total plans complete)
 

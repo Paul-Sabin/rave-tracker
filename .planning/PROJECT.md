@@ -8,6 +8,16 @@ A multi-user event tracker running in production that monitors ra.co for upcomin
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
+## Current Milestone: v3.3 Settings Split
+
+**Goal:** Split the single settings page into personal settings (all users) and system config (admins only), hardening admin-only endpoints server-side.
+
+**Target features:**
+- `/settings` shows only personal settings (notifications, password, delete account) for all users
+- `/admin/settings` new page for system config (Telegram bot, scheduler, database) — admin only
+- Local Area section removed from settings entirely (already on /tracking)
+- Admin-only POST endpoints reject non-admin requests server-side
+
 ## Current State
 
 **Version:** v3.2 Tracking Page UX (shipped 2026-02-22)
@@ -147,7 +157,11 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ### Active
 
-<!-- Next milestone requirements go here -->
+<!-- v3.3 Settings Split -->
+- [ ] SETT-01: `/settings` page shows only personal settings for all users (notifications, password, delete account)
+- [ ] SETT-02: `/admin/settings` page created for system config (Telegram bot token, admin chat ID, scheduler interval, database info)
+- [ ] SETT-03: Local Area section removed from settings entirely
+- [ ] SETT-04: Admin-only POST endpoints hardened to reject non-admin requests
 
 ### Out of Scope
 
@@ -213,4 +227,4 @@ Users never miss events from artists, venues, or promoters they care about — a
 | 301 redirect /rules → /tracking | Permanent redirect preserves bookmarks and SEO | ✓ Good |
 
 ---
-*Last updated: 2026-02-22 after v3.2 milestone*
+*Last updated: 2026-02-22 after v3.3 milestone started*
