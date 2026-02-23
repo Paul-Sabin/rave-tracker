@@ -168,11 +168,11 @@ Plans:
   1. With "Upon fetch" mode active, notifications arrive within minutes of a fetch completing (existing behaviour preserved)
   2. With "Daily digest" mode active, a fetch run does not send any notifications immediately — events are queued
   3. At the configured digest time each day, each user with queued events receives a single batched notification covering all events since the last digest
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: DB schema for notification queue state; APScheduler CronTrigger fetch schedule
-- [ ] 17-02: Daily digest scheduler job and batched send logic
+- [ ] 17-01-PLAN.md — DB schema: queued_for_digest column + queue/retrieve/mark-sent DB methods
+- [ ] 17-02-PLAN.md — CronTrigger fetch schedule, mode-conditional dispatch, daily digest job (+ human-verify checkpoint)
 
 #### Phase 18: Endpoint Hardening
 **Goal**: Admin-only POST endpoints reject non-admin requests at the server level, regardless of UI state
@@ -212,11 +212,11 @@ Plans:
   1. With "Upon fetch" mode active, notifications arrive within minutes of a fetch completing (existing behaviour preserved)
   2. With "Daily digest" mode active, a fetch run does not send any notifications immediately — events are queued
   3. At the configured digest time each day, each user with queued events receives a single batched notification covering all events since the last digest
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: DB schema for notification queue state; APScheduler CronTrigger fetch schedule
-- [ ] 17-02: Daily digest scheduler job and batched send logic
+- [ ] 17-01-PLAN.md — DB schema: queued_for_digest column + queue/retrieve/mark-sent DB methods
+- [ ] 17-02-PLAN.md — CronTrigger fetch schedule, mode-conditional dispatch, daily digest job (+ human-verify checkpoint)
 
 ### Phase 18: Endpoint Hardening
 **Goal**: Admin-only POST endpoints reject non-admin requests at the server level, regardless of UI state
