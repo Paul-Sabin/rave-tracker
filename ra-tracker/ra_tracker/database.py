@@ -1848,6 +1848,19 @@ class Database:
                 updated += cursor.rowcount if hasattr(cursor, 'rowcount') else 0
         return updated
 
+    def get_rules_for_event_and_user(self, event_id: int, user_id: int) -> List[Rule]:
+        """Get all rules belonging to a user that matched a given event."""
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT r.* FROM rules r
+                JOIN event_rules er ON er.rule_id = r.id
+                WHERE er.event_id = {self.ph} AND r.user_id = {self.ph}
+                """,
+                (event_id, user_id),
+            ).fetchall()
+            return [self._row_to_rule(row) for row in rows]
+
     def get_stats(self) -> dict:
         """Get database statistics."""
         with self.get_connection() as conn:
