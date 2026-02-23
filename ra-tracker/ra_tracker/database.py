@@ -723,24 +723,34 @@ class Database:
                     statement = statement.strip()
                     if statement:
                         cursor.execute(statement)
-                # Run migrations for existing databases.
-                # Transform each migration for PostgreSQL:
-                # - ADD COLUMN → ADD COLUMN IF NOT EXISTS (idempotent, no error on re-run)
-                # - DEFAULT 0/1 → DEFAULT FALSE/TRUE (PostgreSQL boolean literals)
-                for i, migration in enumerate(MIGRATIONS):
-                    migration = migration.strip()
-                    if not migration:
-                        continue
-                    pg_migration = (
-                        migration
-                        .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
-                        .replace("DEFAULT 0", "DEFAULT FALSE")
-                        .replace("DEFAULT 1", "DEFAULT TRUE")
-                    )
-                    try:
-                        cursor.execute(pg_migration)
-                    except Exception as e:
-                        logger.warning(f"PostgreSQL migration {i + 1} skipped: {e}")
+                # Run migrations using a separate autocommit connection so a
+                # failed statement doesn't put the connection into an aborted
+                # transaction state and block all subsequent migrations.
+                raw_conn = self._pool.getconn()
+                try:
+                    raw_conn.autocommit = True
+                    cur = raw_conn.cursor()
+                    for i, migration in enumerate(MIGRATIONS):
+                        migration = migration.strip()
+                        if not migration:
+                            continue
+                        # Transform for PostgreSQL compatibility:
+                        # - ADD COLUMN → ADD COLUMN IF NOT EXISTS (idempotent)
+                        # - DATETIME → TIMESTAMP (SQLite type not valid in PG)
+                        # - DEFAULT 0/1 → DEFAULT FALSE/TRUE (PG boolean literals)
+                        pg_migration = (
+                            migration
+                            .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
+                            .replace("DATETIME", "TIMESTAMP")
+                            .replace("DEFAULT 0", "DEFAULT FALSE")
+                            .replace("DEFAULT 1", "DEFAULT TRUE")
+                        )
+                        try:
+                            cur.execute(pg_migration)
+                        except Exception as e:
+                            logger.debug(f"PostgreSQL migration {i + 1} skipped: {e}")
+                finally:
+                    self._pool.putconn(raw_conn)
             else:
                 # SQLite mode: use executescript
                 conn.executescript(SCHEMA)
