@@ -723,19 +723,24 @@ class Database:
                     statement = statement.strip()
                     if statement:
                         cursor.execute(statement)
-                # Run migrations using savepoints so a duplicate column error
-                # rolls back only that statement without aborting the transaction
+                # Run migrations for existing databases.
+                # Transform each migration for PostgreSQL:
+                # - ADD COLUMN → ADD COLUMN IF NOT EXISTS (idempotent, no error on re-run)
+                # - DEFAULT 0/1 → DEFAULT FALSE/TRUE (PostgreSQL boolean literals)
                 for i, migration in enumerate(MIGRATIONS):
                     migration = migration.strip()
                     if not migration:
                         continue
+                    pg_migration = (
+                        migration
+                        .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
+                        .replace("DEFAULT 0", "DEFAULT FALSE")
+                        .replace("DEFAULT 1", "DEFAULT TRUE")
+                    )
                     try:
-                        cursor.execute(f"SAVEPOINT migration_{i}")
-                        cursor.execute(migration)
-                        cursor.execute(f"RELEASE SAVEPOINT migration_{i}")
-                    except Exception:
-                        cursor.execute(f"ROLLBACK TO SAVEPOINT migration_{i}")
-                        # Already applied, skip
+                        cursor.execute(pg_migration)
+                    except Exception as e:
+                        logger.warning(f"PostgreSQL migration {i + 1} skipped: {e}")
             else:
                 # SQLite mode: use executescript
                 conn.executescript(SCHEMA)
