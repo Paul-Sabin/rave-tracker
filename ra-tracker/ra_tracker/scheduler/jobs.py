@@ -157,40 +157,56 @@ def fetch_and_notify():
         except Exception as e:
             logger.error(f"Alert check failed: {e}")
 
-        # Phase 2: Send per-user notifications
-        # Each event only appears once regardless of how many rules matched
+        # Phase 2: Dispatch — behaviour depends on notification_mode
         if new_events_map:
-            new_events_list = [(event, event_rules[event.id]) for event in new_events_map.values()]
-            logger.info(f"Found {len(new_events_list)} new events to notify")
+            notification_mode = config.scheduler.notification_mode
 
-            try:
-                results = notify_users_for_events(new_events_list)
-
-                # Log summary
-                total_users = len(results)
-                telegram_success = sum(1 for r in results.values() if r.get("telegram"))
-                email_success = sum(1 for r in results.values() if r.get("email"))
-
+            if notification_mode == "daily_digest":
+                # Queue events for digest — do NOT send immediately
+                queued_count = 0
+                for event_id, event in new_events_map.items():
+                    # Determine which users should receive this event (via their rules)
+                    for rule in event_rules.get(event_id, []):
+                        if rule.user_id is not None:
+                            db.queue_event_for_digest(event_id, rule.user_id)
+                            queued_count += 1
                 logger.info(
-                    f"Notified {total_users} user(s): "
-                    f"Telegram {telegram_success}/{total_users}, "
-                    f"Email {email_success}/{total_users}"
+                    f"Daily digest mode: queued {queued_count} event-user notification(s) "
+                    f"({len(new_events_map)} unique event(s)) for digest send"
                 )
+            else:
+                # "upon_fetch" mode (default) — send immediately (existing behaviour)
+                new_events_list = [(event, event_rules[event.id]) for event in new_events_map.values()]
+                logger.info(f"Found {len(new_events_list)} new events to notify")
 
-                # Optional: Admin summary to global chat_id (legacy behavior)
-                if results and config.telegram.chat_id:
-                    try:
-                        notifier = Notifier()
-                        admin_msg = f"Rave Tracker: Notified {total_users} user(s) about {len(new_events_list)} event(s)"
-                        from ..services.notifier import _run_async
-                        _run_async(notifier.bot.send_message(
-                            chat_id=config.telegram.chat_id,
-                            text=admin_msg
-                        ))
-                    except Exception as e:
-                        logger.debug(f"Admin notification failed (non-critical): {e}")
-            except Exception as e:
-                logger.warning(f"Failed to send notifications (non-blocking): {e}")
+                try:
+                    results = notify_users_for_events(new_events_list)
+
+                    # Log summary
+                    total_users = len(results)
+                    telegram_success = sum(1 for r in results.values() if r.get("telegram"))
+                    email_success = sum(1 for r in results.values() if r.get("email"))
+
+                    logger.info(
+                        f"Notified {total_users} user(s): "
+                        f"Telegram {telegram_success}/{total_users}, "
+                        f"Email {email_success}/{total_users}"
+                    )
+
+                    # Optional: Admin summary to global chat_id (legacy behavior)
+                    if results and config.telegram.chat_id:
+                        try:
+                            notifier = Notifier()
+                            admin_msg = f"Rave Tracker: Notified {total_users} user(s) about {len(new_events_list)} event(s)"
+                            from ..services.notifier import _run_async
+                            _run_async(notifier.bot.send_message(
+                                chat_id=config.telegram.chat_id,
+                                text=admin_msg
+                            ))
+                        except Exception as e:
+                            logger.debug(f"Admin notification failed (non-critical): {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to send notifications (non-blocking): {e}")
 
     except Exception as e:
         logger.error(f"Error in fetch_and_notify: {e}", exc_info=True)
@@ -277,6 +293,78 @@ def purge_expired_accounts():
         logger.error(f"Failed to cleanup fetch logs: {e}")
 
 
+def send_daily_digest():
+    """Daily digest job: collect queued events per user and send batched notifications.
+
+    Runs at config.scheduler.digest_time. Only meaningful when notification_mode == 'daily_digest'.
+    Skips silently if there are no queued events.
+    """
+    logger.info("Starting daily digest job")
+
+    config = get_config()
+    db = get_db()
+
+    # Get all distinct users who have events queued for digest
+    try:
+        with db.get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT user_id FROM notifications
+                WHERE queued_for_digest = {db._true_val} AND sent_at IS NULL AND user_id IS NOT NULL
+                """
+            ).fetchall()
+        user_ids = [row[0] for row in rows]
+    except Exception as e:
+        logger.error(f"Failed to query queued digest users: {e}")
+        return
+
+    if not user_ids:
+        logger.info("Daily digest: no queued events to send")
+        return
+
+    logger.info(f"Daily digest: sending to {len(user_ids)} user(s)")
+
+    from ..services.notifier import notify_users_for_events_async, _run_async
+
+    for user_id in user_ids:
+        try:
+            event_ids = db.get_queued_digest_events(user_id)
+            if not event_ids:
+                continue
+
+            # Load full Event objects for queued event_ids
+            events_with_rules = []
+            for event_id in event_ids:
+                event = db.get_event(event_id)
+                if event is None:
+                    logger.warning(f"Digest: event {event_id} not found in DB, skipping")
+                    continue
+                # Get matching rules for this user and event
+                rules = db.get_rules_for_event_and_user(event_id, user_id)
+                if rules:
+                    events_with_rules.append((event, rules))
+
+            if not events_with_rules:
+                logger.info(f"Digest user {user_id}: no valid events to send")
+                db.mark_digest_sent(event_ids, user_id)
+                continue
+
+            # Send batched notification using existing per-user notify path
+            results = _run_async(notify_users_for_events_async(events_with_rules))
+
+            user_result = results.get(user_id, {})
+            if user_result.get("telegram") or user_result.get("email"):
+                db.mark_digest_sent(event_ids, user_id)
+                logger.info(f"Digest sent to user {user_id}: {len(events_with_rules)} event(s)")
+            else:
+                logger.warning(f"Digest send failed for user {user_id} — events remain queued")
+
+        except Exception as e:
+            logger.error(f"Digest failed for user {user_id}: {e}")
+
+    logger.info("Daily digest job complete")
+
+
 def get_scheduler() -> BackgroundScheduler:
     """Get or create the global scheduler instance."""
     global _scheduler
@@ -290,17 +378,45 @@ def start_scheduler():
     config = get_config()
     scheduler = get_scheduler()
 
-    fetch_interval = config.scheduler.fetch_interval_hours
+    fetch_times = config.scheduler.fetch_times  # list of "HH:MM" strings
 
-    # Event fetch job - runs on configured interval
-    scheduler.add_job(
-        fetch_and_notify,
-        trigger=IntervalTrigger(hours=fetch_interval),
-        id="fetch_and_notify",
-        name="Fetch events and send notifications",
-        replace_existing=True,
-    )
-    logger.info(f"Scheduled fetch job to run every {fetch_interval} hours")
+    if fetch_times:
+        # Schedule one CronTrigger job per configured time
+        for i, time_str in enumerate(fetch_times):
+            try:
+                hour, minute = time_str.split(":")
+                job_id = f"fetch_and_notify_{i}"
+                scheduler.add_job(
+                    fetch_and_notify,
+                    trigger=CronTrigger(hour=int(hour), minute=int(minute)),
+                    id=job_id,
+                    name=f"Fetch events and send notifications at {time_str}",
+                    replace_existing=True,
+                )
+                logger.info(f"Scheduled fetch job at {time_str} daily")
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"Invalid fetch_time '{time_str}', skipping: {e}")
+        # Keep a canonical "fetch_and_notify" id pointing to first job (for get_next_fetch_time)
+        if fetch_times:
+            first_hour, first_minute = fetch_times[0].split(":")
+            scheduler.add_job(
+                fetch_and_notify,
+                trigger=CronTrigger(hour=int(first_hour), minute=int(first_minute)),
+                id="fetch_and_notify",
+                name="Fetch events and send notifications (primary)",
+                replace_existing=True,
+            )
+    else:
+        # Fallback to legacy interval trigger
+        fetch_interval = config.scheduler.fetch_interval_hours
+        scheduler.add_job(
+            fetch_and_notify,
+            trigger=IntervalTrigger(hours=fetch_interval),
+            id="fetch_and_notify",
+            name="Fetch events and send notifications",
+            replace_existing=True,
+        )
+        logger.info(f"Scheduled fetch job to run every {fetch_interval} hours (legacy interval mode)")
 
     # Account purge job - runs daily at 3 AM UTC
     scheduler.add_job(
@@ -311,6 +427,21 @@ def start_scheduler():
         replace_existing=True,
     )
     logger.info("Scheduled purge job to run daily at 3:00 AM UTC")
+
+    # Daily digest job - sends batched notifications at configured digest time
+    digest_time_str = config.scheduler.digest_time  # "HH:MM"
+    try:
+        d_hour, d_minute = digest_time_str.split(":")
+        scheduler.add_job(
+            send_daily_digest,
+            trigger=CronTrigger(hour=int(d_hour), minute=int(d_minute)),
+            id="send_daily_digest",
+            name="Send daily digest notifications",
+            replace_existing=True,
+        )
+        logger.info(f"Scheduled daily digest job at {digest_time_str}")
+    except (ValueError, AttributeError) as e:
+        logger.warning(f"Invalid digest_time '{digest_time_str}', digest job not scheduled: {e}")
 
     if not scheduler.running:
         scheduler.start()
