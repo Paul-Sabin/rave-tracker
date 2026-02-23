@@ -714,47 +714,47 @@ class Database:
 
     def init_schema(self):
         """Initialize the database schema and run migrations."""
-        with self.get_connection() as conn:
-            if self._use_postgres:
-                # PostgreSQL mode: execute each statement individually
-                # Split PG_SCHEMA by semicolons and execute
+        if self._use_postgres:
+            # Step 1: Create tables (transactional)
+            with self.get_connection() as conn:
                 cursor = conn.cursor()
                 for statement in PG_SCHEMA.split(';'):
                     statement = statement.strip()
                     if statement:
                         cursor.execute(statement)
-                # Run migrations using a separate autocommit connection so a
-                # failed statement doesn't put the connection into an aborted
-                # transaction state and block all subsequent migrations.
-                raw_conn = self._pool.getconn()
-                try:
-                    raw_conn.autocommit = True
-                    cur = raw_conn.cursor()
-                    for i, migration in enumerate(MIGRATIONS):
-                        migration = migration.strip()
-                        if not migration:
-                            continue
-                        # Transform for PostgreSQL compatibility:
-                        # - ADD COLUMN → ADD COLUMN IF NOT EXISTS (idempotent)
-                        # - DATETIME → TIMESTAMP (SQLite type not valid in PG)
-                        # - DEFAULT 0/1 → DEFAULT FALSE/TRUE (PG boolean literals)
-                        pg_migration = (
-                            migration
-                            .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
-                            .replace("DATETIME", "TIMESTAMP")
-                            .replace("DEFAULT 0", "DEFAULT FALSE")
-                            .replace("DEFAULT 1", "DEFAULT TRUE")
-                        )
-                        try:
-                            cur.execute(pg_migration)
-                        except Exception as e:
-                            logger.debug(f"PostgreSQL migration {i + 1} skipped: {e}")
-                finally:
-                    self._pool.putconn(raw_conn)
-            else:
-                # SQLite mode: use executescript
+
+            # Step 2: Run migrations in a separate autocommit connection so
+            # each statement is fully isolated — a failed migration cannot put
+            # the connection into an aborted-transaction state and block the rest.
+            raw_conn = self._pool.getconn()
+            try:
+                raw_conn.autocommit = True
+                cur = raw_conn.cursor()
+                for i, migration in enumerate(MIGRATIONS):
+                    migration = migration.strip()
+                    if not migration:
+                        continue
+                    # Transform for PostgreSQL compatibility:
+                    # - ADD COLUMN → ADD COLUMN IF NOT EXISTS (idempotent)
+                    # - DATETIME → TIMESTAMP (SQLite type not valid in PG)
+                    # - DEFAULT 0/1 → DEFAULT FALSE/TRUE (PG boolean literals)
+                    pg_migration = (
+                        migration
+                        .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
+                        .replace("DATETIME", "TIMESTAMP")
+                        .replace("DEFAULT 0", "DEFAULT FALSE")
+                        .replace("DEFAULT 1", "DEFAULT TRUE")
+                    )
+                    try:
+                        cur.execute(pg_migration)
+                    except Exception as e:
+                        logger.debug(f"PostgreSQL migration {i + 1} skipped: {e}")
+            finally:
+                self._pool.putconn(raw_conn)
+        else:
+            # SQLite mode
+            with self.get_connection() as conn:
                 conn.executescript(SCHEMA)
-                # Run migrations for existing databases
                 for migration in MIGRATIONS:
                     try:
                         conn.execute(migration)
