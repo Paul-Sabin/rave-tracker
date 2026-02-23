@@ -95,7 +95,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
     rule_id INTEGER NOT NULL,
+    user_id INTEGER,
     sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    queued_for_digest BOOLEAN DEFAULT 0,
     UNIQUE(event_id, rule_id)
 );
 
@@ -282,6 +284,10 @@ MIGRATIONS = [
     """
     ALTER TABLE users ADD COLUMN local_area_name TEXT DEFAULT '';
     """,
+    # Migration 13: Add queued_for_digest to notifications for daily digest mode
+    """
+    ALTER TABLE notifications ADD COLUMN queued_for_digest BOOLEAN DEFAULT 0;
+    """,
 ]
 
 # PostgreSQL-compatible schema (for fresh databases)
@@ -355,6 +361,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     rule_id INTEGER NOT NULL,
     user_id INTEGER,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    queued_for_digest BOOLEAN DEFAULT FALSE,
     UNIQUE(event_id, rule_id)
 );
 
@@ -1771,6 +1778,75 @@ class Database:
                 return True
             except sqlite3.IntegrityError:
                 return False
+
+    def queue_event_for_digest(self, event_id: int, user_id: int) -> bool:
+        """Queue an event for the daily digest (digest mode only).
+
+        Inserts a notification record with queued_for_digest=True and no sent_at.
+        If a record already exists for this event+user, does nothing (idempotent).
+
+        Returns True if inserted, False if already queued/sent.
+        """
+        with self.get_connection() as conn:
+            try:
+                if self._use_postgres:
+                    conn.execute(
+                        f"""
+                        INSERT INTO notifications (event_id, rule_id, user_id, queued_for_digest, sent_at)
+                        VALUES ({self.ph}, 0, {self.ph}, {self._true_val}, NULL)
+                        ON CONFLICT (event_id, rule_id) DO NOTHING
+                        """,
+                        (event_id, user_id),
+                    )
+                else:
+                    conn.execute(
+                        f"""
+                        INSERT OR IGNORE INTO notifications (event_id, rule_id, user_id, queued_for_digest, sent_at)
+                        VALUES ({self.ph}, 0, {self.ph}, 1, NULL)
+                        """,
+                        (event_id, user_id),
+                    )
+                return True
+            except Exception:
+                return False
+
+    def get_queued_digest_events(self, user_id: int):
+        """Return all event_ids queued for digest for a given user (not yet sent).
+
+        Returns list of event_id integers.
+        """
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT event_id FROM notifications
+                WHERE user_id = {self.ph} AND queued_for_digest = {self._true_val} AND sent_at IS NULL
+                """,
+                (user_id,),
+            ).fetchall()
+            return [row[0] for row in rows]
+
+    def mark_digest_sent(self, event_ids: list, user_id: int) -> int:
+        """Mark digest-queued notifications as sent by setting sent_at = now.
+
+        Returns count of rows updated.
+        """
+        if not event_ids:
+            return 0
+        now = datetime.utcnow().isoformat()
+        updated = 0
+        with self.get_connection() as conn:
+            for event_id in event_ids:
+                cursor = conn.execute(
+                    f"""
+                    UPDATE notifications
+                    SET sent_at = {self.ph}, queued_for_digest = {self._false_val}
+                    WHERE event_id = {self.ph} AND user_id = {self.ph}
+                      AND queued_for_digest = {self._true_val} AND sent_at IS NULL
+                    """,
+                    (now, event_id, user_id),
+                )
+                updated += cursor.rowcount if hasattr(cursor, 'rowcount') else 0
+        return updated
 
     def get_stats(self) -> dict:
         """Get database statistics."""
