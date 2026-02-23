@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 17 of 18 (Notification Dispatch Modes) — IN PROGRESS
-Plan: 1/2 — 17-01 complete
-Status: 17-01 done; DB schema extended with queued_for_digest column and digest queue methods
-Last activity: 2026-02-23 — 17-01 executed; notifications table schema extended
+Phase: 17 of 18 (Notification Dispatch Modes) — IN PROGRESS (awaiting human checkpoint)
+Plan: 2/2 — 17-02 auto tasks complete; checkpoint pending human verification
+Status: 17-02 auto tasks done; CronTrigger schedule + mode dispatch + digest job wired. Awaiting human verify checkpoint.
+Last activity: 2026-02-23 — 17-02 executed; scheduler dispatch modes implemented
 
 Progress: [██████████] 44/44 total plans (v3.3: 3/5 done)
 
@@ -30,7 +30,7 @@ Progress: [██████████] 44/44 total plans (v3.3: 3/5 done)
 | 1-14 | 34/34 | v2.0-v3.1 |
 | 15. Tracking Page UX | 1/1 | v3.2 |
 | 16. Settings Page Split | 2/2 | v3.3 |
-| 17. Notification Dispatch Modes | 0/2 | v3.3 |
+| 17. Notification Dispatch Modes | 1/2 (17-02 checkpoint pending) | v3.3 |
 | 18. Endpoint Hardening | 0/1 | v3.3 |
 
 **Recent Trend:**
@@ -57,6 +57,9 @@ Recent decisions affecting current work:
 - 16-02: notification_mode validated against allowlist before persisting to config
 - 17-01: queue_event_for_digest uses rule_id=0 + UNIQUE(event_id, rule_id) for dedup — same pattern as add_event_notification
 - 17-01: has_event_notification unchanged — broad SELECT covers both queued and sent records, preventing double-queuing in digest mode
+- 17-02: send_daily_digest uses db.get_event() (existing) not get_event_by_id — avoids redundant alias
+- 17-02: canonical 'fetch_and_notify' job id preserved as alias for first fetch_time slot — get_next_fetch_time() still works
+- 17-02: get_rules_for_event_and_user added to database.py — joins event_rules+rules, filtered by event_id+user_id
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 17-01-PLAN.md — notifications schema extended for digest mode
+Stopped at: 17-02-PLAN.md checkpoint — auto tasks complete, awaiting human-verify checkpoint
 Resume file: None
-Next: Execute Phase 17 Plan 02 (scheduler dispatch modes)
+Next: Human verify checkpoint for 17-02 (both dispatch modes end-to-end), then Phase 18 (Endpoint Hardening)
