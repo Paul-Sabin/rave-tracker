@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 16 of 18 (Settings Page Split) — COMPLETE
-Plan: 2/2 — 16-02 fully verified and complete
-Status: Phase 16 complete; ready for Phase 17
-Last activity: 2026-02-22 — 16-02 human-verify checkpoint approved; /admin/settings verified end-to-end
+Phase: 17 of 18 (Notification Dispatch Modes) — IN PROGRESS
+Plan: 1/2 — 17-01 complete
+Status: 17-01 done; DB schema extended with queued_for_digest column and digest queue methods
+Last activity: 2026-02-23 — 17-01 executed; notifications table schema extended
 
-Progress: [██████████] 43/43 total plans (v3.3: 2/5 done)
+Progress: [██████████] 44/44 total plans (v3.3: 3/5 done)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [██████████] 43/43 total plans (v3.3: 2/5 done)
 
 **Recent Trend:**
 Phase 16 completed in 2 plans — clean split of settings into personal (/settings) and system (/admin/settings).
+Phase 17 started — 17-01 extends notifications DB schema for digest mode queue lifecycle.
 
 ## Accumulated Context
 
@@ -54,6 +55,8 @@ Recent decisions affecting current work:
 - 16-02: Bot token update guarded — only updates if submitted value contains no asterisks
 - 16-02: fetch_times stored as list of HH:MM strings; validated by regex on save, malformed entries discarded
 - 16-02: notification_mode validated against allowlist before persisting to config
+- 17-01: queue_event_for_digest uses rule_id=0 + UNIQUE(event_id, rule_id) for dedup — same pattern as add_event_notification
+- 17-01: has_event_notification unchanged — broad SELECT covers both queued and sent records, preventing double-queuing in digest mode
 
 ### Pending Todos
 
@@ -67,7 +70,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Phase 16 complete — 16-02 verified and summarised
+Last session: 2026-02-23
+Stopped at: Completed 17-01-PLAN.md — notifications schema extended for digest mode
 Resume file: None
-Next: Execute Phase 17 (Notification Dispatch Modes)
+Next: Execute Phase 17 Plan 02 (scheduler dispatch modes)

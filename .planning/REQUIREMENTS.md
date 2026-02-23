@@ -25,7 +25,7 @@
 ### Notification Dispatch
 
 - [ ] **SETT-12**: "Upon fetch" mode sends notifications immediately after successful fetch (preserves current behaviour)
-- [ ] **SETT-13**: "Daily digest" mode queues found events rather than sending immediately
+- [x] **SETT-13**: "Daily digest" mode queues found events rather than sending immediately
 - [ ] **SETT-14**: Daily digest job sends batched notifications per user at the configured time
 
 ### Endpoint Hardening
@@ -63,7 +63,7 @@ None identified.
 | SETT-10 | Phase 16 | Complete |
 | SETT-11 | Phase 16 | Complete |
 | SETT-12 | Phase 17 | Pending |
-| SETT-13 | Phase 17 | Pending |
+| SETT-13 | Phase 17 | Complete |
 | SETT-14 | Phase 17 | Pending |
 | SETT-15 | Phase 18 | Pending |
 | SETT-16 | Phase 18 | Pending |
