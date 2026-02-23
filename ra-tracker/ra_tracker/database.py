@@ -723,8 +723,19 @@ class Database:
                     statement = statement.strip()
                     if statement:
                         cursor.execute(statement)
-                # Skip migrations - pgloader handles existing data
-                # Fresh PostgreSQL databases use PG_SCHEMA directly
+                # Run migrations using savepoints so a duplicate column error
+                # rolls back only that statement without aborting the transaction
+                for i, migration in enumerate(MIGRATIONS):
+                    migration = migration.strip()
+                    if not migration:
+                        continue
+                    try:
+                        cursor.execute(f"SAVEPOINT migration_{i}")
+                        cursor.execute(migration)
+                        cursor.execute(f"RELEASE SAVEPOINT migration_{i}")
+                    except Exception:
+                        cursor.execute(f"ROLLBACK TO SAVEPOINT migration_{i}")
+                        # Already applied, skip
             else:
                 # SQLite mode: use executescript
                 conn.executescript(SCHEMA)
