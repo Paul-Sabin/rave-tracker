@@ -9,7 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ..config import get_config
+from ..config import get_config, Config
 from ..database import get_db, Event, Rule
 from ..services.fetcher import Fetcher
 from ..services.notifier import Notifier, notify_users_for_events
@@ -82,7 +82,7 @@ def fetch_and_notify():
         db = get_db()
         fetch_id = db.start_scraper_fetch()
 
-        config = get_config()
+        config = Config.load()  # Reload from disk to pick up changes saved via admin settings
         fetcher = Fetcher()
         local_area_id = config.user.local_area_id
 
