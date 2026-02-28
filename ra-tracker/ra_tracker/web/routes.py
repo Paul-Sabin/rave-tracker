@@ -10,7 +10,7 @@ from typing import Optional
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 
 from .audit import log_audit_event
 from .rate_limit import login_limiter, limiter, RESEND_RATE_LIMIT, reset_limiter
@@ -222,7 +222,11 @@ async def delete_rule(rule_id: int, user: User = Depends(require_verified_email)
 
 
 @router.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request, user: User = Depends(require_verified_email)):
+async def settings_page(
+    request: Request,
+    user: User = Depends(require_verified_email),
+    message: Optional[str] = None,
+):
     """Settings page."""
     templates = get_templates(request)
     config = get_config()
@@ -239,6 +243,7 @@ async def settings_page(request: Request, user: User = Depends(require_verified_
             "csrf_token": getattr(request.state, 'csrf_token', ''),
             "telegram_configured": bool(config.telegram.bot_token),
             "email_configured": is_email_configured(),
+            "flash_message": message,
         },
     )
 
@@ -249,12 +254,28 @@ async def save_settings(
     user: User = Depends(require_verified_email),
 ):
     """Save personal settings. (System config moved to /admin/settings)"""
+    if not user.is_admin:
+        logger.warning(
+            f"Blocked non-admin access to POST /settings/save — user_id={user.id} at {datetime.utcnow().isoformat()}Z"
+        )
+        return RedirectResponse(
+            url="/settings?message=The+ravemonger+will+handle+system+settings.",
+            status_code=303,
+        )
     return RedirectResponse(url="/settings", status_code=303)
 
 
 @router.post("/settings/test-telegram")
-async def test_telegram(user: User = Depends(require_verified_email)):
-    """Send a test Telegram message."""
+async def test_telegram(request: Request, user: User = Depends(require_verified_email)):
+    """Send a test Telegram message to admin chat. Admin only."""
+    if not user.is_admin:
+        logger.warning(
+            f"Blocked non-admin access to POST /settings/test-telegram — user_id={user.id} at {datetime.utcnow().isoformat()}Z"
+        )
+        return JSONResponse(
+            {"status": "error", "message": "Admin access required"},
+            status_code=403,
+        )
     notifier = Notifier()
     try:
         success = notifier.send_test()
