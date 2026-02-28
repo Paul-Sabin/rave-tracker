@@ -254,7 +254,7 @@ Phases execute in numeric order: 16 → 17 → 18
 | 15. Tracking Page UX | v3.2 | 1/1 | Complete | 2026-02-22 |
 | 16. Settings Page Split | 2/2 | Complete    | 2026-02-22 | 2026-02-22 |
 | 17. Notification Dispatch Modes | 2/2 | Complete   | 2026-02-23 | - |
-| 18. Endpoint Hardening | v3.3 | 0/1 | Not started | - |
+| 18. Endpoint Hardening | 1/1 | Complete    | 2026-02-28 | - |
 
 ---
 *Roadmap created: 2026-02-11*
