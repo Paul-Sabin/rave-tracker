@@ -181,10 +181,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A non-admin user who submits POST /settings/save with system config fields receives a 403 response — no data is saved
   2. A non-admin user who calls POST /settings/test-telegram receives a 403 response — no Telegram message is sent
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 18-01: Server-side admin guards on /settings/save and /settings/test-telegram
+- [ ] 18-01-PLAN.md — Harden POST /settings/save (redirect non-admin) + POST /settings/test-telegram (403 JSON) + GET /admin/settings (redirect non-admin) + human-verify checkpoint
 
 ## Phase Details
 
@@ -225,10 +225,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A non-admin user who submits POST /settings/save with system config fields receives a 403 response — no data is saved
   2. A non-admin user who calls POST /settings/test-telegram receives a 403 response — no Telegram message is sent
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 18-01: Server-side admin guards on /settings/save and /settings/test-telegram
+- [ ] 18-01-PLAN.md — Harden POST /settings/save (redirect non-admin) + POST /settings/test-telegram (403 JSON) + GET /admin/settings (redirect non-admin) + human-verify checkpoint
 
 ## Progress
 
