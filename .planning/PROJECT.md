@@ -8,19 +8,9 @@ A multi-user event tracker running in production that monitors ra.co for upcomin
 
 Users never miss events from artists, venues, or promoters they care about — automatic monitoring replaces manual checking of ra.co.
 
-## Current Milestone: v3.3 Settings Split
-
-**Goal:** Split the single settings page into personal settings (all users) and system config (admins only), hardening admin-only endpoints server-side.
-
-**Target features:**
-- `/settings` shows only personal settings (notifications, password, delete account) for all users
-- `/admin/settings` new page for system config (Telegram bot, scheduler, database) — admin only
-- Local Area section removed from settings entirely (already on /tracking)
-- Admin-only POST endpoints reject non-admin requests server-side
-
 ## Current State
 
-**Version:** v3.2 Tracking Page UX (shipped 2026-02-22)
+**Version:** v3.3 Settings Split (shipped 2026-02-28)
 
 **Live at:** https://ravetracker.whotrustswho.com
 
@@ -35,6 +25,9 @@ Users never miss events from artists, venues, or promoters they care about — a
 - Password reset and change flows
 - Soft-delete account with 30-day recovery period
 - Admin dashboard with audit log viewing, scraper status, health metrics, fetch history
+- Split settings: `/settings` (personal — all users) and `/admin/settings` (system config — admin only)
+- Dual notification dispatch: "Upon fetch" (immediate) or "Daily digest" (batched per user at configured time)
+- Server-side admin guards on all admin-only endpoints
 - Mobile-first responsive design (375px+, 44px touch targets)
 - Structured JSON logging with request ID correlation (Better Stack)
 - Sentry error tracking with user context and request_id tag
@@ -45,7 +38,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 - PostgreSQL (production) / SQLite (local dev)
 - Tailwind CSS v4 (CDN)
 - gunicorn + uvicorn workers (multi-process)
-- APScheduler (separate process)
+- APScheduler with CronTrigger (separate process)
 - Argon2id password hashing
 - Sentry, Better Stack (Logtail), asgi-correlation-id
 - Railway (hosting + managed PostgreSQL)
@@ -128,6 +121,24 @@ Users never miss events from artists, venues, or promoters they care about — a
 - [x] UX-05: Persistent area widget on /tracking page; inline search auto-saves without page reload — v3.2
 - [x] UX-06: /rules page renamed to /tracking with 301 redirect for old bookmarks — v3.2
 
+**Milestone 7: Settings Split**
+- [x] SETT-01: `/settings` shows only Notification Preferences, Account Security, and Delete Account for all users — v3.3
+- [x] SETT-02: Local Area section removed from `/settings` entirely — v3.3
+- [x] SETT-03: Admin users see a link to `/admin/settings` on `/settings` — v3.3
+- [x] SETT-04: `/admin/settings` page created, accessible to admins only — v3.3
+- [x] SETT-05: Telegram bot token and admin chat ID editable on `/admin/settings` — v3.3
+- [x] SETT-06: Fetch schedule configurable as specific times of day (CronTrigger) — v3.3
+- [x] SETT-07: Event horizon (days) editable on `/admin/settings` — v3.3
+- [x] SETT-08: Database info displayed (read-only) on `/admin/settings` — v3.3
+- [x] SETT-09: Test Admin Telegram button on `/admin/settings` — v3.3
+- [x] SETT-10: Notification mode toggle: "Upon fetch completion" vs "Daily digest" — v3.3
+- [x] SETT-11: Daily digest time field shown when digest mode is selected — v3.3
+- [x] SETT-12: "Upon fetch" mode sends notifications immediately after successful fetch — v3.3
+- [x] SETT-13: "Daily digest" mode queues found events rather than sending immediately — v3.3
+- [x] SETT-14: Daily digest job sends batched notifications per user at configured time — v3.3
+- [x] SETT-15: POST `/settings/save` rejects non-admin requests server-side — v3.3
+- [x] SETT-16: POST `/settings/test-telegram` rejects non-admin requests with 403 — v3.3
+
 **Milestone 5: Production Deployment, Hosting & Observability**
 - [x] ENV-01: All secrets configured via environment variables — v3.1
 - [x] ENV-02: No hardcoded secrets in config.yaml or committed files — v3.1
@@ -157,11 +168,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ### Active
 
-<!-- v3.3 Settings Split -->
-- [ ] SETT-01: `/settings` page shows only personal settings for all users (notifications, password, delete account)
-- [ ] SETT-02: `/admin/settings` page created for system config (Telegram bot token, admin chat ID, scheduler interval, database info)
-- [ ] SETT-03: Local Area section removed from settings entirely
-- [ ] SETT-04: Admin-only POST endpoints hardened to reject non-admin requests
+<!-- Next milestone requirements go here -->
 
 ### Out of Scope
 
@@ -178,7 +185,7 @@ Users never miss events from artists, venues, or promoters they care about — a
 ## Context
 
 **Codebase:**
-- 8,921 lines of Python across 20+ modules
+- ~9,300 lines of Python across 20+ modules, ~4,700 lines of HTML templates
 - Layered architecture: API client → Services → Web/Scheduler → Database → Observability
 - Full codebase documentation in `.planning/codebase/`
 
@@ -225,6 +232,12 @@ Users never miss events from artists, venues, or promoters they care about — a
 | Area widget replaces warning card | Persistent and discoverable without being alarming; inline save avoids settings page detour | ✓ Good |
 | /api/rules/add JSON endpoint kept as-is | Only form-based routes renamed; JS fetch calls unchanged | ✓ Good |
 | 301 redirect /rules → /tracking | Permanent redirect preserves bookmarks and SEO | ✓ Good |
+| Notification mode is system-wide admin policy | Simpler than per-user preference; admin controls digest cadence | ✓ Good |
+| Daily digest queues at fetch time, sends at configured time | Decouples event discovery from notification delivery | ✓ Good |
+| queue_event_for_digest uses rule_id=0 + UNIQUE(event_id, rule_id) | Consistent dedup pattern with add_event_notification | ✓ Good |
+| CronTrigger replaces interval scheduling | fetch_times config is more intuitive than interval-in-minutes | ✓ Good |
+| GET /admin/settings redirects non-admins (not 403) | Clean UX — non-admins land on their own settings, not an error page | ✓ Good |
+| POST /settings/test-telegram returns JSON 403 (not redirect) | AJAX endpoint — redirect would silently swallow the error in JS callers | ✓ Good |
 
 ---
-*Last updated: 2026-02-22 after v3.3 milestone started*
+*Last updated: 2026-02-28 after v3.3 milestone shipped*

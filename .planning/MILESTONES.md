@@ -154,3 +154,31 @@
 **What's next:** v2.0 Multi-User Support
 
 
+
+## v3.3 Settings Split (Shipped: 2026-02-28)
+
+**Delivered:** Settings page split into personal (/settings) and admin-only (/admin/settings); dual notification dispatch modes (upon fetch / daily digest); server-side admin guards on all settings endpoints.
+
+**Phases completed:** Phases 16–18 (3 phases, 5 plans)
+
+**Key accomplishments:**
+
+- `/settings` stripped to personal-only content (Notification Preferences, Account Security, Delete Account) with conditional admin link card
+- `/admin/settings` created for system config: Telegram bot token, admin chat ID, fetch schedule times (CronTrigger), event horizon, notification mode toggle
+- Dual notification dispatch: "Upon fetch" sends immediately; "Daily digest" queues events and batches per user at configured time
+- `notifications` table extended with `queued_for_digest` column and digest queue lifecycle API (queue / retrieve / mark-sent)
+- Server-side admin guards on POST `/settings/save`, POST `/settings/test-telegram`, and GET `/admin/settings` — non-admins redirected or get JSON 403
+
+**Stats:**
+
+- 3 phases, 5 plans
+- 108 files changed, +2,487 / −21,402 lines
+- ~9,300 lines of Python, ~4,700 lines of HTML
+- Timeline: 2026-02-22 → 2026-02-28 (6 days)
+
+**Git range:** `d36188b` → `60322b1`
+
+**Archive:** `.planning/milestones/v3.3-ROADMAP.md`
+
+---
+
