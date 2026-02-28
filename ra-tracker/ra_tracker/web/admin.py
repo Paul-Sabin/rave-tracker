@@ -1,6 +1,8 @@
 """Admin routes for RA Tracker - view-only oversight."""
 
+import logging
 import re
+from datetime import datetime
 from typing import Optional
 import threading
 
@@ -8,13 +10,15 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 
 from ..database import get_db, User
-from .auth import require_admin
+from .auth import require_admin, require_auth
 from ..api.circuit_breaker import circuit_breaker
 from ..scheduler.jobs import run_fetch_now, get_last_fetch_time, get_next_fetch_time
 from ..config import get_config
 from ..services.notifier import Notifier
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
+
+logger = logging.getLogger(__name__)
 
 
 def get_templates(request: Request):
@@ -233,8 +237,14 @@ async def force_fetch(request: Request, user: User = Depends(require_admin)):
 
 
 @admin_router.get("/settings", response_class=HTMLResponse)
-async def admin_settings(request: Request, user: User = Depends(require_admin)):
-    """Admin system configuration page."""
+async def admin_settings(request: Request, user: User = Depends(require_auth)):
+    """Admin system configuration page. Non-admins are redirected to /settings."""
+    if not user.is_admin:
+        logger.warning(
+            f"Blocked non-admin access to GET /admin/settings — user_id={user.id} at {datetime.utcnow().isoformat()}Z"
+        )
+        return RedirectResponse(url="/settings", status_code=303)
+
     templates = get_templates(request)
     config = get_config()
 
