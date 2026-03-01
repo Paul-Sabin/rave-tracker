@@ -850,6 +850,7 @@ class Database:
                 created_at=self._parse_datetime(row["created_at"]),
                 deleted_at=self._parse_datetime(row["deleted_at"]),
                 scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
             )
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
@@ -874,6 +875,7 @@ class Database:
                 created_at=self._parse_datetime(row["created_at"]),
                 deleted_at=self._parse_datetime(row["deleted_at"]),
                 scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
             )
 
     def verify_password(self, stored_hash: str, password: str) -> tuple[bool, Optional[str]]:
@@ -925,6 +927,21 @@ class Database:
                 (verified, user_id)
             )
 
+    def set_onboarding_completed(self, user_id: int, completed: bool = True) -> None:
+        """Set a user's onboarding completion status.
+
+        Called when the wizard is completed or skipped entirely.
+
+        Args:
+            user_id: User ID to update
+            completed: Completion status (default True)
+        """
+        with self.get_connection() as conn:
+            conn.execute(
+                f"UPDATE users SET onboarding_completed = {self.ph} WHERE id = {self.ph}",
+                (completed, user_id)
+            )
+
     def get_unverified_user_by_email(self, email: str) -> Optional[User]:
         """Get user only if email is not verified.
 
@@ -959,6 +976,7 @@ class Database:
                 created_at=self._parse_datetime(row["created_at"]),
                 deleted_at=self._parse_datetime(row["deleted_at"]),
                 scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
             )
 
     def get_user_by_telegram_chat_id(self, chat_id: int) -> Optional[User]:
@@ -983,6 +1001,7 @@ class Database:
                 created_at=self._parse_datetime(row["created_at"]),
                 deleted_at=self._parse_datetime(row["deleted_at"]),
                 scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
             )
 
     def set_user_telegram_enabled(self, user_id: int, enabled: bool) -> None:
@@ -1218,6 +1237,7 @@ class Database:
                     created_at=self._parse_datetime(row["created_at"]),
                     deleted_at=self._parse_datetime(row["deleted_at"]),
                     scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                    onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
                 )
                 for row in cursor.fetchall()
             ]
@@ -2159,6 +2179,7 @@ class Database:
                     created_at=self._parse_datetime(row["created_at"]),
                     deleted_at=self._parse_datetime(row["deleted_at"]),
                     scheduled_purge_at=self._parse_datetime(row["scheduled_purge_at"]),
+                    onboarding_completed=bool(row["onboarding_completed"]) if row["onboarding_completed"] is not None else False,
                 )
                 for row in cursor.fetchall()
             ]
