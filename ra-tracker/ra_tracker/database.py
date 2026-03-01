@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS users (
     telegram_chat_id INTEGER,
     telegram_enabled BOOLEAN DEFAULT 0,
     email_enabled BOOLEAN DEFAULT 1,
+    onboarding_completed BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -288,6 +289,15 @@ MIGRATIONS = [
     """
     ALTER TABLE notifications ADD COLUMN queued_for_digest BOOLEAN DEFAULT 0;
     """,
+    # Migration 14: Add onboarding_completed for v3.4 wizard gating
+    """
+    ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0;
+    """,
+    # Migration 14b: Backfill — existing users with area or Telegram configured are already onboarded
+    """
+    UPDATE users SET onboarding_completed = 1
+    WHERE local_area_id IS NOT NULL OR telegram_chat_id IS NOT NULL;
+    """,
 ]
 
 # PostgreSQL-compatible schema (for fresh databases)
@@ -380,6 +390,7 @@ CREATE TABLE IF NOT EXISTS users (
     local_area_name TEXT DEFAULT '',
     deleted_at TIMESTAMP,
     scheduled_purge_at TIMESTAMP,
+    onboarding_completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -483,6 +494,7 @@ class User:
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None  # Soft delete timestamp (NULL = active)
     scheduled_purge_at: Optional[datetime] = None  # When hard purge will occur
+    onboarding_completed: bool = False  # Set True after wizard completion or backfill
 
 
 @dataclass
