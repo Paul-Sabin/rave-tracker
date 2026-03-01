@@ -10,6 +10,7 @@
 - ✅ **v3.1 Observability & Monitoring** - Phase 14 (shipped 2026-02-20)
 - ✅ **v3.2 Tracking Page UX** - Phase 15 (shipped 2026-02-22)
 - ✅ **v3.3 Settings Split** - Phases 16-18 (shipped 2026-02-28)
+- 🚧 **v3.4 Onboarding & Welcome** - Phases 19-23 (in progress)
 
 ## Phases
 
@@ -151,6 +152,95 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 
 </details>
 
+### 🚧 v3.4 Onboarding & Welcome (In Progress)
+
+**Milestone Goal:** New users are greeted by a 4-step welcome wizard guided by the Ravemonger mascot, covering local area, notifications, and a feature tour. The wizard is skippable at every step, accessible, and revisitable from settings.
+
+- [ ] **Phase 19: Database Foundation** - Migration adds onboarding_completed column with backfill for existing users
+- [ ] **Phase 20: Wizard Routes** - Welcome routes registered and step rendering confirmed via stub template
+- [ ] **Phase 21: Welcome Template** - Full 4-step wizard UI with mascot, transitions, accessibility, and data interactions
+- [ ] **Phase 22: Login Intercept** - First-run trigger wires new verified users into the wizard on login
+- [ ] **Phase 23: Settings Revisit Link** - "Revisit Tour" entry point added to /settings
+
+## Phase Details
+
+### Phase 19: Database Foundation
+**Goal**: The onboarding_completed column exists in production with existing users correctly backfilled so no deployed user sees the wizard unexpectedly
+**Depends on**: Phase 18 (v3.3 complete)
+**Requirements**: FOUND-01
+**Success Criteria** (what must be TRUE):
+  1. Migration 14 runs without error on both SQLite and PostgreSQL
+  2. All existing users with a local area or Telegram configured have onboarding_completed = TRUE after migration
+  3. Newly registered users have onboarding_completed = FALSE by default
+  4. Database.set_onboarding_completed() method exists and updates the column correctly
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01: Migration 14 — onboarding_completed column, backfill, User dataclass, DB method
+
+### Phase 20: Wizard Routes
+**Goal**: The /welcome URL resolves and returns a rendered page; step routing is confirmed; the wizard is accessible by direct URL to a verified, logged-in user
+**Depends on**: Phase 19
+**Requirements**: WIZ-01
+**Success Criteria** (what must be TRUE):
+  1. GET /welcome redirects to /welcome/step/1
+  2. GET /welcome/step/1 through /welcome/step/4 each return 200 with the correct step number rendered
+  3. GET /welcome/step/99 is clamped to step 4 (no 404 or 500)
+  4. Unauthenticated requests to /welcome/step/1 redirect to login
+  5. Authenticated but unverified users cannot access the wizard routes
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: Wizard routes — GET /welcome, GET /welcome/step/{step}, POST /welcome/complete, stub welcome.html
+
+### Phase 21: Welcome Template
+**Goal**: The welcome.html template delivers a complete, usable 4-step wizard experience — mascot present, all UI interactions functional, accessible to keyboard and screen reader users
+**Depends on**: Phase 20
+**Requirements**: WIZ-02, WIZ-03, WIZ-04, WIZ-05, RAVE-01, RAVE-02, DATA-01, DATA-02, FOUND-04
+**Success Criteria** (what must be TRUE):
+  1. Every step shows a Skip button that advances to the next step without saving any data
+  2. A dot-row progress indicator shows the current step position at all times
+  3. Step 4 completion shows a Ravemonger celebration (thumbs-up or confetti)
+  4. Ravemonger mascot image and unique dialogue appear on each step
+  5. Step 2 area search works inline — selecting an area saves it without leaving the wizard
+  6. Step 3 notification toggles are unchecked for new users and save correctly via existing endpoints
+  7. Keyboard users can navigate all steps and controls without a mouse
+  8. Screen reader users receive an announcement when each step changes
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: Step 1 — welcome screen, Ravemonger, nav suppression, slide transition framework
+- [ ] 21-02: Step 2 — inline area search widget reuse, step 3 — notification toggles (GDPR-unchecked)
+- [ ] 21-03: Step 4 — feature tour, completion celebration, POST /welcome/complete; accessibility pass (focus, aria-live)
+
+### Phase 22: Login Intercept
+**Goal**: New users who complete email verification are automatically redirected into the wizard on their next login; subsequent logins go directly to the dashboard
+**Depends on**: Phase 21
+**Requirements**: FOUND-02, FOUND-03
+**Success Criteria** (what must be TRUE):
+  1. A new user who registers, verifies email, and logs in lands on /welcome/step/1 (not the dashboard)
+  2. A user who has not verified their email logs in and is NOT redirected to the wizard
+  3. A user who has completed the wizard logs in and goes directly to the dashboard
+  4. Completing the wizard sets onboarding_completed = TRUE in the database
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: Login POST intercept — onboarding_completed + email_verified gate; end-to-end flow verification
+
+### Phase 23: Settings Revisit Link
+**Goal**: Any logged-in user can re-enter the wizard from /settings and experience the same flow with their current preferences pre-loaded
+**Depends on**: Phase 22
+**Requirements**: DATA-03
+**Success Criteria** (what must be TRUE):
+  1. A "Revisit Tour" link or card is visible on /settings for all logged-in users
+  2. Clicking it navigates to /welcome/step/1 without error
+  3. A user who has already completed onboarding can traverse all 4 steps again
+  4. Step 2 and step 3 show the user's current area and notification state (not hardcoded defaults) on revisit
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01: "Revisit Tour" card in settings.html; verify revisit seeds from live DB values
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -173,7 +263,12 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 | 16. Settings Page Split | v3.3 | 2/2 | Complete | 2026-02-22 |
 | 17. Notification Dispatch Modes | v3.3 | 2/2 | Complete | 2026-02-23 |
 | 18. Endpoint Hardening | v3.3 | 1/1 | Complete | 2026-02-28 |
+| 19. Database Foundation | v3.4 | 0/1 | Not started | - |
+| 20. Wizard Routes | v3.4 | 0/1 | Not started | - |
+| 21. Welcome Template | v3.4 | 0/3 | Not started | - |
+| 22. Login Intercept | v3.4 | 0/1 | Not started | - |
+| 23. Settings Revisit Link | v3.4 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-11*
-*Last updated: 2026-02-28 — v3.3 shipped: settings split, digest mode, endpoint hardening*
+*Last updated: 2026-03-01 — v3.4 roadmap added: phases 19-23, onboarding wizard*

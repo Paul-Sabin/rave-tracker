@@ -64,26 +64,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | — | Pending |
-| FOUND-02 | — | Pending |
-| FOUND-03 | — | Pending |
-| FOUND-04 | — | Pending |
-| WIZ-01 | — | Pending |
-| WIZ-02 | — | Pending |
-| WIZ-03 | — | Pending |
-| WIZ-04 | — | Pending |
-| WIZ-05 | — | Pending |
-| RAVE-01 | — | Pending |
-| RAVE-02 | — | Pending |
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
+| FOUND-01 | Phase 19 | Pending |
+| WIZ-01 | Phase 20 | Pending |
+| WIZ-02 | Phase 21 | Pending |
+| WIZ-03 | Phase 21 | Pending |
+| WIZ-04 | Phase 21 | Pending |
+| WIZ-05 | Phase 21 | Pending |
+| RAVE-01 | Phase 21 | Pending |
+| RAVE-02 | Phase 21 | Pending |
+| DATA-01 | Phase 21 | Pending |
+| DATA-02 | Phase 21 | Pending |
+| FOUND-04 | Phase 21 | Pending |
+| FOUND-02 | Phase 22 | Pending |
+| FOUND-03 | Phase 22 | Pending |
+| DATA-03 | Phase 23 | Pending |
 
 **Coverage:**
 - v3.4 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-01 after initial definition*
+*Last updated: 2026-03-01 — traceability complete, all 14 requirements mapped to phases 19-23*

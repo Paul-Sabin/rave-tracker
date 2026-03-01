@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** v3.4 Onboarding & Welcome
+**Current focus:** v3.4 Onboarding & Welcome — Phase 19 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-01 — Milestone v3.4 started
+Phase: 19 of 23 (Database Foundation)
+Plan: 0 of 1 in current phase
+Status: Ready to plan
+Last activity: 2026-03-01 — v3.4 roadmap created, phases 19-23 defined
 
-Progress: [░░░░░░░░░░] 0/0 plans (v3.4: not yet planned)
+Progress: [░░░░░░░░░░] 0/7 plans (v3.4)
 
 ## Performance Metrics
 
@@ -38,17 +38,25 @@ Progress: [░░░░░░░░░░] 0/0 plans (v3.4: not yet planned)
 
 All decisions logged in PROJECT.md Key Decisions table.
 
+Recent decisions affecting v3.4:
+- URL-based step state (no per-step DB persistence) — only onboarding_completed boolean needed
+- GDPR: notification toggles must be unchecked for new users regardless of DB default
+- Existing-user backfill: UPDATE WHERE local_area_id IS NOT NULL OR telegram_chat_id IS NOT NULL
+- Wizard gates on BOTH email_verified AND NOT onboarding_completed
+- No new dependencies — vanilla JS + Tailwind v4 CDN + @keyframes handles all wizard UI
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-None.
+- Phase 21 dependency: Ravemonger image asset (WebP + PNG) is pending from user. Template can be built with placeholder img first.
+- Phase 21 dependency: Confirm base.html has a {% block nav %} override point before step 1 template work.
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: v3.4 milestone initialization
+Stopped at: v3.4 roadmap created
 Resume file: None
-Next: Define requirements → create roadmap
+Next: /gsd:plan-phase 19
