@@ -1,353 +1,185 @@
 # Project Research Summary
 
-**Project:** Rave Tracker v3.0 - Production Deployment & Hosting
-**Domain:** FastAPI application deployment with GraphQL API scraping
-**Researched:** 2026-02-11
-**Confidence:** MEDIUM
+**Project:** Rave Tracker v3.4 — Onboarding Welcome Wizard
+**Domain:** Multi-step onboarding wizard integrated into existing FastAPI/Jinja2 web app
+**Researched:** 2026-03-01
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This research synthesizes deployment requirements for transitioning a multi-user FastAPI event tracker from local development (SQLite, single-process) to production hosting (PostgreSQL, multi-worker). The application scrapes ra.co's GraphQL API every 6 hours and serves a mobile-friendly dashboard to multiple users with per-user notification preferences.
+This milestone adds a 4-step onboarding wizard to an existing, production FastAPI/Jinja2 application. Research across stack, features, architecture, and pitfalls converges on a clear recommendation: build with zero new dependencies, integrate deeply with existing endpoints, and keep the wizard lean (4 steps maximum). The existing stack — Tailwind v4 CDN, vanilla JS, Jinja2 server rendering, PostgreSQL — handles everything the wizard requires. The work is technique selection and careful integration, not new technology adoption.
 
-**Recommended approach:** Managed platform deployment (Railway, Render, or Fly.io) with provider-managed PostgreSQL and automatic SSL. This approach minimizes infrastructure complexity while addressing critical production requirements: database connection pooling, multi-worker ASGI server configuration, graceful shutdown, health checks, and environment-based secret management. The primary technical risk is APScheduler running in multiple worker processes, causing 4x duplicate scraping jobs and notification spam - this must be resolved before multi-worker deployment.
+The recommended approach is server-side step rendering via a single `welcome.html` template driven by a `step` URL parameter, with client-side AJAX calls reusing existing endpoints for data persistence (area selection, notification toggles). Wizard state lives in the URL path, not in JavaScript or server session — this survives refresh naturally and is consistent with how the rest of the app works. The only new persistent state is a single `onboarding_completed` boolean column on the `users` table.
 
-**Key mitigation strategy:** Deploy scheduler and web server as separate processes (scheduler runs once, web server scales to N workers), implement exponential backoff for GraphQL API failures to prevent cloud IP blocking, and migrate all secrets from config.yaml to environment variables before any cloud deployment. The production stack (Python/FastAPI/PostgreSQL) is well-established with documented patterns, giving this migration high success probability if critical pitfalls are addressed in correct order.
+The dominant risk is the existing-user migration: adding `onboarding_completed DEFAULT FALSE` without a backfill will force every existing configured user through the wizard on their next login. A one-line backfill (`UPDATE users SET onboarding_completed = TRUE WHERE local_area_id IS NOT NULL`) eliminates this entirely. Secondary risks are GDPR compliance on the notification step (pre-checked toggles are illegal), and accessibility gaps (focus management on step transitions). Both are well-understood and have specific, low-effort fixes documented in PITFALLS.md.
 
 ## Key Findings
 
-### Current Stack (from .planning/codebase/STACK.md)
+### Recommended Stack
 
-**Production-ready components:**
-- Python 3.11+ with FastAPI 0.109.0+ and Uvicorn 0.27.0+
-- Argon2id password hashing, CSRF protection, rate limiting (slowapi)
-- APScheduler 3.10.0+ for background jobs
-- Jinja2 templates, Tailwind CSS v4 CDN
-- Email (fastapi-mail + SMTP) and Telegram (python-telegram-bot 20.0+) notifications
-- Configuration via YAML with .env overrides (python-dotenv)
+No new libraries or frameworks are needed. The entire wizard is achievable with CSS `@keyframes` animations declared in a `<style type="text/tailwindcss">` block, vanilla JS state management using a plain object + `sessionStorage`, and Jinja2 template conditionals for step rendering. Tailwind v4 CDN supports `@theme` custom animation tokens natively, making direction-aware slide transitions a zero-dependency CSS exercise.
 
-**Components requiring production upgrades:**
-- Database: SQLite → PostgreSQL (with connection pooling)
-- Server: Single uvicorn process → Gunicorn with 4-9 uvicorn workers
-- Secrets: config.yaml hardcoded → environment variables
-- Architecture: Scheduler embedded in web workers → separate scheduler process
+**Core technologies:**
+- `@keyframes` + Tailwind v4 `@theme` tokens: Step transition animations — no library, works in CDN mode
+- Vanilla JS `WizardState` object + `sessionStorage`: Client-side step direction tracking — 80 lines, no Alpine.js needed
+- `display: none` / Tailwind `hidden` + `aria-hidden`: Step visibility toggling — avoids tab-stop leakage into hidden steps
+- HTML `<ol>` with Tailwind data-attribute variants: Progress indicator dots — fully accessible, zero custom CSS
+- `<picture>` with WebP + PNG fallback: Ravemonger mascot — correct format for a raster character asset
+- `aria-live="polite"` region + `requestAnimationFrame` flush: Screen reader step announcements — WCAG 2.2 SC 4.1.3 compliance
 
-### Expected Features (from FEATURES.md)
+**Hard constraint:** The Tailwind CDN prohibits `@apply`. All styling must be utility classes in HTML or `@keyframes`/`@theme` in the `<style type="text/tailwindcss">` block.
 
-**Must have (table stakes for production v1):**
-- Multi-worker ASGI server (gunicorn + uvicorn workers) - utilize multiple cores, automatic restarts
-- Environment-based configuration - DATABASE_URL, SMTP credentials, Telegram token, CSRF secrets
-- PostgreSQL with connection pooling - prevent connection exhaustion (pool_size=10, max_overflow=20)
-- HTTPS/SSL with custom domain - Let's Encrypt via Certbot or provider-managed
-- Health check endpoint - `/health` returns database connectivity status
-- Process supervision - systemd or provider-managed auto-restart
-- GraphQL retry logic - exponential backoff for 429/503 responses
-- Database backups - automated daily backups (provider-managed or pg_dump cron)
-- Basic structured logging - JSON logs with request IDs, status codes, latency
+### Expected Features
 
-**Should have (add after validation):**
-- Error tracking (Sentry) - trigger when first production exception is hard to debug
-- APM - trigger when slow page loads or unclear bottlenecks
-- Separate scheduler process - trigger when scheduler jobs interfere with web latency
-- Circuit breaker for API failures - trigger if ra.co API has extended outage (>10 min)
-- Metrics endpoint - Prometheus-compatible `/metrics` for request counts, latency, job status
+The 4-step structure identified in FEATURES.md is optimal — it sits exactly at the 3-5 step ceiling where completion rates hold above 60%. Any step added beyond this point statistically doubles abandonment probability.
 
-**Defer (v2+ or when specific problems emerge):**
-- Blue-green deployments - defer until downtime during deploys becomes user complaint
-- Read replicas - defer until database reads slow under load
-- Request/response caching - defer until repeated dashboard queries cause performance issues
+**Must have (table stakes):**
+- Visible skip / dismiss on every step — forced tours are the #1 cited anti-pattern; always-skippable flows have 25% higher completion rates
+- Step progress indicator (dot row) — users abandon when they cannot gauge remaining length
+- 3-5 step limit — the proposed 4-step flow (welcome, area, feature tour, notifications) hits this exactly
+- Mobile-first layout with 44px touch targets — app is mobile-primary; a wizard that breaks at 375px undermines trust
+- Persistent state surviving refresh — step in URL path, data saved per-step via existing AJAX endpoints
+- Revisitable from Settings — "Revisit Tour" link; wizard renders identically for first-run and revisit
+- Functional CTA per step — area selection and notification toggles must actually save data
+- Works without JS for navigation — use standard form POST for step transitions; layer JS on top
 
-**Anti-features (commonly requested, problematic for this domain):**
-- User-Agent rotation for every request - GraphQL APIs don't fingerprint like anti-bot systems
-- Proxy rotation - ra.co API is public; IP blocking unlikely with 1s rate limiting
-- Docker/Kubernetes for single-server - over-engineering for predictable load
-- Real-time scraping via WebSockets - scheduler runs every 6 hours, no user demand for live updates
-- Auto-scaling - event tracker has predictable load, fixed-size deployment sufficient
+**Should have (differentiators):**
+- Ravemonger mascot with step-aware dialogue — character-guided onboarding reduces cognitive load; static image + changing speech bubble copy (no animation required)
+- Short punchy copy per step (under 30 words) — treat each step like a tweet; wall-of-text is the #1 dismissal trigger
+- Partial completion handling — store current step in URL; user refreshes and resumes on the same step
+- Completion micro-celebration — single CSS confetti or Ravemonger "thumbs up" variant on final step only
+- Inline area search on step 2 — reuse existing AJAX area widget without redirecting away
+- Notification opt-in with value context — one sentence of "why" before the toggle primes consent
+- "You can change this any time" reassurance — reduces choice anxiety on area and notification steps
 
-### Architecture Approach (from .planning/codebase/ARCHITECTURE.md)
+**Defer (outside wizard scope):**
+- Interactive tooltip overlays on live app pages — high cost, low signal at current user scale
+- Per-step DB progress persistence (use URL path for step state; only `onboarding_completed` flag needs the DB)
+- Advanced notification configuration (digest timing, etc.) — belongs in `/settings`
+- Gamification points, badges — Rave Tracker has no gamification system; dangling feature
 
-**Current architecture (layered service pattern):**
-- API Layer: GraphQL client for ra.co with rate limiting (1s between requests)
-- Services Layer: Fetcher (event retrieval), Matcher (rule evaluation), Notifier (Telegram/email)
-- Web Layer: FastAPI routes + Jinja2 templates for dashboard
-- Scheduler Layer: APScheduler background jobs (fetch every 6 hours)
-- Database Layer: SQLite with domain models (Rule, Event, User, Session, Notification)
+### Architecture Approach
 
-**Production architecture changes required:**
-1. **Scheduler separation:** Move APScheduler from web worker to dedicated process
-   - Problem: Currently starts in every worker (4 workers = 4x duplicate jobs)
-   - Solution: Run scheduler as separate systemd service, share PostgreSQL database
+The wizard is a pure integration exercise into the existing architecture. One new template (`welcome.html`), three new routes, one new DB column, one DB method, and a 5-line modification to the login POST handler. Every data-saving action in the wizard calls an existing endpoint — the wizard adds no new API surface for data. The login intercept (`if not fresh_user.onboarding_completed` redirect to `/welcome/step/1`) is the only structural change to the authentication flow.
 
-2. **Database migration:** SQLite → PostgreSQL
-   - Schema changes: INTEGER AUTOINCREMENT → SERIAL, boolean 0/1 → TRUE/FALSE
-   - Query syntax: `?` placeholders → `%s`, add connection pooling
-   - Impact: All 15 Python modules using database.py need verification
+**Major components:**
+1. Migration 14 (`onboarding_completed` column + backfill) — prerequisite for all other work; must land first
+2. `/welcome` and `/welcome/step/{step}` routes — server-renders `welcome.html` at correct step; step clamped to 1-4
+3. `welcome.html` template — single file, step-conditional via `{% if step == N %}`; suppresses nav via block override
+4. Login POST intercept — 5-line addition checking `onboarding_completed` after successful auth
+5. Settings "Revisit Tour" link — purely additive; links to `/welcome/step/1`
+6. `POST /welcome/complete` route — sets flag, redirects to dashboard
 
-3. **Multi-worker web server:** Single uvicorn → gunicorn with uvicorn workers
-   - Formula: (2 × CPU_cores) + 1 workers (e.g., 4-core VPS → 9 workers)
-   - Requires: PostgreSQL connection pool sized for workers × concurrent requests
+**Reused without modification:** `GET /api/search/areas`, `POST /api/user/local-area`, `POST /settings/notifications/telegram`, `POST /settings/notifications/email`, `POST /settings/telegram/link`.
 
-4. **Reverse proxy:** Add Nginx/Caddy for SSL termination and static file serving
+### Critical Pitfalls
 
-### Critical Pitfalls (from PITFALLS.md)
+1. **Retroactive wizard trigger on existing users** — Add `UPDATE users SET onboarding_completed = TRUE WHERE local_area_id IS NOT NULL OR telegram_chat_id IS NOT NULL` as part of Migration 14. Must be in the migration itself, not as a separate manual step. Address before any wizard UI is built.
 
-**1. APScheduler runs in every worker process (CRITICAL)**
-- Impact: 4 workers = 4x duplicate scraping jobs, 4x notifications, database race conditions
-- Phase: Must fix in Phase 1 (Production Infrastructure Setup)
-- Solution: Deploy scheduler and web as separate processes OR use worker ID detection
-- Warning signs: Logs show "Scheduled fetch job" 4x at startup, users receive 4x duplicate Telegram messages
+2. **GDPR non-compliance on notification step** — `email_enabled` defaults to `TRUE` in the DB. The wizard notification step must render toggles as unchecked regardless of DB default for new users. Affirmative action required; skip writes nothing. Pre-checked consent is a GDPR Article 7 violation.
 
-**2. SQLite database locking under multi-worker load (CRITICAL)**
-- Impact: "database is locked" errors, 5-second timeouts, failed user actions during fetch operations
-- Phase: Must fix in Phase 1 (Production Infrastructure Setup)
-- Solution: Migrate to PostgreSQL with connection pooling before multi-worker deployment
-- Warning signs: OperationalError timeouts, 500 errors when scheduler runs
+3. **Duplicate preference paths creating divergent state** — Wizard fields must be seeded from current DB values on each render (not hardcoded defaults). "Skip" must write nothing. Both conditions are enforced by routing through existing endpoints rather than creating new save logic.
 
-**3. Silent SQL syntax failures after PostgreSQL migration (CRITICAL)**
-- Impact: Queries work in SQLite dev, fail in PostgreSQL production (parameter placeholders, boolean types, AUTOINCREMENT)
-- Phase: Must verify in Phase 1 (Production Infrastructure Setup)
-- Solution: Test ALL queries against PostgreSQL, consider SQLAlchemy ORM, update schema with SERIAL/BOOLEAN types
-- Warning signs: Type errors on `is_active` column, INSERT returns no ID, foreign key constraint failures
+4. **Inaccessible step transitions** — On each step advance, move focus to the step heading. Add `aria-live="polite"` announcement region. Apply `role="dialog"` + `aria-modal="true"` to wizard container. Trap focus inside. Missing any of these fails WCAG 2.2 SC 4.1.3.
 
-**4. Scraper blocked by cloud provider IP reputation (HIGH)**
-- Impact: Cloud IP addresses (AWS, GCP, DigitalOcean) hit stricter rate limits, return 403/429/CAPTCHA
-- Phase: Monitor in Phase 1, mitigate in Phase 2 (Scraper Resilience)
-- Solution: Conservative rate limiting (2-5s between requests), exponential backoff, monitoring for 403/429 responses
-- Warning signs: Sudden GraphQL errors after cloud deployment, 403/429 status codes, empty responses with 200 status
-
-**5. Secrets exposed in version control (CRITICAL - SECURITY)**
-- Impact: config.yaml contains production secrets (bot token, SMTP password, secret_key) in plaintext, committed to git
-- Phase: Must fix in Phase 0 (Pre-deployment) before ANY cloud hosting
-- Solution: Move ALL secrets to .env, add to .gitignore, rotate ALL exposed secrets, use cloud secret management
-- Warning signs: Secrets visible in GitHub history, container images contain .env files, unexpected API usage
-
-**6. No health check endpoint (HIGH)**
-- Impact: Load balancers can't detect failures, send traffic to crashed instances, no automated recovery
-- Phase: Must add in Phase 1 (Production Infrastructure Setup)
-- Solution: Add `/health` endpoint that tests database connectivity, return 503 on failure
-- Warning signs: Traffic sent before app ready, degraded instances stay in rotation, manual restarts required
-
-**7. No graceful shutdown (MEDIUM)**
-- Impact: SIGTERM exits immediately via sys.exit(0), aborting in-flight HTTP requests mid-processing
-- Phase: Must fix in Phase 1 (Production Infrastructure Setup)
-- Solution: Remove manual signal handlers, use FastAPI lifespan events, configure uvicorn timeout_graceful_shutdown=30
-- Warning signs: "Connection reset by peer" during deployments, partial data in database after restarts
+5. **Wizard shown before email verification** — Gate the wizard trigger on both conditions: `email_verified AND NOT onboarding_completed`. The `require_verified_email` dependency already handles this for the wizard routes themselves; the login intercept must also check it.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on combined research, the build order follows a strict dependency chain. Each phase unblocks the next; they cannot be reordered without creating broken states in the development environment.
 
-### Phase 0: Pre-Deployment Security (MANDATORY - DO NOT SKIP)
-**Rationale:** Secrets currently hardcoded in config.yaml (bot token, SMTP password, secret_key). MUST be externalized before ANY cloud deployment to prevent security breach.
+### Phase 1: Database Foundation
+**Rationale:** The `onboarding_completed` column must exist before any route, template, or login intercept references it. This is also where the highest-risk decision (existing user backfill) must be locked in before deployment — fixing a bad migration post-production requires a second migration and a deployment window.
+**Delivers:** Migration 14 with `onboarding_completed` column + backfill for configured users; `User` dataclass field; all four row-to-User mappings updated; `Database.set_onboarding_completed()` method; both schema constants (SQLite and PostgreSQL) updated.
+**Addresses:** Table stakes "persistent state"; pitfall P1 (retroactive trigger); pitfall P12 (wizard before verification).
+**Avoids:** Any scenario where existing users see the wizard on first post-deployment login.
 
-**Delivers:**
-- All secrets moved to .env file (.gitignored)
-- config.yaml uses ${VAR} placeholders or removes secrets entirely
-- ALL exposed secrets rotated (new bot token, new SMTP password, new secret_key)
-- .env.example created for documentation
+### Phase 2: Wizard Routes and Stub Template
+**Rationale:** Routes must exist before template work begins so navigation links resolve and route smoke-testing happens independently of UI work. The login intercept is NOT added in this phase — that comes after a working template exists in Phase 4.
+**Delivers:** `GET /welcome`, `GET /welcome/step/{step}`, `POST /welcome/complete` routes; stub `welcome.html` that renders the step number confirming routing works.
+**Uses:** Existing `get_templates()`, `require_verified_email` dependency, `RedirectResponse` pattern.
+**Implements:** Architecture component 2 (wizard routes) and skeleton of component 3 (template).
 
-**Blocks:** All subsequent phases - cannot proceed to cloud deployment until secrets are secure
+### Phase 3: Welcome Template — Step by Step
+**Rationale:** Build each step individually and verify in browser before adding the next. This catches template syntax errors in a 200-line file early. Step 1 first (simplest — static content), then each subsequent step adds a data interaction layer. The notification step must be verified for opaque redirect handling before finalizing.
+**Delivers:** Complete `welcome.html` with all 4 steps: (1) Ravemonger welcome + nav suppression, (2) inline area search reusing existing widget JS, (3) notification toggles reusing existing endpoint pattern with `redirect: "manual"` fetch, (4) feature tour static content + finish button calling `POST /welcome/complete`. Skip button on every step. Completion micro-celebration on step 4.
+**Uses:** CSS `@keyframes` + Tailwind `@theme` tokens for slide transitions; `WizardState` vanilla JS object; `<picture>` WebP/PNG for mascot; `aria-live` region for screen reader announcements; `<ol>` dot progress indicator with Tailwind data-attribute variants.
+**Avoids:** P3 (duplicate preference paths — seed from DB), P4 (mascot fatigue — wizard-only), P6 (GDPR — toggles unchecked for new users), P7 (inaccessibility — focus management and live regions), P9 (mobile CTA off-screen — sticky/full-width CTA), P11 (CSRF missing — csrf_token in every POST).
 
-**Verification:**
-- [ ] Git history scan shows no secrets in config.yaml
-- [ ] Application starts using environment variables only
-- [ ] Old secrets invalidated and regenerated
+### Phase 4: Login Intercept and First-Run Trigger
+**Rationale:** The intercept is added last because `welcome.html` must fully exist before real users are redirected to it. Adding the intercept before the template is complete would produce broken redirects for all new user registrations during development.
+**Delivers:** Modified `POST /login` handler with 5-line `onboarding_completed` check; verified end-to-end flow: register new user, verify email, login, land on `/welcome/step/1`, complete wizard, land on dashboard, subsequent login goes directly to dashboard.
+**Implements:** Architecture component 4 (login intercept).
+**Avoids:** P12 (wizard before verification — gate is `email_verified AND NOT onboarding_completed`).
 
----
-
-### Phase 1: Production Infrastructure Setup
-**Rationale:** Core production requirements must be in place before multi-worker deployment. SQLite → PostgreSQL migration is prerequisite for multi-worker server. APScheduler separation prevents 4x duplicate jobs. Health checks enable load balancer integration.
-
-**Delivers:**
-- PostgreSQL migration with connection pooling
-- Multi-worker ASGI server (gunicorn + uvicorn workers)
-- Separate scheduler process (web workers use --no-scheduler flag)
-- Health check endpoint (/health with DB connectivity test)
-- Graceful shutdown (lifespan events, timeout_graceful_shutdown=30)
-- Process supervision (systemd or provider-managed)
-- Environment variable management (DATABASE_URL, all secrets)
-
-**Addresses (from FEATURES.md):**
-- Multi-worker ASGI server (table stakes)
-- PostgreSQL with connection pooling (table stakes)
-- Health check endpoint (table stakes)
-- Environment-based configuration (table stakes)
-- Process supervision (table stakes)
-
-**Avoids (from PITFALLS.md):**
-- Pitfall 1: APScheduler duplicates (separate scheduler process)
-- Pitfall 2: SQLite locking (PostgreSQL migration)
-- Pitfall 3: SQL syntax failures (query verification against PostgreSQL)
-- Pitfall 6: No health checks (add /health endpoint)
-- Pitfall 7: No graceful shutdown (lifespan events)
-
-**Complexity:** HIGH - Database migration touches all 15 modules, multi-worker config requires scheduler redesign
-
-**Research flags:**
-- STANDARD PATTERNS: PostgreSQL migration, gunicorn+uvicorn, health checks are well-documented
-- VERIFY: All raw SQL queries tested against PostgreSQL (parameter placeholders, boolean types, AUTOINCREMENT)
-
----
-
-### Phase 2: Hosting & SSL Deployment
-**Rationale:** Once infrastructure components are production-ready, deploy to managed platform (Railway, Render, or Fly.io) with provider-managed PostgreSQL and automatic SSL. Managed platforms handle certificate renewal, load balancing, and process supervision with minimal configuration.
-
-**Delivers:**
-- Hosting provider evaluation and selection (Railway vs Render vs Fly.io)
-- Provider-managed PostgreSQL database (automated backups included)
-- Automatic HTTPS/SSL (Let's Encrypt via provider)
-- Custom domain configuration (DNS A/CNAME records)
-- Production deployment pipeline (git push to deploy)
-- Basic structured logging (JSON format, request IDs)
-
-**Addresses (from FEATURES.md):**
-- HTTPS/SSL with custom domain (table stakes)
-- Database backups (table stakes)
-- Basic structured logging (table stakes)
-
-**Avoids (from PITFALLS.md):**
-- Pitfall 5: Secrets exposed (environment variables via provider UI)
-
-**Complexity:** LOW-MEDIUM - Managed platforms abstract infrastructure complexity
-
-**Research flags:**
-- STANDARD PATTERNS: Managed platform deployment is well-documented
-- DECISION NEEDED: Choose hosting provider based on cost, PostgreSQL pricing, deployment UX
-
----
-
-### Phase 3: Scraper Resilience
-**Rationale:** Cloud deployment introduces new risk (IP reputation). ra.co may rate-limit or block data center IPs more aggressively than residential IPs. Add monitoring, retry logic, and exponential backoff to handle transient failures gracefully.
-
-**Delivers:**
-- Response status monitoring (detect 403/429 from ra.co)
-- Exponential backoff for GraphQL errors (3 retries: 1s, 2s, 4s)
-- Circuit breaker for extended API outages (stop retrying if API down >10 min)
-- Scraper health dashboard (/status page for users)
-- Error alerting for 3+ consecutive fetch failures
-
-**Addresses (from FEATURES.md):**
-- GraphQL retry logic (table stakes)
-- Circuit breaker for API failures (should have)
-
-**Avoids (from PITFALLS.md):**
-- Pitfall 4: Cloud IP blocking (conservative rate limiting, exponential backoff)
-
-**Complexity:** MEDIUM - Retry logic and circuit breaker require careful state management
-
-**Research flags:**
-- STANDARD PATTERNS: Exponential backoff is well-documented
-- MONITOR: Cloud IP blocking severity depends on ra.co's specific policies (unknown)
-
----
-
-### Phase 4: Observability & Monitoring
-**Rationale:** After core deployment is stable, add observability to detect issues early and debug production problems. Sentry for error tracking, metrics for performance visibility, structured logging for troubleshooting.
-
-**Delivers:**
-- Error tracking integration (Sentry free tier)
-- Metrics endpoint (Prometheus-compatible /metrics)
-- Request latency tracking (p50, p95, p99)
-- Scraper success rate monitoring
-- Alert configuration (error spikes, fetch failures)
-
-**Addresses (from FEATURES.md):**
-- Error tracking (should have - trigger when first exception is hard to debug)
-- Metrics endpoint (should have - quantitative data for optimization)
-
-**Avoids (from PITFALLS.md):**
-- Fetch errors fail silently (email/Telegram alert when 3+ consecutive failures)
-
-**Complexity:** LOW-MEDIUM - Sentry integration is straightforward, metrics require instrumentation
-
-**Research flags:**
-- STANDARD PATTERNS: Sentry + FastAPI integration is well-documented
-
----
+### Phase 5: Settings Revisit Link
+**Rationale:** Purely additive, zero risk of breaking existing functionality. Placed last so all other verification is complete before introducing this entry point. Revisit path renders without checking `onboarding_completed` so no additional route logic is needed.
+**Delivers:** "Revisit Tour" card in `settings.html`; verified: logged-in user with `onboarding_completed = TRUE` can access `/welcome/step/1` and re-complete with wizard seeding current DB values.
+**Addresses:** Table stakes "revisitable from settings".
+**Avoids:** P8 (stale state on revisit — wizard always seeds from live DB on each step render, not from hardcoded defaults).
 
 ### Phase Ordering Rationale
 
-- **Phase 0 must come first:** Security breach risk if secrets deployed to cloud in config.yaml
-- **Phase 1 before Phase 2:** Can't deploy to production until database, multi-worker, and scheduler are production-ready
-- **Phase 2 before Phase 3:** Need live deployment to detect cloud IP blocking (can't test with residential dev environment)
-- **Phase 3 before Phase 4:** Scraper resilience prevents cascading failures; observability helps detect remaining issues
-- **Phase 4 is iterative:** Monitoring reveals what additional observability is needed
+- DB migration must precede routes because the `User` dataclass reads `onboarding_completed` on every authenticated request — missing column causes runtime errors
+- Routes must precede the full template to enable URL resolution during template development
+- Template must precede the login intercept to prevent broken redirects in the development environment for any new registrations during the build
+- Settings link is last because it has no blockers other than a working wizard end-to-end
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-- **Phase 1:** PostgreSQL migration query syntax - needs comprehensive testing against PostgreSQL to catch type coercion, placeholder syntax, AUTOINCREMENT differences
-- **Phase 3:** Cloud IP blocking severity - unknown how aggressively ra.co rate-limits data center IPs; may need research during implementation if blocking occurs
+Phases with well-documented patterns (skip research-phase):
+- **Phase 1:** Standard FastAPI/PostgreSQL migration pattern; documented directly from codebase analysis; no ambiguity
+- **Phase 2:** Standard route registration; identical to existing route patterns in `routes.py`
+- **Phase 4:** 5-line conditional in login handler; pattern is clear from architecture research
+- **Phase 5:** Single HTML addition to `settings.html`; no ambiguity
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 0:** Secret management - established .env + .gitignore pattern
-- **Phase 2:** Managed platform deployment - Railway/Render/Fly.io have comprehensive docs
-- **Phase 4:** Sentry integration - official FastAPI integration documented
+Phases that may benefit from targeted spot-checks during implementation:
+- **Phase 3:** The notification toggle endpoints return `RedirectResponse 303` rather than JSON. The wizard JS must handle opaque redirect responses (`redirect: "manual"`) without triggering a full navigation. This pattern exists in `rules.html` but verify it works identically in the wizard context before finalizing the notification step. One test fetch call is sufficient to confirm.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack (deployment) | MEDIUM | Core recommendations (multi-worker, pooling, SSL, env vars) are industry-standard (HIGH confidence). Specific tool versions based on training data through Jan 2025; ecosystem unlikely to change significantly in 1 year. |
-| Features (production requirements) | HIGH | FastAPI production deployment features are well-established. Table stakes (health checks, connection pooling, HTTPS) are universal requirements. Should-have features (Sentry, APM) are de facto standards. |
-| Architecture (migration approach) | MEDIUM-HIGH | SQLite → PostgreSQL migration pattern is well-documented (HIGH confidence). Scheduler separation strategy is clear from codebase analysis (HIGH confidence). Multi-worker uvicorn patterns established (HIGH confidence). Uncertainty around query syntax compatibility requires testing (MEDIUM confidence). |
-| Pitfalls (deployment risks) | HIGH | APScheduler multi-worker issue is evident from code (HIGH confidence). SQLite locking is well-documented constraint (HIGH confidence). Secret exposure confirmed in config.yaml (HIGH confidence). Cloud IP blocking severity is estimated (MEDIUM confidence - depends on ra.co's undocumented policies). |
+| Stack | HIGH | All techniques are browser-native or Tailwind v4 CDN-confirmed. No new dependencies — minimal risk surface. `@starting-style` explicitly deferred due to confirmed Firefox browser gap documented in MDN. |
+| Features | HIGH (structure), MEDIUM (statistics) | 4-step structure is well-validated from multiple sources. Completion rate statistics (25%, 40%, 67% figures) come from MEDIUM-confidence industry sources, not peer-reviewed research — treat as directional, not precise. |
+| Architecture | HIGH | Based on direct source code analysis of `routes.py`, `database.py`, and all relevant templates. Integration points verified against actual file contents, not convention. |
+| Pitfalls | HIGH | P1 (existing users) and P6 (GDPR) are confirmed against actual DB schema defaults. P2 (refresh state corruption) is architecturally eliminated by the URL-based step decision. P12 (auth gate) confirmed from login route reading. |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-**1. PostgreSQL query compatibility:**
-- Gap: Current code uses raw SQL with SQLite-specific syntax (? placeholders, INTEGER booleans, AUTOINCREMENT). Unknown how many queries will break.
-- Handle during planning: Create comprehensive test suite that runs all database operations against PostgreSQL. Identify breaking queries before migration.
-- Mitigation: Consider SQLAlchemy ORM to abstract database differences (higher upfront cost, eliminates query compatibility issues).
-
-**2. Cloud IP blocking severity:**
-- Gap: Unknown how aggressively ra.co rate-limits or blocks data center IPs (AWS, GCP, DigitalOcean ASNs). No public documentation of their policies.
-- Handle during planning: Deploy Phase 2, monitor for 7 days with existing 1s rate limiting. If 403/429 responses occur, implement Phase 3 resilience immediately.
-- Mitigation: Start conservative (2-5s rate limiting, exponential backoff). Only escalate to proxy services if actually blocked.
-
-**3. Hosting provider selection:**
-- Gap: Cost/benefit tradeoff between Railway ($20/mo usage-based), Render ($40/mo fixed), Fly.io (variable), self-managed VPS ($27/mo but more operational work).
-- Handle during planning: Evaluate based on PostgreSQL pricing, deployment UX, SSL management, backup automation. Prototype deployment on 2-3 providers before committing.
-- Mitigation: All providers support DATABASE_URL pattern; switching later is feasible but requires DNS changes.
-
-**4. Scheduler process supervision:**
-- Gap: Unclear whether to use systemd (self-managed VPS), provider-managed process (Railway/Render), or celery beat (external scheduler).
-- Handle during planning: Choose based on hosting provider. Managed platforms (Railway/Render) can run scheduler as separate service. VPS requires systemd service file.
-- Mitigation: Start with simplest approach (separate process with --scheduler-only flag), add celery beat only if scheduler process crashes become issue.
+- **Ravemonger image asset:** The mascot image (WebP + PNG) is pending from the user. The template can be built with a placeholder `<img>` before the asset arrives, but the final visual for steps 1 and 4 is blocked on delivery. Flag this dependency at the start of Phase 3.
+- **Nav suppression mechanism in `base.html`:** The template may or may not already have a `{% block nav %}` override point. Check at the start of Phase 3 — if not present, a minor edit to `base.html` is required before the wizard can suppress nav correctly. Low risk, but must be confirmed before step 1 template work.
+- **Email default display for new users on notification step:** `email_enabled` defaults to `TRUE` at the DB level. For new users, the notification step must render the toggle as unchecked (requiring affirmative action, per GDPR). For revisit users, show current DB state. The wizard step must distinguish first-run from revisit for this toggle's initial render state. This is a small conditional but must be explicitly handled.
+- **Notification opaque redirect pattern:** Confirmed to exist in `rules.html` — verify the `redirect: "manual"` fetch approach works when called from inside the wizard step 3 before finalizing that step's JS.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Codebase analysis:**
-- `C:\CLAUDE\ra-tips\.planning\codebase\STACK.md` - Current technology stack (Python 3.11, FastAPI 0.109.0, APScheduler, SQLite)
-- `C:\CLAUDE\ra-tips\.planning\codebase\ARCHITECTURE.md` - Layered service architecture, APScheduler integration pattern, database schema
-- `C:\CLAUDE\ra-tips\ra-tracker\config.yaml` - Configuration with hardcoded secrets (confirmed security issue)
-- `C:\CLAUDE\ra-tips\ra-tracker\ra_tracker\main.py` - Scheduler startup logic (line 114-116), signal handlers (line 35-39)
-- `C:\CLAUDE\ra-tips\ra-tracker\ra_tracker\database.py` - Raw SQL queries with SQLite-specific syntax
-- `C:\CLAUDE\ra-tips\ra-tracker\ra_tracker\api\ra_client.py` - GraphQL client with rate limiting (MIN_REQUEST_INTERVAL = 1.0s)
-
-**Research outputs:**
-- `.planning/research/FEATURES.md` - Production deployment features (table stakes, differentiators, anti-features)
-- `.planning/research/PITFALLS.md` - Critical pitfalls (APScheduler duplicates, SQLite locking, SQL syntax, secrets exposure)
+- `/c/CLAUDE/ra-tips/ra-tracker/ra_tracker/database.py` — Schema, MIGRATIONS pattern, User dataclass, migration runner, row mapping sites
+- `/c/CLAUDE/ra-tips/ra-tracker/ra_tracker/web/routes.py` — Login flow, existing endpoints, AJAX patterns, redirect chain
+- `/c/CLAUDE/ra-tips/ra-tracker/ra_tracker/web/templates/rules.html` — Area widget JS, opaque redirect fetch pattern (`redirect: "manual"`)
+- `/c/CLAUDE/ra-tips/ra-tracker/ra_tracker/web/templates/settings.html` — Notification toggle UI pattern
+- `/c/CLAUDE/ra-tips/ra-tracker/ra_tracker/web/templates/base.html` — CSS variables, component class names, layout conventions
+- Tailwind CSS v4 CDN docs: tailwindcss.com/docs/installation/play-cdn
+- ARIA live region MDN: developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-live
+- WCAG 2.2 SC 4.1.3 (Status Messages)
+- W3C ARIA Authoring Practices Guide: w3.org/WAI/ARIA/apg/
 
 ### Secondary (MEDIUM confidence)
+- Chameleon: Product Tour Completion Rate Data (550M data points) — completion rate benchmarks by step count
+- NNGroup: Bottom Sheets UX Guidelines — mobile layout and touch target patterns
+- Appcues: Duolingo User Onboarding Breakdown — mascot and copy tone reference
+- Appcues: Mobile Permission Priming — notification opt-in value context pattern
+- UserGuiding: Onboarding Statistics 2026 — step count abandonment data
+- Tailwind v4 GitHub discussions #16041, #16482 — CDN `@theme` and `@keyframes` confirmation
 
-**Training data knowledge (no web search available):**
-- FastAPI official documentation - Production deployment patterns, uvicorn worker configuration
-- Gunicorn documentation - Worker class integration with uvicorn workers
-- PostgreSQL documentation - Connection pooling, max_connections configuration
-- SQLAlchemy documentation - Connection pool configuration patterns
-- APScheduler documentation - Multi-worker deployment considerations
-- Let's Encrypt documentation - Certificate automation patterns
-- Industry best practices - Python web application deployment (2024-2025 standards)
-
-**Confidence limitations:**
-- Web search unavailable: Unable to verify 2026 ecosystem changes, current managed platform pricing, or ra.co's current rate limiting policies
-- Specific tool versions based on training data through January 2025 (patterns unlikely to change significantly)
-- Cloud IP blocking severity is estimated based on general scraping practices (no ra.co-specific verification)
+### Tertiary (directional only)
+- Raw Studio: How Mascots Improve UX — 25% drop-off reduction figure (single source, treat as directional)
+- SpeedVitals: WebP vs AVIF 2025 — browser support percentages for image format decision
+- DesignerUp: I Studied 200 Onboarding Flows — general UX pattern validation
 
 ---
-*Research completed: 2026-02-11*
+*Research completed: 2026-03-01*
 *Ready for roadmap: yes*
