@@ -168,7 +168,17 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 ### Active
 
-<!-- Next milestone requirements go here -->
+<!-- Current milestone: v3.4 Onboarding & Welcome -->
+
+**v3.4 Onboarding & Welcome**
+
+- [ ] Multi-step welcome wizard triggered on first login
+- [ ] The Ravemonger character guides the experience (user-provided image asset)
+- [ ] Local area selection (keep Berlin default or change)
+- [ ] Feature tour (tracking, dashboard, settings orientation)
+- [ ] Notification channel preference (Telegram / Email / None)
+- [ ] Revisitable from settings
+- [ ] Short, snappy, fun tone — not a chore
 
 ### Out of Scope
 
@@ -240,4 +250,4 @@ Users never miss events from artists, venues, or promoters they care about — a
 | POST /settings/test-telegram returns JSON 403 (not redirect) | AJAX endpoint — redirect would silently swallow the error in JS callers | ✓ Good |
 
 ---
-*Last updated: 2026-02-28 after v3.3 milestone shipped*
+*Last updated: 2026-03-01 after v3.4 milestone started*

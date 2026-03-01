@@ -5,15 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** Planning next milestone
+**Current focus:** v3.4 Onboarding & Welcome
 
 ## Current Position
 
-Phase: v3.3 complete — all 18 phases done
-Status: Milestone v3.3 shipped and archived
-Last activity: 2026-02-28 — Phase 18 complete, v3.3 milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-01 — Milestone v3.4 started
 
-Progress: [██████████] 47/47 total plans (v3.3: 5/5 done)
+Progress: [░░░░░░░░░░] 0/0 plans (v3.4: not yet planned)
 
 ## Performance Metrics
 
@@ -47,7 +48,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: v3.3 milestone completion
+Last session: 2026-03-01
+Stopped at: v3.4 milestone initialization
 Resume file: None
-Next: `/gsd:new-milestone` — start next milestone cycle
+Next: Define requirements → create roadmap
