@@ -263,7 +263,7 @@ Plans:
 | 16. Settings Page Split | v3.3 | 2/2 | Complete | 2026-02-22 |
 | 17. Notification Dispatch Modes | v3.3 | 2/2 | Complete | 2026-02-23 |
 | 18. Endpoint Hardening | v3.3 | 1/1 | Complete | 2026-02-28 |
-| 19. Database Foundation | 1/1 | Complete   | 2026-03-01 | - |
+| 19. Database Foundation | 1/1 | Complete    | 2026-03-01 | - |
 | 20. Wizard Routes | v3.4 | 0/1 | Not started | - |
 | 21. Welcome Template | v3.4 | 0/3 | Not started | - |
 | 22. Login Intercept | v3.4 | 0/1 | Not started | - |
