@@ -173,7 +173,7 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
   2. All existing users with a local area or Telegram configured have onboarding_completed = TRUE after migration
   3. Newly registered users have onboarding_completed = FALSE by default
   4. Database.set_onboarding_completed() method exists and updates the column correctly
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 19-01: Migration 14 — onboarding_completed column, backfill, User dataclass, DB method
