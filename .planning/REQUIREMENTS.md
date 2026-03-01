@@ -28,7 +28,7 @@ Requirements for the Onboarding & Welcome milestone. Each maps to roadmap phases
 
 ### Technical Foundation
 
-- [ ] **FOUND-01**: Database migration adds `onboarding_completed` column with existing-user backfill
+- [x] **FOUND-01**: Database migration adds `onboarding_completed` column with existing-user backfill
 - [ ] **FOUND-02**: Login handler redirects new users to `/welcome/step/1` after successful auth
 - [ ] **FOUND-03**: Wizard only triggers for users who have verified their email
 - [ ] **FOUND-04**: Step transitions manage focus correctly (aria-live, keyboard navigation, focus trap)
@@ -64,7 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 19 | Pending |
+| FOUND-01 | Phase 19 | Complete |
 | WIZ-01 | Phase 20 | Pending |
 | WIZ-02 | Phase 21 | Pending |
 | WIZ-03 | Phase 21 | Pending |
