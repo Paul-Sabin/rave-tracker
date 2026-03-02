@@ -188,7 +188,7 @@ Plans:
   3. GET /welcome/step/99 is clamped to step 4 (no 404 or 500)
   4. Unauthenticated requests to /welcome/step/1 redirect to login
   5. Authenticated but unverified users cannot access the wizard routes
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 20-01: Wizard routes — GET /welcome, GET /welcome/step/{step}, POST /welcome/complete, stub welcome.html
