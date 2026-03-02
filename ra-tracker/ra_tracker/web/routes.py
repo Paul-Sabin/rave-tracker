@@ -424,6 +424,45 @@ async def test_notifications(request: Request, user: User = Depends(require_veri
 
 
 
+# --- Welcome Wizard ---
+
+@router.get("/welcome")
+async def welcome_redirect(user: User = Depends(require_verified_email)):
+    """Redirect /welcome to first wizard step."""
+    return RedirectResponse(url="/welcome/step/1", status_code=302)
+
+
+@router.get("/welcome/step/{step}", response_class=HTMLResponse)
+async def welcome_step(
+    request: Request,
+    step: int,
+    user: User = Depends(require_verified_email),
+):
+    """Render wizard step page. Step is clamped to [1, 4]."""
+    templates = get_templates(request)
+    step = max(1, min(step, 4))
+    return templates.TemplateResponse(
+        "welcome.html",
+        {
+            "request": request,
+            "user": user,
+            "csrf_token": getattr(request.state, 'csrf_token', ''),
+            "step": step,
+        },
+    )
+
+
+@router.post("/welcome/complete")
+async def welcome_complete(
+    request: Request,
+    user: User = Depends(require_verified_email),
+):
+    """Mark onboarding complete and redirect to dashboard."""
+    db = get_db()
+    db.set_onboarding_completed(user.id)
+    return RedirectResponse(url="/", status_code=303)
+
+
 # Search API endpoints
 @router.get("/api/search/artists")
 async def search_artists(q: str, user: User = Depends(require_verified_email)):
