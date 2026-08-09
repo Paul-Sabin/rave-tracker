@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Onboarding & Welcome
-status: unknown
-last_updated: "2026-03-01T21:46:26.832Z"
+status: executing
+last_updated: "2026-08-09T13:30:00.000Z"
 progress:
-  total_phases: 1
+  total_phases: 5
   completed_phases: 1
-  total_plans: 1
+  total_plans: 7
   completed_plans: 1
 ---
 
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 19 of 23 (Database Foundation) - COMPLETE
-Plan: 1 of 1 in current phase (complete)
-Status: Phase 19 done, ready to plan Phase 20
-Last activity: 2026-03-01 — 19-01 database foundation complete
+Phase: 20 of 23 (Wizard Routes) - IN PROGRESS
+Plan: 20-01 Task 1 (code) complete and pushed; Task 2 (human-verify checkpoint on deployed app) pending
+Status: Blocked on deployment health — checkpoint requires the live app
+Last activity: 2026-08-09 — health check after 5-month gap; fixed dependency breakage (see Decisions)
 
 Progress: [#░░░░░░░░░] 1/7 plans (v3.4)
 
@@ -60,19 +60,22 @@ Recent decisions affecting v3.4:
 - No new dependencies — vanilla JS + Tailwind v4 CDN + @keyframes handles all wizard UI
 - [Phase 19-database-foundation]: Migration 14+14b use two-step pattern (ADD COLUMN then UPDATE backfill) for onboarding_completed column
 - [Phase 19-database-foundation]: Backfill: UPDATE WHERE local_area_id IS NOT NULL OR telegram_chat_id IS NOT NULL marks existing configured users as already onboarded
+- [2026-08-09 health check]: requirements.txt had open-ended `>=` pins; fresh installs pulled starlette 1.x which removed the old TemplateResponse(name, context) signature, breaking every template-rendering page (500). Fixed by capping fastapi<0.116 / starlette<1.0 / python-telegram-bot<21 / apscheduler<4. Proper fix (migrate 44 TemplateResponse call sites to the new request-first signature, then unpin) deferred — candidate for a future phase or todo.
 
 ### Pending Todos
 
-None.
+- Migrate 44 TemplateResponse call sites (routes.py, admin.py, app.py) to starlette's request-first signature, then relax the fastapi/starlette version caps.
+- Verify Telegram bot and email delivery still work after the 5-month gap (tokens/credentials may have expired).
 
 ### Blockers/Concerns
 
+- Railway PostgreSQL unreachable as of 2026-08-09 (/health reports "server closed the connection unexpectedly" for interchange.proxy.rlwy.net:13775). Web service runs but DB-backed pages fail. Needs Railway dashboard: check Postgres service status and that DATABASE_URL matches current credentials. If Postgres was recreated, user data may need restoring from backup.
 - Phase 21 dependency: Ravemonger image asset (WebP + PNG) is pending from user. Template can be built with placeholder img first.
 - Phase 21 dependency: Confirm base.html has a {% block nav %} override point before step 1 template work.
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-08-09 (previous: 2026-03-01)
+Stopped at: Plan 20-01 Task 1 done; Task 2 checkpoint pending deployment health
 Resume file: None
-Next: /gsd:plan-phase 20
+Next: Restore Railway Postgres, then run 20-01 Task 2 checkpoint (8 verification steps on deployed app)
