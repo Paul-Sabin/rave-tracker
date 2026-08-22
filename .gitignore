@@ -20,6 +20,7 @@ nul
 # Scratchpad / Temporary status files
 *.txt
 claude-chat-exports/
+!ra-tracker/requirements*.txt
 !ra-tracker/README.md
 !ra-tracker/PROJECT_STATUS.md
 !ra-tracker/ra_tracker/web/templates/email/*.txt

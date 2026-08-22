@@ -1,0 +1,14 @@
+# Development and test dependencies. NOT installed in production --
+# the Dockerfile and Railway build install requirements.txt only.
+#
+# Setup:
+#   pip install -r requirements-dev.txt
+#   python -m playwright install chromium
+#
+# Run the tests:
+#   python -m pytest
+
+-r requirements.txt
+
+pytest>=9.1.1,<10.0
+playwright>=1.62.0,<2.0
