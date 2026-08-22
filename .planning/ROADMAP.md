@@ -213,10 +213,13 @@ Plans:
   4. Password reset and event notification emails use the same working transport
   5. The chosen transport and its environment variables are documented in RAILWAY.md
   6. Registration end to end works for a brand-new account without manual database intervention
-**Plans**: TBD
+**Plans**: 4 plans (3 in wave 1, 1 in wave 2)
 
 Plans:
-- [ ] 20.1-01: TBD (run /gsd-plan-phase 20.1)
+- [ ] 20.1-01-PLAN.md — Require BREVO_API_KEY explicitly (drop both SMTP-password fallbacks) + first unit tests for the Brevo API transport [SC-2, SC-4]
+- [ ] 20.1-02-PLAN.md — Branch on the send result at all five call sites, add failure audit events and ?send_failed=1 surfacing + route-level tests [SC-2, SC-3, SC-4]
+- [ ] 20.1-03-PLAN.md — Document the HTTP API transport and its env vars in RAILWAY.md and both .env.example files [SC-5]
+- [ ] 20.1-04-PLAN.md — Ship, set EMAIL_USE_API/BREVO_API_KEY in Railway (human), verify registration end to end against the deployed app [SC-1, SC-3, SC-4, SC-6]
 
 ### Phase 21: Welcome Template
 **Goal**: The welcome.html template delivers a complete, usable 4-step wizard experience — mascot present, all UI interactions functional, accessible to keyboard and screen reader users
