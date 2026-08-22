@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Onboarding & Welcome
 status: executing
-last_updated: "2026-08-22T21:20:00.000Z"
+last_updated: "2026-08-23T00:30:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 7
+  total_plans: 11
   completed_plans: 2
 ---
 
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 20.1 (Production Email Delivery, INSERTED) - NOT PLANNED
+Phase: 20.1 (Production Email Delivery, INSERTED) - READY TO EXECUTE
 Plan: 20-01 COMPLETE. Both tasks done and verified twice over, 26 pytest tests locally and 8/8 checkpoint steps against the deployed app.
-Status: Phase 20 closed. Phase 20.1 (Production Email Delivery) inserted as the next phase, ahead of Phase 21, and not yet planned.
-Last activity: 2026-08-22 – added the project's first automated test suite; diagnosed production email delivery
+Status: Phase 20.1 planned and verified. 4 plans in 2 waves; the plan checker passed on the first pass with no blockers. Wave 1 (plans 01, 02, 03) is autonomous and parallel-safe, zero file overlap. Wave 2 (plan 04) is a release gate with two human checkpoints, because setting Railway and Brevo dashboard variables cannot be automated.
+Last activity: 2026-08-23 – planned Phase 20.1 (research, pattern mapping, planning, verification)
 
 Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 
@@ -68,6 +68,16 @@ Recent decisions affecting v3.4:
 
 - Phase 20.1 inserted after Phase 20: Production Email Delivery (URGENT). Verification emails are not delivered in production; because all flows share services/email_sender.py this also breaks password reset, event notifications, and deletion/recovery confirmations. Inserted 2026-08-22.
 
+### Phase 20.1 planning decisions
+
+- Root cause confirmed against Railway's official docs: Railway blocks outbound SMTP (25/465/587/2525) and recommends HTTPS transactional email APIs. The fix is to switch to Brevo's HTTP API via the existing `use_api` path, not to repair SMTP.
+- Brevo's SMTP key and API key are different credential types. `email_sender.py` falls back from `api_key` to `password` in two places (lines 92 and 133), which would 401 silently; both are fixed in plan 20.1-01.
+- Five call sites discard the boolean returned by the send functions: routes.py 716, 790, 850, 898 (verification) and 1022 (password reset). All five are fixed in plan 20.1-02.
+- Password reset keeps its enumeration-safe behaviour: it gains a `password.reset_send_failed` audit event but its user-facing message stays byte-identical across success, send failure, and unknown address. Changing it would confirm an account exists.
+- Fixing `is_email_configured()` makes `BREVO_API_KEY` load-bearing: `EMAIL_USE_API=true` with no key disables email silently rather than erroring. This is the intended fail-safe, so the Railway config step is genuinely blocking. Executors are explicitly forbidden from adding a fallback.
+- The SMTP path is kept as the documented local-dev fallback, not removed.
+- Not planned, open for a later decision: adding an explicit connection timeout to the SMTP path so it fails fast instead of hanging ~127s. Only affects local dev, but the hang is a plausible explanation for why nothing reached Sentry, since gunicorn's 120s worker timeout may have killed the worker before the except block logged.
+
 ### Pending Todos
 
 - Migrate 44 TemplateResponse call sites (routes.py, admin.py, app.py) to starlette's request-first signature, then relax the fastapi/starlette version caps. The new test suite surfaces these as 19 deprecation warnings on every run.
@@ -87,4 +97,4 @@ Recent decisions affecting v3.4:
 Last session: 2026-08-22 (previous: 2026-08-09)
 Stopped at: Plan 20-01 Task 1 done. Task 2's criteria are covered by automated tests; the deployed-app run is pending test-account verification.
 Resume file: None
-Next: Plan Phase 20.1 with /gsd-plan-phase 20.1. Diagnosis is already recorded in ROADMAP.md, the likely fix is EMAIL_USE_API=true plus BREVO_API_KEY in Railway, along with surfacing send failures instead of swallowing them. Then Phase 21, which still needs a nav-suppression decision (base.html has no {% block nav %}) and the Ravemonger image asset.
+Next: /gsd-execute-phase 20.1. Wave 1's three plans run in parallel and are autonomous. Wave 2 needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services.
