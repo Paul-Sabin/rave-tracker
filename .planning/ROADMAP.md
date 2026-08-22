@@ -157,7 +157,7 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 **Milestone Goal:** New users are greeted by a 4-step welcome wizard guided by the Ravemonger mascot, covering local area, notifications, and a feature tour. The wizard is skippable at every step, accessible, and revisitable from settings.
 
 - [x] **Phase 19: Database Foundation** - Migration adds onboarding_completed column with backfill for existing users (completed 2026-03-01)
-- [ ] **Phase 20: Wizard Routes** - Welcome routes registered and step rendering confirmed via stub template
+- [x] **Phase 20: Wizard Routes** - Welcome routes registered and step rendering confirmed via stub template (completed 2026-08-22)
 - [ ] **Phase 21: Welcome Template** - Full 4-step wizard UI with mascot, transitions, accessibility, and data interactions
 - [ ] **Phase 22: Login Intercept** - First-run trigger wires new verified users into the wizard on login
 - [ ] **Phase 23: Settings Revisit Link** - "Revisit Tour" entry point added to /settings
@@ -176,7 +176,7 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 **Plans**: 1 plan
 
 Plans:
-- [ ] 19-01: Migration 14 — onboarding_completed column, backfill, User dataclass, DB method
+- [x] 19-01: Migration 14 — onboarding_completed column, backfill, User dataclass, DB method
 
 ### Phase 20: Wizard Routes
 **Goal**: The /welcome URL resolves and returns a rendered page; step routing is confirmed; the wizard is accessible by direct URL to a verified, logged-in user
@@ -191,7 +191,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 20-01: Wizard routes — GET /welcome, GET /welcome/step/{step}, POST /welcome/complete, stub welcome.html
+- [x] 20-01: Wizard routes — GET /welcome, GET /welcome/step/{step}, POST /welcome/complete, stub welcome.html
 
 ### Phase 21: Welcome Template
 **Goal**: The welcome.html template delivers a complete, usable 4-step wizard experience — mascot present, all UI interactions functional, accessible to keyboard and screen reader users

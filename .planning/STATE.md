@@ -6,9 +6,9 @@ status: executing
 last_updated: "2026-08-22T21:20:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** v3.4 Onboarding & Welcome — Phase 19 complete, Phase 20 next
+**Current focus:** v3.4 Onboarding & Welcome, Phases 19 and 20 complete, Phase 21 next
 
 ## Current Position
 
-Phase: 20 of 23 (Wizard Routes) - IN PROGRESS
-Plan: 20-01 Task 1 (code) complete and pushed; Task 2 (checkpoint on deployed app) pending
-Status: Railway Postgres is healthy again (/health reports "connected"), so the earlier blocker is cleared. All 7 of plan 20-01's success criteria are now covered by an automated pytest suite (26 tests, passing locally). The deployed-app checkpoint is blocked only on the claude@sabinwords.com test account being email-verified, because verification emails are not being delivered in production (see Blockers).
+Phase: 21 of 23 (Welcome Template) - NOT STARTED
+Plan: 20-01 COMPLETE. Both tasks done and verified twice over, 26 pytest tests locally and 8/8 checkpoint steps against the deployed app.
+Status: Phase 20 closed. Phase 21 (Welcome Template) is next, but consider inserting a phase for the production email failure first, since new users cannot currently register.
 Last activity: 2026-08-22 – added the project's first automated test suite; diagnosed production email delivery
 
-Progress: [#░░░░░░░░░] 1/7 plans (v3.4)
+Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 
 ## Performance Metrics
 
@@ -83,4 +83,4 @@ Recent decisions affecting v3.4:
 Last session: 2026-08-22 (previous: 2026-08-09)
 Stopped at: Plan 20-01 Task 1 done. Task 2's criteria are covered by automated tests; the deployed-app run is pending test-account verification.
 Resume file: None
-Next: Once claude@sabinwords.com is email-verified in production, run the 8-step check against the deployed app. The harness is ready and reads credentials from ra-tracker/.env (CLAUDE_TEST_USERNAME / CLAUDE_TEST_PASSWORD). Then write 20-01-SUMMARY.md and close Phase 20. Playwright and Chromium are installed for Phase 21's browser-level checks.
+Next: Phase 21 (Welcome Template), or an inserted phase to fix production email delivery first. Before Phase 21 template work, decide how to hide the nav during the wizard, base.html has no {% block nav %}, and obtain the Ravemonger image asset.
