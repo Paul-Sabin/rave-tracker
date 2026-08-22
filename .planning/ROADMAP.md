@@ -10,7 +10,7 @@
 - ✅ **v3.1 Observability & Monitoring** - Phase 14 (shipped 2026-02-20)
 - ✅ **v3.2 Tracking Page UX** - Phase 15 (shipped 2026-02-22)
 - ✅ **v3.3 Settings Split** - Phases 16-18 (shipped 2026-02-28)
-- 🚧 **v3.4 Onboarding & Welcome** - Phases 19-23 (in progress)
+- 🚧 **v3.4 Onboarding & Welcome** - Phases 19-23, plus inserted Phase 20.1 (in progress)
 
 ## Phases
 
@@ -158,6 +158,7 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 
 - [x] **Phase 19: Database Foundation** - Migration adds onboarding_completed column with backfill for existing users (completed 2026-03-01)
 - [x] **Phase 20: Wizard Routes** - Welcome routes registered and step rendering confirmed via stub template (completed 2026-08-22)
+- [ ] **Phase 20.1: Production Email Delivery** (INSERTED) - All outbound email works again in production, and failed sends stop reporting success
 - [ ] **Phase 21: Welcome Template** - Full 4-step wizard UI with mascot, transitions, accessibility, and data interactions
 - [ ] **Phase 22: Login Intercept** - First-run trigger wires new verified users into the wizard on login
 - [ ] **Phase 23: Settings Revisit Link** - "Revisit Tour" entry point added to /settings
@@ -192,6 +193,30 @@ Plans:
 
 Plans:
 - [x] 20-01: Wizard routes — GET /welcome, GET /welcome/step/{step}, POST /welcome/complete, stub welcome.html
+
+### Phase 20.1: Production Email Delivery (INSERTED)
+**Goal**: Outbound email works again in production, so new users can complete registration and existing users can reset passwords and receive event notifications; and a failed send is visible instead of being reported as success
+**Depends on**: Phase 20
+**Requirements**: none (urgent insertion, discovered 2026-08-22)
+**Why inserted**: Verification emails are not delivered in production. Because every flow shares `services/email_sender.py`, this also affects password reset, event notifications, and deletion/recovery confirmations. Event notifications are the project's core value, so this outranks further wizard work.
+**Diagnosis so far** (2026-08-22, all local checks healthy):
+  - Brevo SMTP AUTH succeeds with the `.env` credentials
+  - Brevo accepts `MAIL FROM <ravetracker@whotrustswho.com>` and `RCPT TO` an external address (250 for both, envelope only, no message sent)
+  - The recipient domain has valid MX records
+  - Therefore the failure is prod-side: most likely Railway blocking outbound SMTP on port 587, or a stale `BREVO_SMTP_PASSWORD` in the Railway environment
+  - `config.py:67` already carries a `use_api` flag documented as "True = Brevo HTTP API (bypasses SMTP port blocks)", and `RAILWAY.md` documents only the SMTP variables
+  - `routes.py:850` discards the boolean returned by `send_verification_email` and logs `auth.verification_sent` regardless, which is why the failure was invisible
+**Success Criteria** (what must be TRUE):
+  1. An email sent by the deployed app arrives at an external address
+  2. A failed send surfaces an error to the user instead of "Verification email sent!"
+  3. A failed send is distinguishable in the audit log from a successful one
+  4. Password reset and event notification emails use the same working transport
+  5. The chosen transport and its environment variables are documented in RAILWAY.md
+  6. Registration end to end works for a brand-new account without manual database intervention
+**Plans**: TBD
+
+Plans:
+- [ ] 20.1-01: TBD (run /gsd-plan-phase 20.1)
 
 ### Phase 21: Welcome Template
 **Goal**: The welcome.html template delivers a complete, usable 4-step wizard experience — mascot present, all UI interactions functional, accessible to keyboard and screen reader users

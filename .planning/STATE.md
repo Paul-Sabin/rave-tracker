@@ -5,7 +5,7 @@ milestone_name: Onboarding & Welcome
 status: executing
 last_updated: "2026-08-22T21:20:00.000Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 2
   total_plans: 7
   completed_plans: 2
@@ -22,9 +22,9 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 21 of 23 (Welcome Template) - NOT STARTED
+Phase: 20.1 (Production Email Delivery, INSERTED) - NOT PLANNED
 Plan: 20-01 COMPLETE. Both tasks done and verified twice over, 26 pytest tests locally and 8/8 checkpoint steps against the deployed app.
-Status: Phase 20 closed. Phase 21 (Welcome Template) is next, but consider inserting a phase for the production email failure first, since new users cannot currently register.
+Status: Phase 20 closed. Phase 20.1 (Production Email Delivery) inserted as the next phase, ahead of Phase 21, and not yet planned.
 Last activity: 2026-08-22 – added the project's first automated test suite; diagnosed production email delivery
 
 Progress: [##░░░░░░░░] 2/7 plans (v3.4)
@@ -64,6 +64,10 @@ Recent decisions affecting v3.4:
 - [2026-08-22]: Test-only dependencies live in requirements-dev.txt, not requirements.txt, so pytest and Playwright are never installed in production. Note .gitignore has a blanket *.txt rule; new .txt files need an explicit negation or they are silently uncommittable.
 - [2026-08-09 health check]: requirements.txt had open-ended `>=` pins; fresh installs pulled starlette 1.x which removed the old TemplateResponse(name, context) signature, breaking every template-rendering page (500). Fixed by capping fastapi<0.116 / starlette<1.0 / python-telegram-bot<21 / apscheduler<4. Proper fix (migrate 44 TemplateResponse call sites to the new request-first signature, then unpin) deferred — candidate for a future phase or todo.
 
+### Roadmap Evolution
+
+- Phase 20.1 inserted after Phase 20: Production Email Delivery (URGENT). Verification emails are not delivered in production; because all flows share services/email_sender.py this also breaks password reset, event notifications, and deletion/recovery confirmations. Inserted 2026-08-22.
+
 ### Pending Todos
 
 - Migrate 44 TemplateResponse call sites (routes.py, admin.py, app.py) to starlette's request-first signature, then relax the fastapi/starlette version caps. The new test suite surfaces these as 19 deprecation warnings on every run.
@@ -83,4 +87,4 @@ Recent decisions affecting v3.4:
 Last session: 2026-08-22 (previous: 2026-08-09)
 Stopped at: Plan 20-01 Task 1 done. Task 2's criteria are covered by automated tests; the deployed-app run is pending test-account verification.
 Resume file: None
-Next: Phase 21 (Welcome Template), or an inserted phase to fix production email delivery first. Before Phase 21 template work, decide how to hide the nav during the wizard, base.html has no {% block nav %}, and obtain the Ravemonger image asset.
+Next: Plan Phase 20.1 with /gsd-plan-phase 20.1. Diagnosis is already recorded in ROADMAP.md, the likely fix is EMAIL_USE_API=true plus BREVO_API_KEY in Railway, along with surfacing send failures instead of swallowing them. Then Phase 21, which still needs a nav-suppression decision (base.html has no {% block nav %}) and the Ravemonger image asset.
