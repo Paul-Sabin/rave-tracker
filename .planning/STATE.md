@@ -3,12 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Onboarding & Welcome
 status: executing
-last_updated: "2026-08-23T00:30:00.000Z"
+stopped_at: Completed 20.1-01-PLAN.md
+last_updated: "2026-08-23T06:59:23.378Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 2
+  total_plans: 6
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -18,20 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Users never miss events from artists, venues, or promoters they care about
-**Current focus:** v3.4 Onboarding & Welcome, Phases 19 and 20 complete, Phase 21 next
+**Current focus:** Phase 20.1 — production-email-delivery
 
 ## Current Position
 
-Phase: 20.1 (Production Email Delivery, INSERTED) - READY TO EXECUTE
-Plan: 20-01 COMPLETE. Both tasks done and verified twice over, 26 pytest tests locally and 8/8 checkpoint steps against the deployed app.
-Status: Phase 20.1 planned and verified. 4 plans in 2 waves; the plan checker passed on the first pass with no blockers. Wave 1 (plans 01, 02, 03) is autonomous and parallel-safe, zero file overlap. Wave 2 (plan 04) is a release gate with two human checkpoints, because setting Railway and Brevo dashboard variables cannot be automated.
-Last activity: 2026-08-23 – planned Phase 20.1 (research, pattern mapping, planning, verification)
+Phase: 20.1 (production-email-delivery) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-08-23
 
 Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 47 (phases 1-18)
 - Average duration (v3.x): ~15m per plan
 
@@ -45,6 +49,7 @@ Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 | 17. Notification Dispatch Modes | 2/2 | v3.3 |
 | 18. Endpoint Hardening | 1/1 | v3.3 |
 | Phase 19-database-foundation P01 | 10 | 2 tasks | 1 files |
+| Phase 20.1 P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -53,6 +58,7 @@ Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 All decisions logged in PROJECT.md Key Decisions table.
 
 Recent decisions affecting v3.4:
+
 - URL-based step state (no per-step DB persistence) — only onboarding_completed boolean needed
 - GDPR: notification toggles must be unchecked for new users regardless of DB default
 - Existing-user backfill: UPDATE WHERE local_area_id IS NOT NULL OR telegram_chat_id IS NOT NULL
@@ -63,6 +69,8 @@ Recent decisions affecting v3.4:
 - [2026-08-22]: Added the project's first test suite (ra-tracker/tests/). conftest.py pre-seeds os.environ before importing any app module, because create_app() calls load_dotenv() at import time and dotenv will not overwrite variables already set. That ordering is what makes it structurally impossible for a test run to reach production Postgres or send real mail. Tests never enter the app lifespan, so the scheduler and Telegram bot stay dormant.
 - [2026-08-22]: Test-only dependencies live in requirements-dev.txt, not requirements.txt, so pytest and Playwright are never installed in production. Note .gitignore has a blanket *.txt rule; new .txt files need an explicit negation or they are silently uncommittable.
 - [2026-08-09 health check]: requirements.txt had open-ended `>=` pins; fresh installs pulled starlette 1.x which removed the old TemplateResponse(name, context) signature, breaking every template-rendering page (500). Fixed by capping fastapi<0.116 / starlette<1.0 / python-telegram-bot<21 / apscheduler<4. Proper fix (migrate 44 TemplateResponse call sites to the new request-first signature, then unpin) deferred — candidate for a future phase or todo.
+- [Phase 20.1-01]: Removed both SMTP-password-as-API-key fallbacks in email_sender.py (lines 92, 133) - non-interchangeable credentials, never attempt a doomed request
+- [Phase 20.1-01]: is_email_configured() stricter check is intended fail-safe: EMAIL_USE_API=true with no BREVO_API_KEY disables email silently until Plan 04 sets the key in Railway
 
 ### Roadmap Evolution
 
@@ -94,7 +102,7 @@ Recent decisions affecting v3.4:
 
 ## Session Continuity
 
-Last session: 2026-08-22 (previous: 2026-08-09)
-Stopped at: Plan 20-01 Task 1 done. Task 2's criteria are covered by automated tests; the deployed-app run is pending test-account verification.
+Last session: 2026-08-23T06:59:23.367Z
+Stopped at: Completed 20.1-01-PLAN.md
 Resume file: None
 Next: /gsd-execute-phase 20.1. Wave 1's three plans run in parallel and are autonomous. Wave 2 needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services.
