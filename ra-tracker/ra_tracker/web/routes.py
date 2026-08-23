@@ -39,6 +39,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+VERIFICATION_SEND_FAILED_MESSAGE = (
+    "We couldn't send the verification email just now. Please try again in a moment."
+)
+
 
 def get_templates(request: Request):
     """Get templates from app state."""
@@ -713,10 +717,15 @@ async def login(
     # Check if email verified
     if not user.email_verified:
         # Send verification email for unverified existing users
-        await send_verification_email(user.email, user.id, user.display_name)
-        log_audit_event("auth.verification_sent", request, user_id=user.id,
-                       details={"trigger": "unverified_login"})
-        response = RedirectResponse(url="/verify-email", status_code=303)
+        sent = await send_verification_email(user.email, user.id, user.display_name)
+        if sent:
+            log_audit_event("auth.verification_sent", request, user_id=user.id,
+                           details={"trigger": "unverified_login"})
+            response = RedirectResponse(url="/verify-email", status_code=303)
+        else:
+            log_audit_event("auth.verification_send_failed", request, user_id=user.id,
+                           details={"trigger": "unverified_login"})
+            response = RedirectResponse(url="/verify-email?send_failed=1", status_code=303)
     else:
         response = RedirectResponse(url="/", status_code=303)
 
@@ -787,14 +796,20 @@ async def register(
         })
 
     # Send verification email
-    await send_verification_email(email, user_id, display_name)
-    log_audit_event("auth.verification_sent", request, user_id=user_id,
-                   details={"trigger": "registration"})
+    sent = await send_verification_email(email, user_id, display_name)
+    if sent:
+        log_audit_event("auth.verification_sent", request, user_id=user_id,
+                       details={"trigger": "registration"})
+        verify_url = "/verify-email"
+    else:
+        log_audit_event("auth.verification_send_failed", request, user_id=user_id,
+                       details={"trigger": "registration"})
+        verify_url = "/verify-email?send_failed=1"
 
     # Create session but redirect to verify page (not dashboard)
     token, expires_at = create_user_session(user_id)
 
-    response = RedirectResponse(url="/verify-email", status_code=303)
+    response = RedirectResponse(url=verify_url, status_code=303)
     set_session_cookie(response, token, expires_at, request=request)
     return response
 
@@ -820,7 +835,11 @@ async def logout(request: Request):
 
 
 @router.get("/verify-email", response_class=HTMLResponse)
-async def verify_email_page(request: Request, user: User = Depends(require_auth)):
+async def verify_email_page(
+    request: Request,
+    user: User = Depends(require_auth),
+    send_failed: Optional[str] = None,
+):
     """Show 'check your email' page for unverified users."""
     templates = get_templates(request)
 
@@ -828,11 +847,15 @@ async def verify_email_page(request: Request, user: User = Depends(require_auth)
     if user.email_verified:
         return RedirectResponse(url="/", status_code=303)
 
+    # Query-param flash, same convention as login_page
+    error = VERIFICATION_SEND_FAILED_MESSAGE if send_failed == "1" else None
+
     return templates.TemplateResponse("verify_email.html", {
         "request": request,
         "user": user,
         "user_email": user.email,
         "csrf_token": getattr(request.state, 'csrf_token', ''),
+        "error": error,
     })
 
 
@@ -847,17 +870,24 @@ async def resend_verification_email(request: Request, user: User = Depends(requi
         return RedirectResponse(url="/", status_code=303)
 
     # Send verification email
-    await send_verification_email(user.email, user.id, user.display_name)
-    log_audit_event("auth.verification_sent", request, user_id=user.id,
-                    details={"trigger": "manual_resend"})
+    sent = await send_verification_email(user.email, user.id, user.display_name)
 
-    return templates.TemplateResponse("verify_email.html", {
+    context = {
         "request": request,
         "user": user,
         "user_email": user.email,
         "csrf_token": getattr(request.state, 'csrf_token', ''),
-        "message": "Verification email sent! Check your inbox.",
-    })
+    }
+    if sent:
+        log_audit_event("auth.verification_sent", request, user_id=user.id,
+                        details={"trigger": "manual_resend"})
+        context["message"] = "Verification email sent! Check your inbox."
+    else:
+        log_audit_event("auth.verification_send_failed", request, user_id=user.id,
+                        details={"trigger": "manual_resend"})
+        context["error"] = VERIFICATION_SEND_FAILED_MESSAGE
+
+    return templates.TemplateResponse("verify_email.html", context)
 
 
 @router.get("/verify/{token}")
@@ -895,10 +925,16 @@ async def verify_email_token(request: Request, token: str):
             user = db.get_user_by_id(user_id)
 
             if user and not user.email_verified:
-                await send_verification_email(user.email, user.id, user.display_name)
-                log_audit_event("auth.verification_resent_auto", request, user_id=user.id,
-                               details={"reason": "expired_link"})
-                message = "Link expired. We've sent a new one to your inbox."
+                sent = await send_verification_email(user.email, user.id, user.display_name)
+                if sent:
+                    log_audit_event("auth.verification_resent_auto", request, user_id=user.id,
+                                   details={"reason": "expired_link"})
+                    message = "Link expired. We've sent a new one to your inbox."
+                else:
+                    log_audit_event("auth.verification_send_failed", request, user_id=user.id,
+                                   details={"trigger": "expired_link_auto_resend"})
+                    message = ("Link expired, and we couldn't send a new one just now. "
+                               "Please log in and use Resend Verification Email.")
             else:
                 message = "Link expired. Please log in to request a new verification email."
 
@@ -1019,8 +1055,15 @@ async def request_password_reset(
 
     # Always show success (don't reveal if email exists)
     if user:
-        await send_password_reset_email(user.email, user.id)
-        log_audit_event("password.reset_requested", request, user_id=user.id)
+        sent = await send_password_reset_email(user.email, user.id)
+        if sent:
+            log_audit_event("password.reset_requested", request, user_id=user.id)
+        else:
+            # Account-enumeration guard: the response below is byte-identical whether the
+            # send succeeded, failed, or the email is unknown. A failed send is therefore
+            # visible ONLY in the audit log, never to the requester. Do not "improve" this
+            # by showing an error - that would confirm the address exists.
+            log_audit_event("password.reset_send_failed", request, user_id=user.id)
     else:
         log_audit_event("password.reset_unknown_email", request,
                        details={"email_hash": hashlib.sha256(email.encode()).hexdigest()[:16]})
