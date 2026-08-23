@@ -217,7 +217,7 @@ Plans:
 
 Plans:
 - [x] 20.1-01-PLAN.md — Require BREVO_API_KEY explicitly (drop both SMTP-password fallbacks) + first unit tests for the Brevo API transport [SC-2, SC-4]
-- [ ] 20.1-02-PLAN.md — Branch on the send result at all five call sites, add failure audit events and ?send_failed=1 surfacing + route-level tests [SC-2, SC-3, SC-4]
+- [x] 20.1-02-PLAN.md — Branch on the send result at all five call sites, add failure audit events and ?send_failed=1 surfacing + route-level tests [SC-2, SC-3, SC-4]
 - [ ] 20.1-03-PLAN.md — Document the HTTP API transport and its env vars in RAILWAY.md and both .env.example files [SC-5]
 - [ ] 20.1-04-PLAN.md — Ship, set EMAIL_USE_API/BREVO_API_KEY in Railway (human), verify registration end to end against the deployed app [SC-1, SC-3, SC-4, SC-6]
 

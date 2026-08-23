@@ -4,14 +4,14 @@ milestone: v3.4
 milestone_name: Onboarding & Welcome
 status: executing
 stopped_at: Completed 20.1-01-PLAN.md
-last_updated: "2026-08-23T06:59:23.378Z"
+last_updated: "2026-08-23T09:06:00.000Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 20.1 (production-email-delivery) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-23
 
-Progress: [##░░░░░░░░] 2/7 plans (v3.4)
+Progress: [###░░░░░░░] 3/7 plans (v3.4)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [##░░░░░░░░] 2/7 plans (v3.4)
 | 18. Endpoint Hardening | 1/1 | v3.3 |
 | Phase 19-database-foundation P01 | 10 | 2 tasks | 1 files |
 | Phase 20.1 P01 | 3min | 2 tasks | 2 files |
+| Phase 20.1 P02 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting v3.4:
 - [2026-08-09 health check]: requirements.txt had open-ended `>=` pins; fresh installs pulled starlette 1.x which removed the old TemplateResponse(name, context) signature, breaking every template-rendering page (500). Fixed by capping fastapi<0.116 / starlette<1.0 / python-telegram-bot<21 / apscheduler<4. Proper fix (migrate 44 TemplateResponse call sites to the new request-first signature, then unpin) deferred — candidate for a future phase or todo.
 - [Phase 20.1-01]: Removed both SMTP-password-as-API-key fallbacks in email_sender.py (lines 92, 133) - non-interchangeable credentials, never attempt a doomed request
 - [Phase 20.1-01]: is_email_configured() stricter check is intended fail-safe: EMAIL_USE_API=true with no BREVO_API_KEY disables email silently until Plan 04 sets the key in Railway
+- [Phase 20.1-02]: All five routes.py call sites (unverified login, registration, manual resend, expired-link auto-resend, forgot-password) now branch on the send-function boolean instead of discarding it; two new audit event types added (auth.verification_send_failed, password.reset_send_failed)
+- [Phase 20.1-02]: /forgot-password keeps its enumeration-safe response text byte-identical across success/failure/unknown-email by design; only the audit log distinguishes a failed send, verified by test
 
 ### Roadmap Evolution
 
@@ -89,7 +92,7 @@ Recent decisions affecting v3.4:
 ### Pending Todos
 
 - Migrate 44 TemplateResponse call sites (routes.py, admin.py, app.py) to starlette's request-first signature, then relax the fastapi/starlette version caps. The new test suite surfaces these as 19 deprecation warnings on every run.
-- Fix silent email-send failures: routes.py:850 discards the boolean returned by send_verification_email and logs auth.verification_sent regardless, so a failed send is invisible in both the UI and the audit log. The /verify-email/resend response claims success unconditionally.
+- RESOLVED 2026-08-23 (Phase 20.1-02): Silent email-send failures fixed — all five routes.py call sites now branch on the send-function boolean and write a distinct audit event on failure.
 - Verify Telegram delivery still works after the 5-month gap (bot token may have expired). Email is confirmed broken in production, see Blockers.
 - Extend the test suite beyond the wizard: auth, CSRF, and the settings routes have no coverage. .planning/codebase/TESTING.md is now stale, it still states no test framework exists.
 
@@ -102,7 +105,7 @@ Recent decisions affecting v3.4:
 
 ## Session Continuity
 
-Last session: 2026-08-23T06:59:23.367Z
-Stopped at: Completed 20.1-01-PLAN.md
+Last session: 2026-08-23T09:06:00.000Z
+Stopped at: Completed 20.1-02-PLAN.md
 Resume file: None
-Next: /gsd-execute-phase 20.1. Wave 1's three plans run in parallel and are autonomous. Wave 2 needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services.
+Next: /gsd-execute-phase 20.1. Plan 20.1-03 (docs: RAILWAY.md and .env.example) remains in wave 1 and is autonomous. Wave 2 (20.1-04) needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services, then a human-verify checkpoint against https://ravetracker.whotrustswho.com.
