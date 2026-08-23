@@ -89,10 +89,16 @@ def _render_template(template_name: str, context: dict) -> str:
 def _send_via_api(to_email: str, subject: str, html_content: str) -> bool:
     """Send email via Brevo HTTP API."""
     config = get_config()
-    api_key = config.email.api_key or config.email.password
+    # BREVO_API_KEY only. The Brevo SMTP key (BREVO_SMTP_PASSWORD) is a different
+    # credential type and is rejected by the HTTP API - never fall back to it.
+    api_key = config.email.api_key
 
     if not api_key:
-        logger.warning("Brevo API key not configured (set BREVO_API_KEY)")
+        logger.warning(
+            "Brevo API key not configured - set BREVO_API_KEY "
+            "(this is NOT BREVO_SMTP_PASSWORD; generate it in Brevo under "
+            "Settings > SMTP & API > API Keys)"
+        )
         return False
 
     from_email = config.email.from_address or config.email.username
@@ -130,7 +136,8 @@ def is_email_configured() -> bool:
     """Check if email sending is properly configured."""
     config = get_config()
     if config.email.use_api:
-        api_key = config.email.api_key or config.email.password
+        # Same rule as _send_via_api: an SMTP password is not an API key.
+        api_key = config.email.api_key
         return bool(api_key and (config.email.from_address or config.email.username))
     return _get_email_config() is not None
 
