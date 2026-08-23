@@ -189,19 +189,31 @@ def run(base_url: str) -> int:
         f"subject: {msg['subject']}" if msg else f"nothing within {MAIL_POLL_TIMEOUT}s",
     ):
         if app_reported_failure:
-            # The app knows the send failed. The two causes produce different
-            # log lines in Railway, and nothing reachable from outside tells
-            # them apart -- is_email_configured() is only surfaced on /settings,
-            # which itself requires a verified email.
+            # The app knows the send failed. Each cause emits a distinct log
+            # line, and nothing reachable from outside tells them apart --
+            # is_email_configured() is only surfaced on /settings, which itself
+            # requires a verified email. So read the log line.
             print(
                 "\n  Diagnosis: the app itself reported the send failed.\n"
-                "  Check the Railway logs for the web service:\n"
-                "    'Brevo API key not configured' -> BREVO_API_KEY is not reaching\n"
-                "        the app (name typo, wrong service, or redeploy did not pick it up)\n"
-                "    'Brevo API error 401'          -> wrong credential; the key came from\n"
-                "        the SMTP tab instead of the API Keys tab\n"
-                "    'Brevo API error 400'          -> Brevo rejected the payload, most\n"
-                f"        likely {SENDER_HINT} is not a verified sender on the account",
+                "  Exactly one of these lines will be in the web service's Railway log,\n"
+                "  and which one it is fully determines the fix:\n"
+                "\n"
+                "    'Failed to send verification to ...'\n"
+                "        -> EMAIL_USE_API is NOT reaching this service, so the code took\n"
+                "           the SMTP fallback, which Railway blocks. Fix the env var.\n"
+                "    'Email not configured, skipping verification send'\n"
+                "        -> SMTP fallback with no SMTP credentials either. Same fix.\n"
+                "    'Brevo API key not configured'\n"
+                "        -> EMAIL_USE_API arrived but BREVO_API_KEY did not.\n"
+                "    'Brevo API error 401'\n"
+                "        -> Wrong credential: key came from the SMTP tab rather than\n"
+                "           the API Keys tab.\n"
+                "    'Brevo API error 400'\n"
+                f"        -> Brevo rejected the payload, most likely {SENDER_HINT}\n"
+                "           is not a verified sender on the account.\n"
+                "\n"
+                "  Note the first two mean the variables never landed on this service;\n"
+                "  the last three mean they did and Brevo itself is refusing.",
                 flush=True,
             )
         else:
