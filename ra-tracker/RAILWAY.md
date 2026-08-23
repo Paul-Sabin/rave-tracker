@@ -40,7 +40,8 @@ In Railway dashboard, add these environment variables:
 **Required Secrets:**
 - `SECRET_KEY` - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 - `BREVO_SMTP_USERNAME` - Your Brevo login email
-- `BREVO_SMTP_PASSWORD` - API key from Brevo dashboard
+- `BREVO_SMTP_PASSWORD` - Brevo **SMTP key** (Brevo dashboard > Settings > SMTP & API > SMTP tab). Only used for local development; Railway blocks SMTP (see Production Email Transport below)
+- `BREVO_API_KEY` - Brevo **HTTP API key** (Brevo dashboard > Settings > SMTP & API > API Keys tab). Required in production. This is a *different credential* from `BREVO_SMTP_PASSWORD` and the two are not interchangeable
 - `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
 
 **Application Config:**
@@ -49,13 +50,42 @@ In Railway dashboard, add these environment variables:
 - `PORT=8080` - Railway auto-injects PORT, but we default to 8080
 
 **Email Config (pre-configured):**
+- `EMAIL_USE_API=true` - **Required in production.** Sends mail over Brevo's HTTPS API instead of SMTP. Accepted truthy values: `true`, `1`, `yes`. Any other value falls back to SMTP, which does not work on Railway
 - `EMAIL_SMTP_SERVER=smtp-relay.brevo.com`
 - `EMAIL_SMTP_PORT=587`
 - `EMAIL_FROM_ADDRESS=ravetracker@whotrustswho.com`
 - `EMAIL_FROM_NAME=Rave Tracker`
+- `SENTRY_DSN` - Optional. When set, `logger.error()` calls (including failed email sends) are captured as Sentry events
+- `LOGTAIL_SOURCE_TOKEN` - Optional. When set, the application log stream is shipped to Better Stack
 
 **Auto-provided by Railway:**
 - `DATABASE_URL` - Automatically injected when PostgreSQL is added
+
+### 3a. Production Email Transport (IMPORTANT)
+
+Railway blocks outbound SMTP (ports 25, 465, 587, 2525) and recommends HTTPS-based
+transactional email APIs instead. Sending mail over `smtp-relay.brevo.com:587` from a
+Railway service therefore fails - typically by hanging until the worker timeout rather
+than raising a clean error, which is why the failures were invisible for a while.
+
+Production must use Brevo's HTTP API:
+
+1. In the Brevo dashboard, go to **Settings > SMTP & API > API Keys** and create a key.
+   This is *not* the value in `BREVO_SMTP_PASSWORD` - the SMTP key is on the neighbouring
+   **SMTP** tab and Brevo's API rejects it with `401 Unauthorized`.
+2. In Railway, set `BREVO_API_KEY` to that key.
+3. In Railway, set `EMAIL_USE_API=true`.
+4. Redeploy the web service (and the scheduler service, which sends event notifications).
+
+Both variables are required together. With `EMAIL_USE_API=true` and no `BREVO_API_KEY`,
+the app deliberately reports email as not configured and sends nothing rather than
+authenticating with the wrong credential - notification sends are skipped and the
+settings page shows email as unconfigured.
+
+Keep the `EMAIL_SMTP_*` / `BREVO_SMTP_*` variables set: the SMTP path remains available
+for local development, where port 587 is not blocked.
+
+**Never** paste a real key into this file, `.env.example`, or any other tracked file.
 
 ### 4. Deploy Multiple Services
 
@@ -172,6 +202,18 @@ Railway uses usage-based pricing:
 Compare to Render ($21/mo flat) and Fly.io ($38+/mo for managed Postgres).
 
 ## Troubleshooting
+
+### Emails are not being delivered
+
+1. Confirm `EMAIL_USE_API=true` is set on the service (exact value; `True`/`yes`/`1` also
+   work, anything else silently selects SMTP).
+2. Confirm `BREVO_API_KEY` is set and is an **API key**, not the SMTP key. A wrong key
+   shows up in the logs as `Brevo API error 401: ...`.
+3. A missing key logs `Brevo API key not configured - set BREVO_API_KEY` and sends nothing.
+4. Check `/admin/audit-log?event_type=auth.verification_send_failed` - a row there means
+   the app tried and Brevo refused. No rows and no `auth.verification_sent` rows means the
+   send was never attempted (usually a missing key).
+5. Do not "fix" this by switching back to SMTP. Railway blocks the ports.
 
 **Build fails:**
 - Check `railway logs` for build errors
