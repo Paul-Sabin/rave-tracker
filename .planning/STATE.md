@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Onboarding & Welcome
 status: executing
-stopped_at: Completed 20.1-01-PLAN.md
-last_updated: "2026-08-23T09:06:00.000Z"
+stopped_at: Completed 20.1-03-PLAN.md
+last_updated: "2026-08-23T07:14:17.406Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 20.1 (production-email-delivery) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-08-23
 
@@ -51,6 +51,7 @@ Progress: [###░░░░░░░] 3/7 plans (v3.4)
 | Phase 19-database-foundation P01 | 10 | 2 tasks | 1 files |
 | Phase 20.1 P01 | 3min | 2 tasks | 2 files |
 | Phase 20.1 P02 | 6min | 2 tasks | 2 files |
+| Phase 20.1 P03 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,7 @@ Recent decisions affecting v3.4:
 - [Phase 20.1-01]: is_email_configured() stricter check is intended fail-safe: EMAIL_USE_API=true with no BREVO_API_KEY disables email silently until Plan 04 sets the key in Railway
 - [Phase 20.1-02]: All five routes.py call sites (unverified login, registration, manual resend, expired-link auto-resend, forgot-password) now branch on the send-function boolean instead of discarding it; two new audit event types added (auth.verification_send_failed, password.reset_send_failed)
 - [Phase 20.1-02]: /forgot-password keeps its enumeration-safe response text byte-identical across success/failure/unknown-email by design; only the audit log distinguishes a failed send, verified by test
+- [Phase 20.1-03]: RAILWAY.md documents EMAIL_USE_API/BREVO_API_KEY as required-together in production, with a new '3a. Production Email Transport' subsection and troubleshooting runbook; both .env.example files carry matching placeholders
 
 ### Roadmap Evolution
 
@@ -105,7 +107,7 @@ Recent decisions affecting v3.4:
 
 ## Session Continuity
 
-Last session: 2026-08-23T09:06:00.000Z
-Stopped at: Completed 20.1-02-PLAN.md
+Last session: 2026-08-23T07:14:17.395Z
+Stopped at: Completed 20.1-03-PLAN.md
 Resume file: None
-Next: /gsd-execute-phase 20.1. Plan 20.1-03 (docs: RAILWAY.md and .env.example) remains in wave 1 and is autonomous. Wave 2 (20.1-04) needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services, then a human-verify checkpoint against https://ravetracker.whotrustswho.com.
+Next: /gsd-execute-phase 20.1. Plan 20.1-03 (docs: RAILWAY.md and .env.example) is complete. Wave 2 (20.1-04) needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services, then a human-verify checkpoint against https://ravetracker.whotrustswho.com. Follow ra-tracker/RAILWAY.md section "3a. Production Email Transport" step by step.
