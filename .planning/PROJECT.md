@@ -14,6 +14,8 @@ Users never miss events from artists, venues, or promoters they care about — a
 
 **Live at:** https://ravetracker.whotrustswho.com
 
+**Outbound email:** Brevo HTTPS API (Railway blocks outbound SMTP). Verified end to end in production 2026-08-24 via `ra-tracker/scripts/verify_production_email.py`.
+
 **Capabilities:**
 - User registration with privacy consent and email verification
 - Secure login/logout with session management and CSRF protection
@@ -248,6 +250,9 @@ Users never miss events from artists, venues, or promoters they care about — a
 | CronTrigger replaces interval scheduling | fetch_times config is more intuitive than interval-in-minutes | ✓ Good |
 | GET /admin/settings redirects non-admins (not 403) | Clean UX — non-admins land on their own settings, not an error page | ✓ Good |
 | POST /settings/test-telegram returns JSON 403 (not redirect) | AJAX endpoint — redirect would silently swallow the error in JS callers | ✓ Good |
+| Production email sends over the Brevo HTTPS API, not SMTP | Railway blocks outbound SMTP, so the SMTP transport can never work in production | ✓ Good |
+| BREVO_API_KEY never falls back to BREVO_SMTP_PASSWORD | Different credential types; the HTTP API rejects an SMTP key, and a silent fallback hid that | ✓ Good |
+| Send failures surface to the user instead of reporting success | A send that never left was previously indistinguishable from a delivered one | ✓ Good |
 
 ---
-*Last updated: 2026-03-01 after v3.4 milestone started*
+*Last updated: 2026-08-24 after Phase 20.1 (production email delivery) completed*
