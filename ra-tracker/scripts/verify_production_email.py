@@ -315,26 +315,46 @@ def run(base_url: str) -> int:
                 "email": admin_email,
                 "password": admin_password,
             },
-            allow_redirects=True,
+            allow_redirects=False,
             timeout=30,
         )
+        destination = r.headers.get("location", "")
+        admin_in = r.status_code == 303 and "login" not in destination
+        check(
+            admin_in,
+            "admin login succeeded",
+            f"HTTP {r.status_code} -> {destination or '(no redirect)'}",
+        )
+
         log = a.get(
             f"{base_url}/admin/audit-log",
             params={"user_search": mb.address},
             timeout=30,
         )
-        if not check(log.ok, "admin audit log reachable", f"HTTP {log.status_code}"):
-            print("  (admin login may have failed -- check the credentials)", flush=True)
-        else:
-            body = log.text
-            check("auth.verification_sent" in body, "auth.verification_sent row present")
+        # Landing on /login also returns 200, so status alone proves nothing --
+        # require a marker that only the real audit log page renders.
+        on_audit_page = log.ok and "Admin: Audit Log" in log.text
+        detail = f"HTTP {log.status_code}"
+        if not on_audit_page:
+            detail += " -- not the audit log page; admin login likely failed"
+        if check(on_audit_page, "admin audit log reachable", detail):
+            # Read event types from the table's badge cells only. Scanning the
+            # whole body would also match the filter dropdown, which lists every
+            # event type in the database regardless of the user_search filter --
+            # that makes absence checks fire on unrelated historical events.
+            badges = set(
+                re.findall(r'<span class="badge event-badge">\s*([^<\s]+)\s*</span>', log.text)
+            )
+            print(f"  events for this account: {', '.join(sorted(badges)) or '(none)'}", flush=True)
+
+            check("auth.verification_sent" in badges, "auth.verification_sent row present")
             check(
-                "auth.verification_send_failed" not in body,
+                "auth.verification_send_failed" not in badges,
                 "no auth.verification_send_failed row",
             )
-            check("password.reset_requested" in body, "password.reset_requested row present")
+            check("password.reset_requested" in badges, "password.reset_requested row present")
             check(
-                "password.reset_send_failed" not in body,
+                "password.reset_send_failed" not in badges,
                 "no password.reset_send_failed row",
             )
 
