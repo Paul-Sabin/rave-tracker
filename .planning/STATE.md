@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Onboarding & Welcome
-status: executing
-stopped_at: Completed 20.1-03-PLAN.md
-last_updated: "2026-08-23T07:14:17.406Z"
-last_activity: 2026-08-23
+status: verifying
+stopped_at: Completed 20.1-04-PLAN.md
+last_updated: "2026-08-24T05:23:32.637Z"
+last_activity: 2026-08-24
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 20.1 (production-email-delivery) — EXECUTING
+Phase: 20.1 (production-email-delivery) — COMPLETE (4/4 plans)
 Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-08-23
+Status: Phase complete — ready for verification
+Last activity: 2026-08-24
 
 Progress: [###░░░░░░░] 3/7 plans (v3.4)
 
@@ -52,6 +52,7 @@ Progress: [###░░░░░░░] 3/7 plans (v3.4)
 | Phase 20.1 P01 | 3min | 2 tasks | 2 files |
 | Phase 20.1 P02 | 6min | 2 tasks | 2 files |
 | Phase 20.1 P03 | 8min | 2 tasks | 3 files |
+| Phase 20.1 P04 | 45min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting v3.4:
 - [Phase 20.1-02]: All five routes.py call sites (unverified login, registration, manual resend, expired-link auto-resend, forgot-password) now branch on the send-function boolean instead of discarding it; two new audit event types added (auth.verification_send_failed, password.reset_send_failed)
 - [Phase 20.1-02]: /forgot-password keeps its enumeration-safe response text byte-identical across success/failure/unknown-email by design; only the audit log distinguishes a failed send, verified by test
 - [Phase 20.1-03]: RAILWAY.md documents EMAIL_USE_API/BREVO_API_KEY as required-together in production, with a new '3a. Production Email Transport' subsection and troubleshooting runbook; both .env.example files carry matching placeholders
+- [Phase 20.1-04]: RESEARCH.md Open Question 1 corrected: SENTRY_DSN and LOGTAIL_SOURCE_TOKEN ARE present on the web service (verified via Railway CLI, contradicting the initial dashboard-based report); neither is present on the scheduler service
+- [Phase 20.1-04]: Production email confirmed end-to-end (14/14 automated checks): registration, verification, login, password reset all work over Brevo's HTTP API on https://ravetracker.whotrustswho.com
+- [Phase 20.1-04]: Root cause of the post-deploy 401 was Brevo's authorised-IPs guard rejecting Railway's egress IP, not a bad or wrong-tab API key; human disabled the guard in Brevo. Residual risk: this will recur if the guard is ever re-enabled without allow-listing Railway's egress IP
 
 ### Roadmap Evolution
 
@@ -97,17 +101,19 @@ Recent decisions affecting v3.4:
 - RESOLVED 2026-08-23 (Phase 20.1-02): Silent email-send failures fixed — all five routes.py call sites now branch on the send-function boolean and write a distinct audit event on failure.
 - Verify Telegram delivery still works after the 5-month gap (bot token may have expired). Email is confirmed broken in production, see Blockers.
 - Extend the test suite beyond the wizard: auth, CSRF, and the settings routes have no coverage. .planning/codebase/TESTING.md is now stale, it still states no test framework exists.
+- Confirm SC-3 directly in the production audit log (auth.verification_sent present, auth.verification_send_failed absent for a real send) — not yet checked with an admin session. Run ra-tracker/scripts/verify_production_email.py with RT_ADMIN_EMAIL/RT_ADMIN_PASSWORD set to close this out.
+- Add LOGTAIL_SOURCE_TOKEN and SENTRY_DSN to the scheduler Railway service — currently only the web service has them, so scheduler-side logger.error() calls (including future email/notification failures) never reach Sentry/Logtail.
 
 ### Blockers/Concerns
 
 - RESOLVED 2026-08-22: Railway PostgreSQL is reachable again, /health reports {"status":"healthy","database":"connected"}.
-- PRODUCTION: verification emails are not delivered, so no new user can complete registration. Diagnosis on 2026-08-22 ruled out everything local: Brevo SMTP AUTH succeeds with the .env credentials, Brevo accepts MAIL FROM <ravetracker@whotrustswho.com> and RCPT TO the test address (250 for both, no message sent), and sabinwords.com has valid MX records. The failure is therefore prod-side, most likely Railway blocking outbound SMTP on port 587, or a stale BREVO_SMTP_PASSWORD in the Railway environment. Note config.py:67 already carries a use_api flag documented as "True = Brevo HTTP API (bypasses SMTP port blocks)", and RAILWAY.md documents only the SMTP variables, never EMAIL_USE_API or BREVO_API_KEY. Candidate fix: set EMAIL_USE_API=true and BREVO_API_KEY in Railway.
+- RESOLVED 2026-08-24 (Phase 20.1-04): verification emails are delivered again in production. EMAIL_USE_API=true and BREVO_API_KEY are set on both the web and scheduler Railway services; the real blocker after that was Brevo's authorised-IPs guard rejecting Railway's egress IP (401), not the credential itself — human disabled the guard. Automated end-to-end check (ra-tracker/scripts/verify_production_email.py) passed 14/14 against https://ravetracker.whotrustswho.com: registration, verification email, verify link, login, password reset request, reset email, all confirmed. Residual risk: if Brevo's authorised-IPs guard is ever re-enabled without allow-listing Railway's current egress IP, the same 401 will recur — no code fix needed, only re-disabling the guard or allow-listing the IP.
 - Phase 21 dependency: Ravemonger image asset (WebP + PNG) is pending from user. Template can be built with placeholder img first.
 - RESOLVED 2026-08-22: base.html has NO {% block nav %}. Its only blocks are title (line 6), content (line 321) and scripts (line 377). Hiding the nav during the wizard therefore needs a new override point added to base.html, or a separate wizard layout. Decide before Phase 21 template work.
 
 ## Session Continuity
 
-Last session: 2026-08-23T07:14:17.395Z
-Stopped at: Completed 20.1-03-PLAN.md
+Last session: 2026-08-24T05:23:32.604Z
+Stopped at: Completed 20.1-04-PLAN.md
 Resume file: None
-Next: /gsd-execute-phase 20.1. Plan 20.1-03 (docs: RAILWAY.md and .env.example) is complete. Wave 2 (20.1-04) needs you in the Brevo and Railway dashboards to create an API key and set EMAIL_USE_API plus BREVO_API_KEY on both the web and scheduler services, then a human-verify checkpoint against https://ravetracker.whotrustswho.com. Follow ra-tracker/RAILWAY.md section "3a. Production Email Transport" step by step.
+Next: Phase 20.1 (production-email-delivery) is complete, all 4 plans done and production email verified end to end. Run /gsd-verify-work to close out the phase, then resume the v3.4 wizard track at Phase 21 (Welcome Template). One open item to consider before/at verification: SC-3's audit-log check was not confirmed with an admin session in production (see Pending Todos).

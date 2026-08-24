@@ -158,7 +158,7 @@ Full details: `.planning/milestones/v3.3-ROADMAP.md`
 
 - [x] **Phase 19: Database Foundation** - Migration adds onboarding_completed column with backfill for existing users (completed 2026-03-01)
 - [x] **Phase 20: Wizard Routes** - Welcome routes registered and step rendering confirmed via stub template (completed 2026-08-22)
-- [ ] **Phase 20.1: Production Email Delivery** (INSERTED) - All outbound email works again in production, and failed sends stop reporting success
+- [x] **Phase 20.1: Production Email Delivery** (INSERTED) - All outbound email works again in production, and failed sends stop reporting success (completed 2026-08-24)
 - [ ] **Phase 21: Welcome Template** - Full 4-step wizard UI with mascot, transitions, accessibility, and data interactions
 - [ ] **Phase 22: Login Intercept** - First-run trigger wires new verified users into the wizard on login
 - [ ] **Phase 23: Settings Revisit Link** - "Revisit Tour" entry point added to /settings
@@ -219,7 +219,7 @@ Plans:
 - [x] 20.1-01-PLAN.md — Require BREVO_API_KEY explicitly (drop both SMTP-password fallbacks) + first unit tests for the Brevo API transport [SC-2, SC-4]
 - [x] 20.1-02-PLAN.md — Branch on the send result at all five call sites, add failure audit events and ?send_failed=1 surfacing + route-level tests [SC-2, SC-3, SC-4]
 - [x] 20.1-03-PLAN.md — Document the HTTP API transport and its env vars in RAILWAY.md and both .env.example files [SC-5]
-- [ ] 20.1-04-PLAN.md — Ship, set EMAIL_USE_API/BREVO_API_KEY in Railway (human), verify registration end to end against the deployed app [SC-1, SC-3, SC-4, SC-6]
+- [x] 20.1-04-PLAN.md — Ship, set EMAIL_USE_API/BREVO_API_KEY in Railway (human), verify registration end to end against the deployed app [SC-1, SC-3, SC-4, SC-6]
 
 ### Phase 21: Welcome Template
 **Goal**: The welcome.html template delivers a complete, usable 4-step wizard experience — mascot present, all UI interactions functional, accessible to keyboard and screen reader users
