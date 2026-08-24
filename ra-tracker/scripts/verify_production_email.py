@@ -240,11 +240,15 @@ def run(base_url: str) -> int:
     if not check(bool(link), "verification link found in email"):
         return summarise()
 
-    r = s.get(link, allow_redirects=True, timeout=30)
+    # Assert on the redirect target, not the final page: this session is still
+    # logged in from registration, so /login?verified=1 immediately bounces to
+    # the dashboard and the confirmation text never renders.
+    r = s.get(link, allow_redirects=False, timeout=30)
+    destination = r.headers.get("location", "")
     check(
-        "verified" in r.text.lower(),
-        "verification landing page confirms success",
-        f"HTTP {r.status_code}",
+        "verified=1" in destination or "verified=already" in destination,
+        "verification link marks the account verified",
+        f"HTTP {r.status_code} -> {destination or '(no redirect)'}",
     )
 
     login_page = s.get(f"{base_url}/login", timeout=30)
@@ -255,8 +259,19 @@ def run(base_url: str) -> int:
         allow_redirects=False,
         timeout=30,
     )
-    logged_in = r.status_code == 303 and "login" not in r.headers.get("location", "")
-    check(logged_in, "login succeeds with no database intervention", f"HTTP {r.status_code}")
+    # A bounce to /verify-email is also a 303 away from /login, so exclude it
+    # explicitly -- otherwise an unverified account would pass this check.
+    destination = r.headers.get("location", "")
+    logged_in = (
+        r.status_code == 303
+        and "login" not in destination
+        and "verify-email" not in destination
+    )
+    check(
+        logged_in,
+        "login succeeds with no database intervention",
+        f"HTTP {r.status_code} -> {destination or '(no redirect)'}",
+    )
 
     section("6. Password reset email arrives")
     fp = s.get(f"{base_url}/forgot-password", timeout=30)
