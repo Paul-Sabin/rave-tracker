@@ -46,6 +46,34 @@ def db(tmp_path):
 
 
 @pytest.fixture
+def pg_db():
+    """A real PostgreSQL database, skipped unless TEST_DATABASE_URL is set.
+
+    Production runs PostgreSQL while the rest of the suite runs SQLite, and the
+    two disagree on things that matter here — exception classes for constraint
+    violations, ON CONFLICT syntax, NULL handling in unique indexes. Point
+    TEST_DATABASE_URL at a throwaway database to exercise the real thing:
+
+        TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ravetracker_test
+
+    Every table is dropped before the schema is built, so never aim this at a
+    database whose contents you want to keep.
+    """
+    url = os.environ.get("TEST_DATABASE_URL", "").strip()
+    if not url:
+        pytest.skip("TEST_DATABASE_URL not set; skipping PostgreSQL-backed test")
+
+    database = Database(db_url=url)
+    with database.get_connection() as conn:
+        conn.execute("DROP SCHEMA public CASCADE")
+        conn.execute("CREATE SCHEMA public")
+    database.init_schema()
+    set_db(database)
+    yield database
+    set_db(None)
+
+
+@pytest.fixture
 def app(db):
     """The FastAPI app.
 
