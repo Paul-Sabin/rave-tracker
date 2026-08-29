@@ -117,8 +117,10 @@ def fetch_and_notify():
 
                 # Check each event for notification eligibility
                 for event in events:
-                    # Skip if already notified (per-event deduplication)
-                    if db.has_event_notification(event.id):
+                    # Skip if this rule's owner has already been told about it.
+                    # Scoped per user: a global check would silently swallow the
+                    # event for everyone once any one user had been notified.
+                    if db.has_event_notification(event.id, rule.user_id):
                         continue
 
                     # Check if this rule's notify_mode allows notification
@@ -353,11 +355,23 @@ def send_daily_digest():
             results = _run_async(notify_users_for_events_async(events_with_rules))
 
             user_result = results.get(user_id, {})
+            if not user_result.get("attempted"):
+                logger.warning(
+                    f"Digest user {user_id}: no notification channel enabled, events remain queued"
+                )
+                continue
+
+            # Clear the queue on attempt, not on reported success. Events left
+            # queued after a send that was reported as failed are re-sent every
+            # day forever, and the send may well have been delivered.
+            db.mark_digest_sent(event_ids, user_id)
             if user_result.get("telegram") or user_result.get("email"):
-                db.mark_digest_sent(event_ids, user_id)
                 logger.info(f"Digest sent to user {user_id}: {len(events_with_rules)} event(s)")
             else:
-                logger.warning(f"Digest send failed for user {user_id} — events remain queued")
+                logger.warning(
+                    f"Digest send failed for user {user_id} ({len(events_with_rules)} event(s)); "
+                    f"queue cleared anyway to avoid a daily resend loop"
+                )
 
         except Exception as e:
             logger.error(f"Digest failed for user {user_id}: {e}")

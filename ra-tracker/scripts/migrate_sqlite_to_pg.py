@@ -88,13 +88,15 @@ CREATE TABLE IF NOT EXISTS event_promoters (
 );
 
 -- Sent notifications
+-- Uniqueness is idx_notifications_event_rule_user below, not a table
+-- constraint: it must key on user_id too, and COALESCE is needed so that
+-- legacy rows with a NULL user_id still collide with each other.
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
     event_id INTEGER NOT NULL,
     rule_id INTEGER NOT NULL,
     user_id INTEGER,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(event_id, rule_id)
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Users
@@ -147,6 +149,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
+    ON notifications (event_id, rule_id, (COALESCE(user_id, 0)));
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);

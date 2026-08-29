@@ -91,14 +91,16 @@ CREATE TABLE IF NOT EXISTS event_promoters (
 );
 
 -- Sent notifications (prevent duplicates)
+-- Uniqueness lives in idx_notifications_event_rule_user below rather than in a
+-- table constraint: it has to key on user_id as well, and COALESCE is needed so
+-- that legacy rows with a NULL user_id still collide with each other.
 CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
     rule_id INTEGER NOT NULL,
     user_id INTEGER,
     sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    queued_for_digest BOOLEAN DEFAULT 0,
-    UNIQUE(event_id, rule_id)
+    queued_for_digest BOOLEAN DEFAULT 0
 );
 
 -- Users (multi-tenant support)
@@ -173,6 +175,8 @@ CREATE TABLE IF NOT EXISTS scraper_fetch_log (
 CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
 
 -- Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
+    ON notifications (event_id, rule_id, (COALESCE(user_id, 0)));
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);
@@ -365,14 +369,14 @@ CREATE TABLE IF NOT EXISTS event_promoters (
 );
 
 -- Sent notifications
+-- See the SQLite schema above for why uniqueness is an index, not a constraint.
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
     event_id INTEGER NOT NULL,
     rule_id INTEGER NOT NULL,
     user_id INTEGER,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    queued_for_digest BOOLEAN DEFAULT FALSE,
-    UNIQUE(event_id, rule_id)
+    queued_for_digest BOOLEAN DEFAULT FALSE
 );
 
 -- Users
@@ -451,6 +455,8 @@ CREATE TABLE IF NOT EXISTS scraper_fetch_log (
 CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
 
 -- Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
+    ON notifications (event_id, rule_id, (COALESCE(user_id, 0)));
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
 CREATE INDEX IF NOT EXISTS idx_rules_active ON rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type, target_id);
@@ -761,6 +767,8 @@ class Database:
                         cur.execute(pg_migration)
                     except Exception as e:
                         logger.debug(f"PostgreSQL migration {i + 1} skipped: {e}")
+
+                self._migrate_notifications_unique_key_pg(cur)
             finally:
                 self._pool.putconn(raw_conn)
         else:
@@ -773,6 +781,103 @@ class Database:
                     except sqlite3.OperationalError:
                         # Column already exists, skip
                         pass
+
+                self._migrate_notifications_unique_key_sqlite(conn)
+
+    _STALE_NOTIFICATION_CONSTRAINTS_SQL = """
+        SELECT con.conname, pg_get_constraintdef(con.oid)
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        WHERE rel.relname = 'notifications' AND con.contype = 'u'
+    """
+
+    @staticmethod
+    def _is_stale_notification_constraint(definition: str) -> bool:
+        """True for the old UNIQUE(event_id, rule_id), which ignored user_id."""
+        normalised = " ".join(definition.lower().split())
+        return normalised.startswith("unique") and "user_id" not in normalised
+
+    def _migrate_notifications_unique_key_pg(self, cur) -> None:
+        """Replace the old UNIQUE(event_id, rule_id) constraint on notifications.
+
+        That constraint let the table hold only one row per event across every
+        user, so with more than one account only the first user was ever
+        recorded as notified. Databases created before this change still carry
+        it; drop it and rely on idx_notifications_event_rule_user instead.
+
+        Leaving it in place would be worse than the original bug: inserts now
+        use ON CONFLICT DO NOTHING, so a collision with the stale constraint
+        would be swallowed and the second user's event would be re-sent on
+        every fetch. That is why a survivor is logged at error level.
+
+        Runs on an autocommit cursor, so each statement is independent.
+        """
+        try:
+            cur.execute(self._STALE_NOTIFICATION_CONSTRAINTS_SQL)
+            stale = [
+                name for name, definition in cur.fetchall()
+                if self._is_stale_notification_constraint(definition)
+            ]
+        except Exception as e:
+            logger.error(f"Could not inspect notifications constraints: {e}")
+            return
+
+        for name in stale:
+            try:
+                cur.execute(f'ALTER TABLE notifications DROP CONSTRAINT "{name}"')
+                logger.info(f"Dropped stale notifications constraint {name}")
+            except Exception as e:
+                logger.error(
+                    f"Could not drop stale notifications constraint {name}: {e}. "
+                    f"Per-user notification de-duplication will not work until it is "
+                    f"removed by hand: ALTER TABLE notifications DROP CONSTRAINT \"{name}\";"
+                )
+
+    def _migrate_notifications_unique_key_sqlite(self, conn) -> None:
+        """SQLite counterpart of _migrate_notifications_unique_key_pg.
+
+        SQLite cannot drop a table constraint, so the table is rebuilt. The
+        table-level UNIQUE is the only source of an implicit index here (the
+        INTEGER PRIMARY KEY is the rowid and creates none), so its presence is
+        an exact test for whether the rebuild is still outstanding.
+        """
+        try:
+            indexes = conn.execute("PRAGMA index_list('notifications')").fetchall()
+        except sqlite3.Error as e:
+            logger.warning(f"Could not inspect notifications indexes: {e}")
+            return
+
+        if not any(row["name"].startswith("sqlite_autoindex_notifications") for row in indexes):
+            return
+
+        # The new index is strictly more permissive than the constraint it
+        # replaces, so existing rows are guaranteed to satisfy it — no
+        # de-duplication pass is needed before the copy.
+        conn.executescript(
+            """
+            PRAGMA foreign_keys=OFF;
+            BEGIN;
+            CREATE TABLE notifications_migrated (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                rule_id INTEGER NOT NULL,
+                user_id INTEGER,
+                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                queued_for_digest BOOLEAN DEFAULT 0
+            );
+            INSERT INTO notifications_migrated
+                (id, event_id, rule_id, user_id, sent_at, queued_for_digest)
+                SELECT id, event_id, rule_id, user_id, sent_at, queued_for_digest
+                FROM notifications;
+            DROP TABLE notifications;
+            ALTER TABLE notifications_migrated RENAME TO notifications;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
+                ON notifications (event_id, rule_id, (COALESCE(user_id, 0)));
+            COMMIT;
+            PRAGMA foreign_keys=ON;
+            """
+        )
+        logger.info("Rebuilt notifications table with user-scoped unique key")
 
     # User operations
     def has_users(self) -> bool:
@@ -1789,23 +1894,57 @@ class Database:
             conn.execute("DELETE FROM events")
 
     # Notification operations
+    def _insert_notification_ignoring_duplicates(
+        self,
+        event_id: int,
+        rule_id: int,
+        user_id: Optional[int],
+    ) -> bool:
+        """Insert a notification row, treating an existing row as success.
+
+        The duplicate is absorbed by the database rather than by catching an
+        exception in Python: psycopg2 and sqlite3 raise unrelated exception
+        classes, and a version of this that caught only sqlite3.IntegrityError
+        let every duplicate escape uncaught in production PostgreSQL.
+
+        Returns True if a new row was written, False if one already existed.
+        """
+        with self.get_connection() as conn:
+            if self._use_postgres:
+                # Untargeted ON CONFLICT so the expression-based unique index
+                # can act as the arbiter.
+                cursor = conn.execute(
+                    f"""
+                    INSERT INTO notifications (event_id, rule_id, user_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph})
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (event_id, rule_id, user_id),
+                )
+            else:
+                cursor = conn.execute(
+                    f"""
+                    INSERT OR IGNORE INTO notifications (event_id, rule_id, user_id)
+                    VALUES ({self.ph}, {self.ph}, {self.ph})
+                    """,
+                    (event_id, rule_id, user_id),
+                )
+            return cursor.rowcount > 0
+
     def add_notification(self, event_id: int, rule_id: int, user_id: Optional[int] = None) -> bool:
-        """Add a notification record. Returns False if already exists.
+        """Record that an event has been notified. Idempotent.
 
         Args:
             event_id: ID of the event
             rule_id: ID of the rule that matched
             user_id: Optional user ID for per-user notification filtering
-        f"""
-        with self.get_connection() as conn:
-            try:
-                conn.execute(
-                    f"INSERT INTO notifications (event_id, rule_id, user_id) VALUES ({self.ph}, {self.ph}, {self.ph})",
-                    (event_id, rule_id, user_id),
-                )
-                return True
-            except sqlite3.IntegrityError:
-                return False
+
+        Returns:
+            True if a new row was written, False if the record already existed.
+            Callers should treat both as success — the point of the record is
+            that it exists, not that this call created it.
+        """
+        return self._insert_notification_ignoring_duplicates(event_id, rule_id, user_id)
 
     def has_notification(self, event_id: int, rule_id: int) -> bool:
         """Check if a notification has been sent."""
@@ -1816,26 +1955,38 @@ class Database:
             )
             return cursor.fetchone() is not None
 
-    def has_event_notification(self, event_id: int) -> bool:
-        """Check if any notification has been sent for this event (per-event dedup)."""
+    def has_event_notification(self, event_id: int, user_id: Optional[int] = None) -> bool:
+        """Check whether this event has already been notified.
+
+        Args:
+            event_id: ID of the event
+            user_id: Scope the check to one user. Omitting it asks whether
+                *anyone* has been notified, which is almost never what a
+                multi-user caller wants.
+
+        Rows predating per-user tracking carry a NULL user_id and are treated
+        as covering every user, so an upgrade cannot resend an old event.
+        """
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                f"SELECT 1 FROM notifications WHERE event_id = {self.ph}",
-                (event_id,),
-            )
+            if user_id is None:
+                cursor = conn.execute(
+                    f"SELECT 1 FROM notifications WHERE event_id = {self.ph}",
+                    (event_id,),
+                )
+            else:
+                cursor = conn.execute(
+                    f"""
+                    SELECT 1 FROM notifications
+                    WHERE event_id = {self.ph}
+                      AND (user_id = {self.ph} OR user_id IS NULL)
+                    """,
+                    (event_id, user_id),
+                )
             return cursor.fetchone() is not None
 
     def add_event_notification(self, event_id: int) -> bool:
-        """Mark an event as notified (using rule_id=0 for per-event tracking)."""
-        with self.get_connection() as conn:
-            try:
-                conn.execute(
-                    f"INSERT INTO notifications (event_id, rule_id) VALUES ({self.ph}, 0)",
-                    (event_id,),
-                )
-                return True
-            except sqlite3.IntegrityError:
-                return False
+        """Mark an event as notified for every user (using rule_id=0)."""
+        return self._insert_notification_ignoring_duplicates(event_id, 0, None)
 
     def queue_event_for_digest(self, event_id: int, user_id: int) -> bool:
         """Queue an event for the daily digest (digest mode only).
@@ -1852,7 +2003,7 @@ class Database:
                         f"""
                         INSERT INTO notifications (event_id, rule_id, user_id, queued_for_digest, sent_at)
                         VALUES ({self.ph}, 0, {self.ph}, {self._true_val}, NULL)
-                        ON CONFLICT (event_id, rule_id) DO NOTHING
+                        ON CONFLICT DO NOTHING
                         """,
                         (event_id, user_id),
                     )

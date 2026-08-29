@@ -415,41 +415,81 @@ async def notify_users_for_events_async(new_events: List[Tuple[Event, List[Rule]
     email_available = is_email_configured()
 
     for user_id, events in user_events.items():
-        user = db.get_user_by_id(user_id)
-        if not user:
-            logger.warning(f"User {user_id} not found, skipping notifications")
-            continue
-
-        results[user_id] = {"telegram": False, "email": False}
-
-        # Check Telegram
-        if user.telegram_enabled and user.telegram_chat_id:
-            try:
-                success = await notifier.send_to_user_telegram_async(
-                    user.telegram_chat_id, events
-                )
-                results[user_id]["telegram"] = success
-            except Exception as e:
-                logger.error(f"Telegram notification failed for user {user_id}: {e}")
-
-        # Check Email
-        if user.email_enabled and email_available:
-            try:
-                success = await send_notification_email(
-                    user.email,
-                    user.id,
-                    events,
-                )
-                results[user_id]["email"] = success
-            except Exception as e:
-                logger.error(f"Email notification failed for user {user_id}: {e}")
-
-        # Mark events as notified for this user (only if at least one channel succeeded)
-        if results[user_id]["telegram"] or results[user_id]["email"]:
-            for event, _ in events:
-                db.add_notification(event.id, rule_id=0, user_id=user_id)
+        # One user's failure must not abort the users after them, which would
+        # leave their events unrecorded and therefore resent on every fetch.
+        try:
+            results[user_id] = await _notify_one_user(
+                db, notifier, user_id, events, email_available
+            )
+        except Exception as e:
+            logger.error(f"Notification dispatch failed for user {user_id}: {e}", exc_info=True)
+            results.setdefault(user_id, {"telegram": False, "email": False, "attempted": False})
 
     return results
+
+
+async def _notify_one_user(
+    db,
+    notifier: "Notifier",
+    user_id: int,
+    events: List[Tuple[Event, List[Rule]]],
+    email_available: bool,
+) -> Dict[str, bool]:
+    """Send one user's events on every channel they have enabled.
+
+    Returns a result dict with "telegram", "email" and "attempted" flags.
+    """
+    result = {"telegram": False, "email": False, "attempted": False}
+
+    user = db.get_user_by_id(user_id)
+    if not user:
+        logger.warning(f"User {user_id} not found, skipping notifications")
+        return result
+
+    # Check Telegram
+    if user.telegram_enabled and user.telegram_chat_id:
+        result["attempted"] = True
+        try:
+            result["telegram"] = await notifier.send_to_user_telegram_async(
+                user.telegram_chat_id, events
+            )
+        except Exception as e:
+            logger.error(f"Telegram notification failed for user {user_id}: {e}")
+
+    # Check Email
+    if user.email_enabled and email_available:
+        result["attempted"] = True
+        try:
+            result["email"] = await send_notification_email(
+                user.email,
+                user.id,
+                events,
+            )
+        except Exception as e:
+            logger.error(f"Email notification failed for user {user_id}: {e}")
+
+    if not result["attempted"]:
+        # Nothing was tried, so nothing can have been delivered. Leaving the
+        # events unrecorded is correct here: they should go out once the user
+        # enables a channel.
+        logger.info(f"User {user_id} has no notification channel enabled, nothing sent")
+        return result
+
+    # Record the attempt whatever the transports reported. A send that is
+    # reported as failed may still have been delivered — a Brevo call whose
+    # HTTP response is lost is the obvious case — and an unrecorded event is
+    # re-sent on every single fetch from then on. Losing one notification to a
+    # genuine failure is far better than an unbounded resend loop.
+    for event, _ in events:
+        db.add_notification(event.id, rule_id=0, user_id=user_id)
+
+    if not (result["telegram"] or result["email"]):
+        logger.warning(
+            f"All notification channels failed for user {user_id} "
+            f"({len(events)} event(s)); recorded as notified anyway to avoid a resend loop"
+        )
+
+    return result
 
 
 def notify_users_for_events(new_events: List[Tuple[Event, List[Rule]]]) -> Dict[int, Dict[str, bool]]:
