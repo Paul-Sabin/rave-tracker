@@ -11,6 +11,7 @@ the only honest way to model two processes inside one test run.
 """
 
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -379,14 +380,26 @@ def test_a_saved_setting_reaches_a_separate_scheduler_config(db, admin_client, r
     assert scheduler_config.scheduler.notification_mode == "daily_digest"
 
 
-def test_saving_does_not_write_a_config_file(db, admin_client, tmp_path, restore_global_config):
-    """A file written here is invisible to the scheduler and lost on redeploy."""
-    target = tmp_path / "config.yaml"
-    with patch.object(Config, "save", side_effect=AssertionError("wrote config.yaml")):
-        response = save_settings(admin_client)
+def test_saving_does_not_touch_the_config_file(db, admin_client, restore_global_config):
+    """A file written here is invisible to the scheduler and lost on redeploy.
+
+    It was also destructive: config.yaml is tracked, and the old save wrote
+    real values into it, so running this suite rewrote the repo's committed
+    file with the test secret key and SMTP password.
+    """
+    config_file = Path(os.environ["RA_TRACKER_CONFIG"])
+    before = config_file.read_bytes()
+
+    response = save_settings(admin_client)
 
     assert response.status_code == 303
-    assert not target.exists()
+    assert config_file.read_bytes() == before
+
+
+def test_config_has_no_save_method(db):
+    """Removed with its last caller. Re-adding it would reopen both problems
+    above, so this is a deliberate tripwire rather than a trivia assertion."""
+    assert not hasattr(Config, "save")
 
 
 def test_malformed_fetch_times_are_discarded(db, admin_client, restore_global_config):

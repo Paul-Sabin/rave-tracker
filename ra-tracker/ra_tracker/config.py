@@ -270,61 +270,6 @@ class Config:
             "telegram.chat_id": self.telegram.chat_id,
         }
 
-    def save(self, config_path: str = "config.yaml") -> None:
-        """Save configuration to YAML file."""
-        data = {
-            "telegram": {
-                "bot_token": self.telegram.bot_token,
-                "chat_id": self.telegram.chat_id,
-                "webhook_secret": self.telegram.webhook_secret,
-                "use_webhook": self.telegram.use_webhook,
-                "webhook_url": self.telegram.webhook_url,
-            },
-            "scheduler": {
-                "fetch_interval_hours": self.scheduler.fetch_interval_hours,
-                "event_horizon_days": self.scheduler.event_horizon_days,
-                "fetch_times": self.scheduler.fetch_times,
-                "notification_mode": self.scheduler.notification_mode,
-                "digest_time": self.scheduler.digest_time,
-            },
-            "web": {
-                "host": self.web.host,
-                "port": self.web.port,
-            },
-            "database": {
-                "path": self.database.path,
-            },
-            "user": {
-                "local_area_id": self.user.local_area_id,
-                "local_area_name": self.user.local_area_name,
-            },
-            "session": {
-                "timeout_days": self.session.timeout_days,
-                "secure_cookies": self.session.secure_cookies,
-            },
-            "email": {
-                "server": self.email.server,
-                "port": self.email.port,
-                "username": self.email.username,
-                "password": self.email.password,
-                "from_address": self.email.from_address,
-                "from_name": self.email.from_name,
-                "starttls": self.email.starttls,
-                "ssl_tls": self.email.ssl_tls,
-            },
-            "app": {
-                "secret_key": self.app.secret_key,
-                "base_url": self.app.base_url,
-            },
-        }
-
-        path = Path(config_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(path, "w") as f:
-            yaml.dump(data, f, default_flow_style=False)
-
-
 # Global config instance
 _config: Optional[Config] = None
 
