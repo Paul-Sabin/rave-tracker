@@ -311,8 +311,12 @@ def send_daily_digest():
         with db.get_connection() as conn:
             rows = conn.execute(
                 f"""
-                SELECT DISTINCT user_id FROM notifications
-                WHERE queued_for_digest = {db._true_val} AND sent_at IS NULL AND user_id IS NOT NULL
+                SELECT DISTINCT n.user_id FROM notifications n
+                JOIN users u ON u.id = n.user_id
+                WHERE n.queued_for_digest = {db._true_val}
+                  AND n.sent_at IS NULL
+                  AND n.user_id IS NOT NULL
+                  AND u.deleted_at IS NULL
                 """
             ).fetchall()
         user_ids = [row[0] for row in rows]

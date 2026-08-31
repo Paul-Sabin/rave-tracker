@@ -1525,9 +1525,11 @@ class Database:
         """Get all active rules, optionally filtered by user.
 
         Args:
-            user_id: If provided, filter to rules owned by this user.
-                    If None, returns all active rules (for scheduler).
-        f"""
+            user_id: If provided, filter to rules owned by this user, whether
+                    or not that account is soft-deleted — the caller has
+                    already decided whose rules it wants. If None, returns
+                    every active rule with a live owner (the scheduler path).
+        """
         with self.get_connection() as conn:
             if user_id is not None:
                 cursor = conn.execute(
@@ -1535,8 +1537,19 @@ class Database:
                     (user_id,)
                 )
             else:
+                # Scheduler path. Rules owned by a soft-deleted account are
+                # excluded: the owner cannot log in during the grace period, so
+                # they have no way to turn notifications off, and an account
+                # awaiting purge should not be generating traffic at all.
+                # Legacy rules with no owner are kept.
                 cursor = conn.execute(
-                    f"SELECT * FROM rules WHERE is_active = {self._true_val} ORDER BY rule_type, target_name"
+                    f"""
+                    SELECT r.* FROM rules r
+                    LEFT JOIN users u ON u.id = r.user_id
+                    WHERE r.is_active = {self._true_val}
+                      AND (r.user_id IS NULL OR u.deleted_at IS NULL)
+                    ORDER BY r.rule_type, r.target_name
+                    """
                 )
             return [self._row_to_rule(row) for row in cursor.fetchall()]
 

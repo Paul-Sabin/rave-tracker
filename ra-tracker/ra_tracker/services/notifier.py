@@ -446,6 +446,14 @@ async def _notify_one_user(
         logger.warning(f"User {user_id} not found, skipping notifications")
         return result
 
+    if user.deleted_at:
+        # Account is soft-deleted and inside its 30-day grace period. Login is
+        # blocked for it, so the owner cannot reach their settings to turn
+        # notifications off — sending here would be both unwanted and
+        # unstoppable. Nothing is recorded, because nothing was sent.
+        logger.info(f"User {user_id} is soft-deleted, skipping notifications")
+        return result
+
     # Check Telegram
     if user.telegram_enabled and user.telegram_chat_id:
         result["attempted"] = True
