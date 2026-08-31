@@ -3,7 +3,6 @@
 import hashlib
 import logging
 import secrets
-import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -21,7 +20,7 @@ from ..services.email_sender import send_verification_email, send_password_reset
 
 from ..api.ra_client import RAClient
 from ..config import get_config
-from ..database import get_db, Rule, User, Event
+from ..database import get_db, Rule, User, Event, EmailAlreadyExistsError
 from ..scheduler.jobs import get_scheduler_status
 from ..services.notifier import Notifier
 from ..services.email_sender import verify_unsubscribe_token, is_email_configured, send_notification_email
@@ -786,7 +785,7 @@ async def register(
             user_id=user_id,
             details={"email": email, "display_name": display_name},
         )
-    except sqlite3.IntegrityError:
+    except EmailAlreadyExistsError:
         return templates.TemplateResponse("register.html", {
             "request": request,
             "csrf_token": getattr(request.state, 'csrf_token', ''),

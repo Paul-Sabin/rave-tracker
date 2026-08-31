@@ -583,6 +583,26 @@ class Event:
             self.matched_rules = []
 
 
+class EmailAlreadyExistsError(Exception):
+    """A user with that email address is already registered.
+
+    Backend-agnostic on purpose. sqlite3 and psycopg2 signal a unique
+    violation with unrelated exception classes, so callers that caught the
+    sqlite3 one worked in tests and broke in production.
+    """
+
+
+def _is_unique_violation(exc: BaseException) -> bool:
+    """True if the exception is a unique-constraint violation, either backend."""
+    if isinstance(exc, sqlite3.IntegrityError):
+        return "UNIQUE" in str(exc).upper()
+    if psycopg2 is not None and isinstance(exc, psycopg2.IntegrityError):
+        # 23505 is unique_violation; other IntegrityErrors (not-null, foreign
+        # key, check) are real faults and must keep propagating.
+        return getattr(exc, "pgcode", None) == "23505"
+    return False
+
+
 class _PgConnectionWrapper:
     """Wrapper around psycopg2 connection providing execute()/executemany()
     with RealDictCursor. Needed because psycopg2 C extension connections
@@ -914,10 +934,21 @@ class Database:
         """Create user. First user becomes admin and receives legacy data.
 
         Returns the new user ID.
-        Raises sqlite3.IntegrityError if email already exists.
+
+        Raises:
+            EmailAlreadyExistsError: if the email is already registered.
         """
         password_hash = _password_hasher.hash(password)
 
+        try:
+            return self._insert_user(email, password_hash, display_name)
+        except Exception as e:
+            if _is_unique_violation(e):
+                raise EmailAlreadyExistsError(email) from e
+            raise
+
+    def _insert_user(self, email: str, password_hash: str, display_name: str) -> int:
+        """Insert the user row and claim any legacy data if this is the first."""
         with self.get_connection() as conn:
             # Check if this is first user (will become admin)
             is_first = not conn.execute(
