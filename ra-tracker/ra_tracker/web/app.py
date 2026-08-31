@@ -19,7 +19,7 @@ from .rate_limit import limiter
 from .routes import router
 from .admin import admin_router
 from .csrf import CSRFMiddleware
-from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_application
+from ..services.telegram_bot import stop_bot, get_bot_application
 from ..config import get_config
 from ..database import get_db
 from ..observability.sentry_config import init_sentry, clear_sentry_user
@@ -53,9 +53,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not apply database settings at startup: {e}")
 
-    # Start bot polling if not using webhooks
-    if config.telegram.bot_token and not config.telegram.use_webhook:
-        start_bot_polling()
+    # Polling is deliberately NOT started here. This runs once per gunicorn
+    # worker, and Telegram allows a single getUpdates consumer per bot, so two
+    # workers would knock each other off with 409 Conflict. The process that
+    # owns the scheduler owns the bot instead — see main.py. Webhook mode is
+    # different: updates arrive as HTTP requests, so the web app is the right
+    # place for it and any worker can serve them.
 
     # If using webhooks, set up webhook URL
     if config.telegram.bot_token and config.telegram.use_webhook:

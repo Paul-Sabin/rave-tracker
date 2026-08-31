@@ -158,9 +158,15 @@ def _run_polling_in_thread():
     try:
         app = _build_application()
         logger.info("Starting Telegram bot polling...")
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
+        # stop_signals=None is what makes this work off the main thread. By
+        # default run_polling installs SIGINT/SIGTERM/SIGABRT handlers, and
+        # signal.set_wakeup_fd is main-thread-only, so polling died on startup
+        # with "set_wakeup_fd only works in main thread of the main
+        # interpreter" and the bot never received a single update. Shutdown is
+        # handled by the daemon thread ending with the process.
+        app.run_polling(allowed_updates=Update.ALL_TYPES, stop_signals=None)
     except Exception as e:
-        logger.error(f"Bot polling error: {e}")
+        logger.error(f"Bot polling error: {e}", exc_info=True)
 
 
 def start_bot_polling():

@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from .config import Config, get_config, set_config
 from .database import Database, get_db, set_db
 from .scheduler.jobs import start_scheduler, stop_scheduler, run_fetch_now
+from .services.telegram_bot import start_bot_polling, stop_bot
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ def setup_logging(verbose: bool = False):
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info("Shutdown signal received, stopping...")
+    stop_bot()
     stop_scheduler()
     sys.exit(0)
 
@@ -125,6 +127,10 @@ def main():
     if args.scheduler_only:
         logger.info("Running in scheduler-only mode (no web server)")
         start_scheduler()
+        # The process that owns the scheduler owns the bot. Telegram permits
+        # one getUpdates consumer per bot, and this process is a single
+        # instance, whereas the web service runs several gunicorn workers.
+        start_bot_polling()
         logger.info(f"Scheduler started (fetch every {config.scheduler.fetch_interval_hours} hours)")
         logger.info("Scheduler running. Press Ctrl+C to stop.")
         # Block until signal received
@@ -148,6 +154,10 @@ def main():
     if not args.no_scheduler:
         start_scheduler()
         logger.info(f"Scheduler started (fetch every {config.scheduler.fetch_interval_hours} hours)")
+        # Same rule as scheduler-only mode: whoever owns the scheduler owns the
+        # bot. With --no-scheduler this process stays out of the way, leaving
+        # polling to the separate scheduler process.
+        start_bot_polling()
 
     # Start web server
     logger.info(f"Starting web server at http://{config.web.host}:{config.web.port}")
