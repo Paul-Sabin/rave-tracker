@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Optional, List, Dict
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -28,13 +28,64 @@ _schedule_state: Optional[tuple] = None
 SCHEDULE_RECONCILE_MINUTES = 5
 
 
+def notification_horizon(config: Config) -> Optional[date]:
+    """The latest event date worth notifying about, or None for no limit.
+
+    scheduler.event_horizon_days was defined, saved and exposed in the admin UI
+    but read by no code at all, so the setting silently did nothing. It is
+    honoured here, against the notification decision rather than the events
+    cache, because it lives under `scheduler:` and the dashboard is expected to
+    keep showing everything that was fetched.
+
+    A value of zero or less disables the limit instead of filtering everything
+    out, so a mistyped 0 cannot silence every notification.
+    """
+    days = config.scheduler.event_horizon_days
+    if not days or days <= 0:
+        return None
+    return date.today() + timedelta(days=days)
+
+
+def local_area_resolver(db, config: Config):
+    """Build a user_id -> local area ID lookup, memoised for one fetch cycle.
+
+    Each account has its own local_area_id, chosen in the welcome wizard, and
+    the dashboard already filters on it. Notifications used to filter on the
+    single global config.user.local_area_id instead, so every account outside
+    that one area saw its own city on the dashboard while being notified about
+    a different one. 'local' is the default notify_mode, so this was silent:
+    those users simply never heard about events near them.
+
+    Falls back to the global value when a rule has no owner (legacy rows) or
+    the owner has no area set, which keeps today's behaviour for both rather
+    than dropping their notifications.
+    """
+    fallback = config.user.local_area_id
+    cache = {}
+
+    def resolve(user_id: Optional[int]) -> Optional[int]:
+        if user_id is None:
+            return fallback
+        if user_id not in cache:
+            user = db.get_user_by_id(user_id)
+            cache[user_id] = (
+                user.local_area_id
+                if user is not None and user.local_area_id is not None
+                else fallback
+            )
+        return cache[user_id]
+
+    return resolve
+
+
 def should_notify_for_event(event: Event, rule: Rule, local_area_id: Optional[int]) -> bool:
     """Check if an event should trigger a notification based on rule's notify_mode.
 
     Args:
         event: The event to check
         rule: The rule that matched the event
-        local_area_id: User's configured local area ID
+        local_area_id: The local area of the rule's owner, not a global default.
+            See local_area_resolver.
 
     Returns:
         True if notification should be sent
@@ -89,7 +140,7 @@ def fetch_and_notify():
 
         config = effective_config()  # File + database settings, republished globally
         fetcher = Fetcher()
-        local_area_id = config.user.local_area_id
+        resolve_local_area = local_area_resolver(db, config)
 
         rules = db.get_active_rules()
         if not rules:
@@ -113,6 +164,8 @@ def fetch_and_notify():
         total_events = 0
         new_events_map: Dict[int, Event] = {}  # event_id -> Event (deduplicated)
         event_rules: Dict[int, List[Rule]] = {}  # event_id -> list of matching rules
+        horizon = notification_horizon(config)
+        beyond_horizon = set()  # event ids, so a multi-rule match counts once
 
         for rule in rules:
             try:
@@ -122,14 +175,22 @@ def fetch_and_notify():
 
                 # Check each event for notification eligibility
                 for event in events:
+                    # Too far out to be worth notifying about yet. Checked
+                    # before the dedup lookup so nothing is recorded: raising
+                    # the horizon later should let these through.
+                    if horizon is not None and event.date and event.date > horizon:
+                        beyond_horizon.add(event.id)
+                        continue
+
                     # Skip if this rule's owner has already been told about it.
                     # Scoped per user: a global check would silently swallow the
                     # event for everyone once any one user had been notified.
                     if db.has_event_notification(event.id, rule.user_id):
                         continue
 
-                    # Check if this rule's notify_mode allows notification
-                    if should_notify_for_event(event, rule, local_area_id):
+                    # Check if this rule's notify_mode allows notification,
+                    # against its own owner's local area
+                    if should_notify_for_event(event, rule, resolve_local_area(rule.user_id)):
                         new_events_map[event.id] = event
                         if event.id not in event_rules:
                             event_rules[event.id] = []
@@ -147,6 +208,13 @@ def fetch_and_notify():
                 )
 
         logger.info(f"Fetch complete. {total_events} events from {len(rules)} rules.")
+        if beyond_horizon:
+            # Logged rather than silent: this is the one filter that drops
+            # events for a reason the user configured and cannot see elsewhere.
+            logger.info(
+                f"Held back {len(beyond_horizon)} event(s) dated beyond the "
+                f"{config.scheduler.event_horizon_days}-day notification horizon"
+            )
 
         # Record successful fetch cycle
         db.complete_scraper_fetch(
