@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 
 from ..database import get_db, User
+from .audit import log_audit_event
 from .auth import require_admin, require_auth
 from ..api.circuit_breaker import circuit_breaker
 from ..scheduler.jobs import run_fetch_now, get_last_fetch_time, get_next_fetch_time
@@ -246,7 +247,10 @@ async def admin_settings(request: Request, user: User = Depends(require_auth)):
         return RedirectResponse(url="/settings", status_code=303)
 
     templates = get_templates(request)
-    config = get_config()
+    # Re-apply the stored settings on every load. Gunicorn runs several workers,
+    # each with its own cached config, so a save handled by one worker would
+    # otherwise leave the others showing stale values.
+    config = get_config().apply_db_overrides(get_db())
 
     # Mask bot token for display
     bot_token = config.telegram.bot_token
@@ -322,7 +326,27 @@ async def save_admin_settings(
     if re.match(r"^\d{2}:\d{2}$", digest_time):
         config.scheduler.digest_time = digest_time
 
-    config.save()
+    # Persist to the database, not to config.yaml. The web and scheduler run as
+    # separate containers with separate filesystems, so a file written here was
+    # invisible to the scheduler and lost on the next redeploy. The scheduler
+    # picks these up on its next cycle.
+    #
+    # The bot token is not persisted — it is a secret and comes from
+    # TELEGRAM_BOT_TOKEN. A value typed here applies to this process only.
+    db = get_db()
+    db.set_app_settings(config.db_managed_settings())
+
+    log_audit_event(
+        "admin.settings_save",
+        request,
+        user_id=user.id,
+        details={
+            "fetch_times": config.scheduler.fetch_times,
+            "notification_mode": config.scheduler.notification_mode,
+            "digest_time": config.scheduler.digest_time,
+            "event_horizon_days": config.scheduler.event_horizon_days,
+        },
+    )
 
     return RedirectResponse(url="/admin/settings", status_code=303)
 

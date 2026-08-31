@@ -21,6 +21,7 @@ from .admin import admin_router
 from .csrf import CSRFMiddleware
 from ..services.telegram_bot import start_bot_polling, stop_bot, get_bot_application
 from ..config import get_config
+from ..database import get_db
 from ..observability.sentry_config import init_sentry, clear_sentry_user
 from ..observability.logging_config import setup_logging
 from ..observability.access_log_middleware import AccessLogMiddleware
@@ -43,6 +44,14 @@ async def lifespan(app: FastAPI):
         logtail_token=config.observability.logtail_token,
     )
     app.state.log_listener = log_listener
+
+    # Overlay the admin-managed settings held in the database. Config.load()
+    # cannot do this itself (Database.__init__ calls get_config(), so it would
+    # recurse), so every entry point applies it once it has a database.
+    try:
+        config.apply_db_overrides(get_db())
+    except Exception as e:
+        logger.warning(f"Could not apply database settings at startup: {e}")
 
     # Start bot polling if not using webhooks
     if config.telegram.bot_token and not config.telegram.use_webhook:

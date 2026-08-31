@@ -174,6 +174,16 @@ CREATE TABLE IF NOT EXISTS scraper_fetch_log (
 );
 CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
 
+-- Admin-managed settings, shared by every process
+-- The web and scheduler run as separate containers with separate filesystems,
+-- so a settings file written by one is invisible to the other. The database is
+-- the only thing they share. Values are JSON so lists and ints round-trip.
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
     ON notifications (event_id, rule_id, (COALESCE(user_id, 0)));
@@ -453,6 +463,16 @@ CREATE TABLE IF NOT EXISTS scraper_fetch_log (
     circuit_breaker_state TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_scraper_fetch_started ON scraper_fetch_log(started_at DESC);
+
+-- Admin-managed settings, shared by every process
+-- The web and scheduler run as separate containers with separate filesystems,
+-- so a settings file written by one is invisible to the other. The database is
+-- the only thing they share. Values are JSON so lists and ints round-trip.
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Indexes
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_event_rule_user
@@ -1905,6 +1925,48 @@ class Database:
             conn.execute("DELETE FROM event_artists")
             conn.execute("DELETE FROM event_promoters")
             conn.execute("DELETE FROM events")
+
+    # Admin-managed settings
+    def get_app_settings(self) -> dict:
+        """Return every admin-managed setting, decoded from JSON.
+
+        Keys with unreadable values are skipped rather than raising: a single
+        corrupt row must not stop the scheduler from starting.
+        """
+        settings = {}
+        try:
+            with self.get_connection() as conn:
+                rows = conn.execute(
+                    "SELECT setting_key, setting_value FROM app_settings"
+                ).fetchall()
+        except Exception as e:
+            logger.warning(f"Could not read app_settings: {e}")
+            return {}
+
+        for row in rows:
+            key = row["setting_key"]
+            try:
+                settings[key] = json.loads(row["setting_value"])
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Ignoring unreadable app_setting {key!r}: {e}")
+        return settings
+
+    def set_app_settings(self, settings: dict) -> None:
+        """Upsert admin-managed settings. Values are JSON-encoded."""
+        if not settings:
+            return
+        with self.get_connection() as conn:
+            for key, value in settings.items():
+                conn.execute(
+                    f"""
+                    INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                    VALUES ({self.ph}, {self.ph}, CURRENT_TIMESTAMP)
+                    ON CONFLICT(setting_key) DO UPDATE
+                    SET setting_value = excluded.setting_value,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (key, json.dumps(value)),
+                )
 
     # Notification operations
     def _insert_notification_ignoring_duplicates(

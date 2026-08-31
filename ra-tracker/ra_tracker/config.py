@@ -1,5 +1,6 @@
 """Configuration management for RA Tracker."""
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -208,6 +209,66 @@ class Config:
         config._validate_required_secrets()
 
         return config
+
+    def apply_db_overrides(self, db) -> "Config":
+        """Overlay the admin-managed settings stored in the database.
+
+        Precedence is env var > database > config.yaml. The database sits
+        between the two because config.yaml ships with the image and holds
+        deploy-time defaults, while the database is what the admin UI writes
+        and is the only store the web and scheduler containers share.
+
+        Deliberately not folded into load(): Database.__init__ calls
+        get_config(), so reading settings from inside load() would recurse.
+        Callers apply this explicitly once they have a database.
+
+        Returns self, so it can be chained onto load().
+        """
+        try:
+            settings = db.get_app_settings()
+        except Exception as e:  # never let a settings read stop startup
+            logging.getLogger(__name__).warning(
+                f"Could not apply database settings, using file defaults: {e}"
+            )
+            return self
+
+        if not settings:
+            return self
+
+        if "scheduler.fetch_times" in settings:
+            value = settings["scheduler.fetch_times"]
+            if isinstance(value, list):
+                self.scheduler.fetch_times = value
+        if "scheduler.event_horizon_days" in settings:
+            self.scheduler.event_horizon_days = int(settings["scheduler.event_horizon_days"])
+        if "scheduler.notification_mode" in settings:
+            if settings["scheduler.notification_mode"] in ("upon_fetch", "daily_digest"):
+                self.scheduler.notification_mode = settings["scheduler.notification_mode"]
+        if "scheduler.digest_time" in settings:
+            self.scheduler.digest_time = str(settings["scheduler.digest_time"])
+
+        # The env var still wins, per the precedence above. Without this guard
+        # a deployment that pins TELEGRAM_CHAT_ID would appear to accept an
+        # admin change and then quietly ignore it on the next load.
+        if "telegram.chat_id" in settings and not os.environ.get("TELEGRAM_CHAT_ID"):
+            self.telegram.chat_id = str(settings["telegram.chat_id"])
+
+        return self
+
+    def db_managed_settings(self) -> dict:
+        """The current values of everything the admin UI persists.
+
+        Secrets are excluded on purpose: the bot token, secret key and SMTP
+        password come from environment variables and must not be copied into
+        the database.
+        """
+        return {
+            "scheduler.fetch_times": list(self.scheduler.fetch_times),
+            "scheduler.event_horizon_days": int(self.scheduler.event_horizon_days),
+            "scheduler.notification_mode": self.scheduler.notification_mode,
+            "scheduler.digest_time": self.scheduler.digest_time,
+            "telegram.chat_id": self.telegram.chat_id,
+        }
 
     def save(self, config_path: str = "config.yaml") -> None:
         """Save configuration to YAML file."""

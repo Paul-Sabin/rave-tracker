@@ -9,7 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ..config import get_config, Config
+from ..config import get_config, set_config, Config
 from ..database import get_db, Event, Rule
 from ..services.fetcher import Fetcher
 from ..services.notifier import Notifier, notify_users_for_events
@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 _scheduler: Optional[BackgroundScheduler] = None
 _last_fetch_time: Optional[datetime] = None
+# Signature of the settings the currently installed jobs were built from.
+_schedule_state: Optional[tuple] = None
+
+# How often to check the database for admin schedule changes.
+SCHEDULE_RECONCILE_MINUTES = 5
 
 
 def should_notify_for_event(event: Event, rule: Rule, local_area_id: Optional[int]) -> bool:
@@ -82,7 +87,7 @@ def fetch_and_notify():
         db = get_db()
         fetch_id = db.start_scraper_fetch()
 
-        config = Config.load()  # Reload from disk to pick up changes saved via admin settings
+        config = effective_config()  # File + database settings, republished globally
         fetcher = Fetcher()
         local_area_id = config.user.local_area_id
 
@@ -391,12 +396,39 @@ def get_scheduler() -> BackgroundScheduler:
     return _scheduler
 
 
-def start_scheduler():
-    """Start the scheduler with configured jobs."""
-    config = get_config()
-    scheduler = get_scheduler()
+def effective_config() -> Config:
+    """Load config from disk, overlay the admin-managed settings, publish it.
 
+    The admin UI writes to the database because the web and scheduler run as
+    separate containers that share nothing else. Reloading the file alone,
+    which is what this used to do, could never see those changes.
+
+    set_config() matters as much as the reload: Fetcher, Notifier and the email
+    sender all read the cached global, so refreshing the local variable without
+    publishing it would leave them on the values from process start.
+    """
+    config = Config.load()
+    try:
+        config.apply_db_overrides(get_db())
+    except Exception as e:
+        logger.warning(f"Could not apply database settings: {e}")
+    set_config(config)
+    return config
+
+
+def _schedule_signature(config: Config) -> tuple:
+    """The parts of the config that decide when jobs run."""
+    return (
+        tuple(config.scheduler.fetch_times),
+        config.scheduler.digest_time,
+        config.scheduler.fetch_interval_hours,
+    )
+
+
+def _install_fetch_jobs(scheduler, config: Config) -> None:
+    """(Re)install the fetch jobs, dropping any that are no longer configured."""
     fetch_times = config.scheduler.fetch_times  # list of "HH:MM" strings
+    wanted_ids = set()
 
     if fetch_times:
         # Schedule one CronTrigger job per configured time
@@ -411,19 +443,20 @@ def start_scheduler():
                     name=f"Fetch events and send notifications at {time_str}",
                     replace_existing=True,
                 )
+                wanted_ids.add(job_id)
                 logger.info(f"Scheduled fetch job at {time_str} daily")
             except (ValueError, AttributeError) as e:
-                logger.warning(f"Invalid fetch_time '{time_str}', skipping: {e}")
+                logger.warning(f"Invalid fetch_time {time_str!r}, skipping: {e}")
+
         # Keep a canonical "fetch_and_notify" id pointing to first job (for get_next_fetch_time)
-        if fetch_times:
-            first_hour, first_minute = fetch_times[0].split(":")
-            scheduler.add_job(
-                fetch_and_notify,
-                trigger=CronTrigger(hour=int(first_hour), minute=int(first_minute)),
-                id="fetch_and_notify",
-                name="Fetch events and send notifications (primary)",
-                replace_existing=True,
-            )
+        first_hour, first_minute = fetch_times[0].split(":")
+        scheduler.add_job(
+            fetch_and_notify,
+            trigger=CronTrigger(hour=int(first_hour), minute=int(first_minute)),
+            id="fetch_and_notify",
+            name="Fetch events and send notifications (primary)",
+            replace_existing=True,
+        )
     else:
         # Fallback to legacy interval trigger
         fetch_interval = config.scheduler.fetch_interval_hours
@@ -436,17 +469,16 @@ def start_scheduler():
         )
         logger.info(f"Scheduled fetch job to run every {fetch_interval} hours (legacy interval mode)")
 
-    # Account purge job - runs daily at 3 AM UTC
-    scheduler.add_job(
-        purge_expired_accounts,
-        trigger=CronTrigger(hour=3, minute=0),
-        id="purge_expired_accounts",
-        name="Purge accounts past 30-day grace period",
-        replace_existing=True,
-    )
-    logger.info("Scheduled purge job to run daily at 3:00 AM UTC")
+    # Drop per-time jobs left over from a longer previous list, otherwise
+    # removing a fetch time would never actually stop that fetch.
+    for job in scheduler.get_jobs():
+        if job.id.startswith("fetch_and_notify_") and job.id not in wanted_ids:
+            scheduler.remove_job(job.id)
+            logger.info(f"Removed fetch job {job.id} (no longer configured)")
 
-    # Daily digest job - sends batched notifications at configured digest time
+
+def _install_digest_job(scheduler, config: Config) -> None:
+    """(Re)install the daily digest job at the configured time."""
     digest_time_str = config.scheduler.digest_time  # "HH:MM"
     try:
         d_hour, d_minute = digest_time_str.split(":")
@@ -459,7 +491,69 @@ def start_scheduler():
         )
         logger.info(f"Scheduled daily digest job at {digest_time_str}")
     except (ValueError, AttributeError) as e:
-        logger.warning(f"Invalid digest_time '{digest_time_str}', digest job not scheduled: {e}")
+        logger.warning(f"Invalid digest_time {digest_time_str!r}, digest job not scheduled: {e}")
+
+
+def reconcile_schedule() -> bool:
+    """Re-apply the schedule if the admin changed it since the last check.
+
+    A job's trigger is fixed when the job is installed, so a new fetch time in
+    the database does nothing until the jobs are rebuilt. Without this, schedule
+    settings only took effect on the next redeploy.
+
+    Returns True if the schedule was rebuilt.
+    """
+    global _schedule_state
+
+    config = effective_config()
+    signature = _schedule_signature(config)
+    if signature == _schedule_state:
+        return False
+
+    scheduler = get_scheduler()
+    logger.info(
+        f"Schedule settings changed, rebuilding jobs: "
+        f"fetch_times={config.scheduler.fetch_times} "
+        f"digest_time={config.scheduler.digest_time}"
+    )
+    _install_fetch_jobs(scheduler, config)
+    _install_digest_job(scheduler, config)
+    _schedule_state = signature
+    return True
+
+
+def start_scheduler():
+    """Start the scheduler with configured jobs."""
+    global _schedule_state
+
+    config = effective_config()
+    scheduler = get_scheduler()
+
+    _install_fetch_jobs(scheduler, config)
+    _install_digest_job(scheduler, config)
+    _schedule_state = _schedule_signature(config)
+
+    # Account purge job - runs daily at 3 AM UTC
+    scheduler.add_job(
+        purge_expired_accounts,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="purge_expired_accounts",
+        name="Purge accounts past 30-day grace period",
+        replace_existing=True,
+    )
+    logger.info("Scheduled purge job to run daily at 3:00 AM UTC")
+
+    # Pick up admin settings changes without waiting for a redeploy.
+    scheduler.add_job(
+        reconcile_schedule,
+        trigger=IntervalTrigger(minutes=SCHEDULE_RECONCILE_MINUTES),
+        id="reconcile_schedule",
+        name="Apply admin schedule changes",
+        replace_existing=True,
+    )
+    logger.info(
+        f"Scheduled settings reconcile job every {SCHEDULE_RECONCILE_MINUTES} minutes"
+    )
 
     if not scheduler.running:
         scheduler.start()
