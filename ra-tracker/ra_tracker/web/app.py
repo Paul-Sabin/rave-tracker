@@ -21,7 +21,7 @@ from .admin import admin_router
 from .csrf import CSRFMiddleware
 from ..services.telegram_bot import stop_bot, get_bot_application
 from ..config import get_config
-from ..database import get_db
+from ..database import DatabaseNotConfiguredError, get_db
 from ..observability.sentry_config import init_sentry, clear_sentry_user
 from ..observability.logging_config import setup_logging
 from ..observability.access_log_middleware import AccessLogMiddleware
@@ -50,6 +50,10 @@ async def lifespan(app: FastAPI):
     # recurse), so every entry point applies it once it has a database.
     try:
         config.apply_db_overrides(get_db())
+    except DatabaseNotConfiguredError:
+        # A misconfiguration, not a transient outage: fail the deployment
+        # loudly instead of serving requests that can never work.
+        raise
     except Exception as e:
         logger.warning(f"Could not apply database settings at startup: {e}")
 
@@ -186,6 +190,9 @@ def create_app() -> FastAPI:
 
         try:
             db = get_db()
+            # Reported so that a silent SQLite fallback cannot pass for a
+            # working production database.
+            health_status["backend"] = db.backend
             with db.get_connection() as conn:
                 cursor = conn.execute("SELECT 1")
                 result = cursor.fetchone()

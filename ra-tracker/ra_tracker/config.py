@@ -188,8 +188,10 @@ class Config:
             config.app.base_url = (os.environ.get("BASE_URL") or os.environ["APP_BASE_URL"]).rstrip("/")
 
         # Database URL (PostgreSQL)
-        if os.environ.get("DATABASE_URL"):
-            db_url = os.environ["DATABASE_URL"]
+        # Stripped first: a whitespace-only value must count as unset, not be
+        # handed to the driver as a host-less connection string.
+        if os.environ.get("DATABASE_URL", "").strip():
+            db_url = os.environ["DATABASE_URL"].strip()
             # Normalize postgres:// to postgresql:// (hosting provider compatibility)
             if db_url.startswith("postgres://"):
                 db_url = db_url.replace("postgres://", "postgresql://", 1)

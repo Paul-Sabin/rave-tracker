@@ -233,6 +233,19 @@ Compare to Render ($21/mo flat) and Fly.io ($38+/mo for managed Postgres).
 - Railway PostgreSQL uses SSL by default (psycopg2 handles this)
 - Verify `DATABASE_URL` format: `postgresql://user:pass@host:port/db`
 - Check connection pool settings (max = WEB_CONCURRENCY + 2)
+- `GET /health` reports which engine is in use (`"backend": "postgresql"`). In production
+  it must never say `sqlite`. A deployment with an empty `DATABASE_URL` now refuses to
+  start (`DatabaseNotConfiguredError`) instead of silently running on an empty SQLite file.
+- `DATABASE_URL is empty`: reveal the variable on the failing service. A reference such as
+  `${{Postgres.DATABASE_URL}}` can resolve to an empty string; it must show a
+  `postgresql://` address.
+- `could not translate host name "postgres.railway.internal"`: the private name is not
+  registered. After any change to the Postgres service's networking settings or
+  credentials, **redeploy the Postgres service itself**, then web and scheduler. In
+  Postgres > Settings > Networking the private name must show as registered (not
+  "Endpoint name available!") and the public line must show a full host, not just `:5432`.
+- `connection to server on socket "/var/run/postgresql/..."`: the address has no host part
+  (for example a `DATABASE_PUBLIC_URL` generated before the TCP proxy had a domain).
 
 ## Security Notes
 

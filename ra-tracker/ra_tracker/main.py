@@ -117,7 +117,7 @@ def main():
     db = Database()
     db.init_schema()
     set_db(db)
-    logger.info(f"Database initialized at {config.database.path}")
+    logger.info(f"Database initialized: {db.describe()}")
 
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)

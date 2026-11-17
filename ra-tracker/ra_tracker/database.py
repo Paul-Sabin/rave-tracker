@@ -628,6 +628,30 @@ class _PgConnectionWrapper:
         return self._conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 
+class DatabaseNotConfiguredError(RuntimeError):
+    """A production deployment has no DATABASE_URL.
+
+    Raised instead of falling back to SQLite: on the hosting platform that
+    fallback is an empty file on an ephemeral disk, and the app would start,
+    report itself healthy and serve nobody's data.
+    """
+
+
+# Variables Railway injects into every deployment. Any of them being set means
+# the process is running on the platform, whatever ENVIRONMENT says.
+_RAILWAY_MARKERS = ("RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID")
+
+
+def _sqlite_fallback_forbidden() -> Optional[str]:
+    """Return why SQLite must not be used here, or None if it is allowed."""
+    if os.environ.get("ENVIRONMENT", "").strip().lower() == "production":
+        return "ENVIRONMENT=production"
+    for marker in _RAILWAY_MARKERS:
+        if os.environ.get(marker):
+            return f"running on Railway ({marker} is set)"
+    return None
+
+
 class Database:
     """Dual-mode database manager (SQLite or PostgreSQL)."""
 
@@ -656,7 +680,16 @@ class Database:
                 dsn=db_url
             )
         else:
-            # SQLite fallback mode
+            # SQLite fallback mode: local development and tests only.
+            reason = _sqlite_fallback_forbidden()
+            if reason:
+                raise DatabaseNotConfiguredError(
+                    f"DATABASE_URL is empty, but this is a production deployment ({reason}). "
+                    "Refusing to fall back to SQLite, which would start the app on an empty "
+                    "local database. Set DATABASE_URL on this service (on Railway: "
+                    "${{Postgres.DATABASE_URL}}), check that it reveals as a non-empty "
+                    "postgresql:// address, and redeploy."
+                )
             if db_path is None:
                 db_path = config.database.path
             self.db_path = db_path
@@ -664,6 +697,17 @@ class Database:
             self._use_postgres = False
             self._pool = None
             self._ensure_db_directory()
+
+    @property
+    def backend(self) -> str:
+        """Which engine is in use: "postgresql" or "sqlite"."""
+        return "postgresql" if self._use_postgres else "sqlite"
+
+    def describe(self) -> str:
+        """Human-readable backend for logs. Never includes credentials."""
+        if self._use_postgres:
+            return "PostgreSQL (DATABASE_URL)"
+        return f"SQLite at {self.db_path}"
 
     def _row_has_key(self, row, key: str) -> bool:
         """Check if row has a key (works for both dict and sqlite3.Row)."""
@@ -2965,8 +3009,10 @@ def get_db() -> Database:
     """Get the global database instance."""
     global _db
     if _db is None:
-        _db = Database()
-        _db.init_schema()
+        db = Database()
+        db.init_schema()
+        _db = db
+        logger.info(f"Database backend: {db.describe()}")
     return _db
 
 
